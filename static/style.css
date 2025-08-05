@@ -1,0 +1,115 @@
+body {
+    font-family: sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background: #f4f4f4;
+    color: #333;
+}
+
+header {
+    background: #333;
+    color: #fff;
+    padding: 1rem 0;
+    text-align: center;
+}
+
+main {
+    padding: 1rem;
+    margin: 1rem auto;
+    max-width: 800px;
+    background: #fff;
+    border-radius: 5px;
+}
+
+/* Styles for the new questionnaire */
+.question {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background: #f9f9f9;
+}
+
+.question-text {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.prompt {
+    font-style: italic;
+    color: #555;
+}
+
+.input-group {
+    margin-bottom: 1rem;
+}
+
+.choice {
+    margin-bottom: 0.8rem;
+}
+
+.choice label {
+    margin-left: 0.5rem;
+    cursor: pointer;
+}
+
+.next-btn {
+    margin-top: 1rem;
+}
+
+label {
+    display: inline-block;
+    margin-bottom: 0.5rem;
+}
+
+input[type="number"] {
+    padding: 8px;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+button, .next-btn {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background: #333;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+button:hover, .next-btn:hover {
+    background: #555;
+}
+
+.controls {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background: #f9f9f9;
+}
+
+.control-group {
+    margin-bottom: 1rem;
+}
+
+.control-group label {
+    font-weight: bold;
+}
+
+input[type="range"] {
+    width: 100%;
+    cursor: pointer;
+}
+
+footer {
+    text-align: center;
+    padding: 1rem 0;
+    margin-top: 2rem;
+    font-size: 0.8rem;
+}

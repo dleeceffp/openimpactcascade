@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Results - OpenImpactCascade</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>OpenImpactCascade</h1>
+        <p>Risk Analysis Results</p>
+    </header>
+
+    <main>
+        <h2>Simulation Results</h2>
+        <div class="results-summary">
+            <ul>
+                <li><strong>Mean Annualized Loss:</strong> ${{ "{:,.2f}".format(results.mean_annualized_loss) }}</li>
+                <li><strong>Median Annualized Loss:</strong> ${{ "{:,.2f}".format(results.median_annualized_loss) }}</li>
+                <li><strong>5th Percentile Loss:</strong> ${{ "{:,.2f}".format(results.loss_percentile_5) }}</li>
+                <li><strong>95th Percentile Loss:</strong> ${{ "{:,.2f}".format(results.loss_percentile_95) }}</li>
+            </ul>
+        </div>
+
+        <h2>Loss Distribution</h2>
+        <div id="chart-container" style="width: 80%; margin: auto;">
+            <canvas id="lossChart"></canvas>
+        </div>
+
+        <hr>
+
+        <h2>Control Variables</h2>
+        <div class="controls">
+            <div class="control-group">
+                <label for="likelihood-slider">Likelihood Reduction: <span id="likelihood-value">0</span>%</label>
+                <input type="range" id="likelihood-slider" min="0" max="100" value="0">
+            </div>
+            <div class="control-group">
+                <label for="impact-slider">Impact Reduction: <span id="impact-value">0</span>%</label>
+                <input type="range" id="impact-slider" min="0" max="100" value="0">
+            </div>
+        </div>
+
+        <a href="/">Run another analysis</a>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const initialResults = {{ results | tojson }};
+            const originalInputs = {{ original_inputs | tojson }};
+            let lossChart;
+
+            function createHistogramData(samples) {
+                const binCount = 30;
+                const minLoss = Math.min(...samples);
+                const maxLoss = Math.max(...samples);
+                const binWidth = (maxLoss - minLoss) / binCount;
+                const bins = new Array(binCount).fill(0);
+                const labels = new Array(binCount);
+
+                for (let i = 0; i < binCount; i++) {
+                    const binStart = minLoss + i * binWidth;
+                    labels[i] = `$${Math.round(binStart).toLocaleString()}`;
+                }
+
+                samples.forEach(sample => {
+                    let binIndex = Math.floor((sample - minLoss) / binWidth);
+                    if (binIndex >= binCount) binIndex = binCount - 1;
+                    bins[binIndex]++;
+                });
+                return { labels, bins };
+            }
+
+            function renderChart(results) {
+                const { labels, bins } = createHistogramData(results.annualized_loss_samples);
+                if (lossChart) {
+                    lossChart.data.labels = labels;
+                    lossChart.data.datasets[0].data = bins;
+                    lossChart.update();
+                } else {
+                    const ctx = document.getElementById('lossChart').getContext('2d');
+                    lossChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Frequency of Annualized Loss',
+                                data: bins,
+                                backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                y: { beginAtZero: true, title: { display: true, text: 'Frequency' } },
+                                x: { title: { display: true, text: 'Annualized Loss ($)' } }
+                            }
+                        }
+                    });
+                }
+            }
+
+            function updateSummary(results) {
+                document.querySelector('.results-summary ul').innerHTML = `
+                    <li><strong>Mean Annualized Loss:</strong> $${results.mean_annualized_loss.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</li>
+                    <li><strong>Median Annualized Loss:</strong> $${results.median_annualized_loss.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</li>
+                    <li><strong>5th Percentile Loss:</strong> $${results.loss_percentile_5.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</li>
+                    <li><strong>95th Percentile Loss:</strong> $${results.loss_percentile_95.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</li>
+                `;
+            }
+
+            async function recalculate() {
+                const likelihoodReduction = document.getElementById('likelihood-slider').value;
+                const impactReduction = document.getElementById('impact-slider').value;
+
+                const response = await fetch('/recalculate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        original_inputs: originalInputs,
+                        likelihood_reduction: parseInt(likelihoodReduction),
+                        impact_reduction: parseInt(impactReduction)
+                    })
+                });
+                const newResults = await response.json();
+                updateSummary(newResults);
+                renderChart(newResults);
+            }
+
+            // Initial render
+            renderChart(initialResults);
+
+            // Event Listeners
+            const likelihoodSlider = document.getElementById('likelihood-slider');
+            const impactSlider = document.getElementById('impact-slider');
+            likelihoodSlider.addEventListener('input', () => {
+                document.getElementById('likelihood-value').textContent = likelihoodSlider.value;
+            });
+            impactSlider.addEventListener('input', () => {
+                document.getElementById('impact-value').textContent = impactSlider.value;
+            });
+            likelihoodSlider.addEventListener('change', recalculate);
+            impactSlider.addEventListener('change', recalculate);
+        });
+    </script>
+
+    <footer>
+        <p>&copy; 2025 OpenImpactCascade</p>
+    </footer>
+</body>
+</html>
