@@ -17,6 +17,7 @@ def home():
 def analyze():
     """Processes the risk analysis form and displays the results."""
     if request.method == 'POST':
+        print("Received form data:", request.form)
         try:
             # Store original inputs for recalculation
             original_inputs = {

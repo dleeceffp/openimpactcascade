@@ -59,6 +59,16 @@ document.addEventListener('DOMContentLoaded', () => {
         nextBtn.className = 'next-btn';
         nextBtn.addEventListener('click', () => {
             if (form.checkValidity()) {
+                // Persist the data from the current inputs into hidden fields
+                const inputs = parentDiv.querySelectorAll('input[type="number"]');
+                inputs.forEach(input => {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = input.name;
+                    hiddenInput.value = input.value;
+                    form.appendChild(hiddenInput);
+                });
+
                 renderQuestion(question.next_question_id);
             } else {
                 alert('Please fill in all required fields.');
