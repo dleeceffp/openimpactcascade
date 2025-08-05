@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.stats import pert
+from scipy.stats import beta
 
 def run_monte_carlo(lef_min, lef_mle, lef_max, lm_min, lm_mle, lm_max, n_simulations=10000):
     """
@@ -17,23 +17,26 @@ def run_monte_carlo(lef_min, lef_mle, lef_max, lm_min, lm_mle, lm_max, n_simulat
     Returns:
         dict: A dictionary containing summary statistics of the simulation.
     """
-    # For the PERT distribution in SciPy, the shape parameter 'b' is the peak (most likely value)
-    # scaled to the interval [0, 1].
-    def calculate_b(min_val, mle_val, max_val):
-        if max_val == min_val: # Avoid division by zero
-            return 0.5
-        return (mle_val - min_val) / (max_val - min_val)
+    def get_pert_samples(min_val, mle_val, max_val, n_samples, gamma=4):
+        """Generates samples from a PERT distribution."""
+        # Handle edge cases
+        if min_val == mle_val == max_val:
+            return np.full(n_samples, min_val)
+        if min_val >= max_val:
+            return np.full(n_samples, mle_val)
 
-    # Create PERT distributions for frequency and magnitude
-    lef_b = calculate_b(lef_min, lef_mle, lef_max)
-    lm_b = calculate_b(lm_min, lm_mle, lm_max)
+        # Calculate alpha and beta parameters for the Beta distribution
+        alpha = 1 + gamma * (mle_val - min_val) / (max_val - min_val)
+        beta_param = 1 + gamma * (max_val - mle_val) / (max_val - min_val)
 
-    lef_dist = pert(b=lef_b, loc=lef_min, scale=lef_max - lef_min)
-    lm_dist = pert(b=lm_b, loc=lm_min, scale=lm_max - lm_min)
+        # Generate samples from the Beta distribution and scale them
+        beta_samples = beta.rvs(alpha, beta_param, size=n_samples)
+        pert_samples = min_val + beta_samples * (max_val - min_val)
+        return pert_samples
 
-    # Generate random samples from the distributions
-    lef_samples = lef_dist.rvs(size=n_simulations)
-    lm_samples = lm_dist.rvs(size=n_simulations)
+    # Generate random samples for frequency and magnitude
+    lef_samples = get_pert_samples(lef_min, lef_mle, lef_max, n_simulations)
+    lm_samples = get_pert_samples(lm_min, lm_mle, lm_max, n_simulations)
 
     # Calculate the annualized loss for each simulation run
     annualized_loss = lef_samples * lm_samples
