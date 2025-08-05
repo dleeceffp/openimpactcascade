@@ -27,11 +27,12 @@ def analyze():
                 'lm_mle': float(request.form.get('lm_mle')),
                 'lm_max': float(request.form.get('lm_max'))
             }
+            n_simulations = int(request.form.get('n_simulations', 10000))
 
             # Run the initial simulation
-            results = run_monte_carlo(**original_inputs)
+            results = run_monte_carlo(**original_inputs, n_simulations=n_simulations)
             
-            return render_template('results.html', results=results, original_inputs=original_inputs)
+            return render_template('results.html', results=results, original_inputs=original_inputs, n_simulations=n_simulations)
         except (ValueError, TypeError):
             # A simple error handler for invalid number inputs
             return "Invalid input. Please ensure all fields are numbers.", 400
@@ -48,6 +49,7 @@ def recalculate():
     inputs = data.get('original_inputs')
     likelihood_reduction = data.get('likelihood_reduction', 0) / 100.0
     impact_reduction = data.get('impact_reduction', 0) / 100.0
+    n_simulations = data.get('n_simulations', 10000)
 
     # Apply reductions
     adjusted_inputs = {
@@ -60,7 +62,7 @@ def recalculate():
     }
 
     # Run new simulation
-    new_results = run_monte_carlo(**adjusted_inputs)
+    new_results = run_monte_carlo(**adjusted_inputs, n_simulations=n_simulations)
     return new_results
 
 if __name__ == "__main__":

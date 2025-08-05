@@ -18,6 +18,14 @@
             <div id="questionnaire-container">
                 <!-- Questions will be dynamically inserted here by questionnaire.js -->
             </div>
+
+            <div class="static-input">
+                <h3>Simulation Settings</h3>
+                <div class="input-group">
+                    <label for="n_simulations">Number of Simulations:</label>
+                    <input type="number" id="n_simulations" name="n_simulations" value="10000" min="1000" max="100000" required>
+                </div>
+            </div>
             <button type="submit" id="submit-btn" style="display:none;">Analyze Risk</button>
         </form>
     </main>

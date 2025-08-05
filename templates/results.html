@@ -45,11 +45,19 @@
         <a href="/">Run another analysis</a>
     </main>
 
+    <div id="simulation-data"
+         data-results='{{ results | tojson | safe }}'
+         data-original-inputs='{{ original_inputs | tojson | safe }}'
+         data-n-simulations='{{ n_simulations }}'>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const initialResults = {{ results | tojson }};
-            const originalInputs = {{ original_inputs | tojson }};
+            const dataElement = document.getElementById('simulation-data');
+            const initialResults = JSON.parse(dataElement.dataset.results);
+            const originalInputs = JSON.parse(dataElement.dataset.originalInputs);
+            const nSimulations = parseInt(dataElement.dataset.nSimulations, 10);
             let lossChart;
 
             function createHistogramData(samples) {
@@ -122,7 +130,8 @@
                     body: JSON.stringify({
                         original_inputs: originalInputs,
                         likelihood_reduction: parseInt(likelihoodReduction),
-                        impact_reduction: parseInt(impactReduction)
+                        impact_reduction: parseInt(impactReduction),
+                        n_simulations: nSimulations
                     })
                 });
                 const newResults = await response.json();

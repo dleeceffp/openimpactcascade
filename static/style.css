@@ -58,6 +58,12 @@ main {
     margin-top: 1rem;
 }
 
+.static-input {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
 label {
     display: inline-block;
     margin-bottom: 0.5rem;
