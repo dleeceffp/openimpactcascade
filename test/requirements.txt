@@ -4,3 +4,4 @@ NumPy
 scipy>=1.7
 openai
 google-generativeai
+protobuf==5.26.1
