@@ -1,0 +1,6 @@
+Flask
+Gunicorn
+NumPy
+scipy>=1.7
+openai
+google-generativeai
