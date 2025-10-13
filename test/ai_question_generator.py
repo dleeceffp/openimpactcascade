@@ -127,6 +127,46 @@ If you cannot find sufficient verified information for the specific industry/reg
 
 **Remember: Users trust this output for significant risk decisions. Accuracy is paramount. When in doubt, verify or acknowledge limitations.**
 
+**JSON Generation Requirements:**
+
+You must generate valid, parseable JSON. Follow these critical rules:
+
+1. **Escape All Special Characters:**
+   - Use `\"` for quotes inside strings
+   - Use `\\` for backslashes
+   - Use `\n` for newlines
+   - Use `\t` for tabs
+
+2. **String Content Rules:**
+   - NO unescaped double quotes (") in any string value
+   - NO line breaks within strings unless properly escaped as \\n
+   - When including URLs or technical content, ensure all special characters are escaped
+   - When including citations or report names with quotes, escape them: `\"Report Name\"`
+
+3. **Common JSON Errors to Avoid:**
+   - ❌ BAD: `"description": "The "best" practice is..."`
+   - ✅ GOOD: `"description": "The 'best' practice is..."` (use single quotes)
+   - ✅ GOOD: `"description": "The \"best\" practice is..."` (or escape)
+   
+   - ❌ BAD: `"text": "Line 1\nLine 2"` (actual newline)
+   - ✅ GOOD: `"text": "Line 1. Line 2"` (avoid newlines in strings)
+   
+   - ❌ BAD: `"url": "https://example.com?param=value&other=value"` (unescaped &)
+   - ✅ GOOD: `"url": "https://example.com?param=value&amp;other=value"` (if needed)
+   - ✅ BETTER: URLs are generally fine as-is in JSON strings
+
+4. **Validation Before Output:**
+   - Ensure all brackets are balanced: {}, [], ()
+   - Ensure all string quotes are properly closed
+   - Check that all commas are in the right places
+   - Verify no trailing commas before closing braces
+
+**If your response includes:**
+- Report names with quotes → Use single quotes or escape
+- Multi-line descriptions → Use a single line with proper punctuation
+- URLs → Ensure they're complete and properly formatted
+- Statistics with symbols → Spell out (e.g., "50 percent" not "50%")
+
 Output valid JSON only."""
 
     def generate_questionnaire(
@@ -139,6 +179,7 @@ Output valid JSON only."""
         security_maturity: Optional[str] = None,   # e.g., "Basic", "Moderate", "Advanced"
         critical_assets: Optional[List[str]] = None,  # e.g., ["customer data", "payment systems"]
         compliance_requirements: Optional[List[str]] = None,  # e.g., ["GDPR", "HIPAA", "PCI-DSS"]
+        max_retries: int = 2  # Number of retries if JSON parsing fails
     ) -> Dict:
         """
         Generate a context-aware questionnaire for specific industry and region.
@@ -184,10 +225,38 @@ Output valid JSON only."""
             print(f"  Revenue: {annual_revenue}")
         print("\nThis may take 20-30 seconds...\n")
         
+        # Retry loop for handling JSON parsing failures
+        last_error = None
+        for attempt in range(max_retries + 1):
+            if attempt > 0:
+                print(f"\n🔄 Retry attempt {attempt}/{max_retries}...\n")
+            
+            try:
+                return self._generate_with_retry(context, user_prompt, attempt)
+            except json.JSONDecodeError as e:
+                last_error = e
+                if attempt < max_retries:
+                    print(f"⚠️  Attempt {attempt + 1} failed with JSON error. Retrying with adjusted parameters...")
+                    continue
+                else:
+                    print(f"\n❌ All {max_retries + 1} attempts failed.")
+                    print("The AI is having trouble generating valid JSON for this combination.")
+                    print(f"Last error: {e}")
+                    raise
+            except Exception as e:
+                print(f"Error generating questionnaire: {e}")
+                raise
+    
+    def _generate_with_retry(self, context: Dict, user_prompt: str, attempt: int) -> Dict:
+        """Internal method to handle a single generation attempt."""
         try:
+            # Adjust temperature based on retry attempt (lower = more conservative)
+            temperature = 0.3 - (attempt * 0.1)
+            temperature = max(0.1, temperature)  # Don't go below 0.1
             message = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=8192,
+                temperature=temperature,
                 system=self.system_prompt,
                 messages=[
                     {"role": "user", "content": user_prompt}
@@ -195,7 +264,44 @@ Output valid JSON only."""
             )
             
             response_text = message.content[0].text
-            questionnaire = self._extract_json(response_text)
+            
+            # Attempt to extract and parse JSON
+            try:
+                questionnaire = self._extract_json(response_text)
+            except json.JSONDecodeError as e:
+                print(f"\n⚠️  JSON parsing failed. Attempting automatic repair...")
+                
+                # Try to salvage the JSON by fixing common issues
+                json_str = response_text
+                if "```json" in json_str:
+                    start = json_str.find("```json") + 7
+                    end = json_str.find("```", start)
+                    json_str = json_str[start:end].strip()
+                
+                # Attempt repairs
+                repaired = False
+                
+                # Try removing trailing commas (common issue)
+                if ",\n}" in json_str or ",\n]" in json_str:
+                    print("  → Removing trailing commas...")
+                    json_str = json_str.replace(",\n}", "\n}").replace(",\n]", "\n]")
+                    repaired = True
+                
+                # Try fixing unescaped quotes in strings (basic attempt)
+                # This is a simplified fix - won't catch all cases
+                
+                if repaired:
+                    print("  → Retrying JSON parse...")
+                    try:
+                        questionnaire = json.loads(json_str)
+                        print("  ✓ Successfully repaired and parsed JSON!")
+                    except json.JSONDecodeError as e2:
+                        print(f"  ✗ Repair failed: {e2}")
+                        print("\n  The AI generated invalid JSON. Please try again.")
+                        print("  If this persists, the query may be too complex.")
+                        raise e  # Raise original error
+                else:
+                    raise e  # No repairs attempted, raise original error
             
             # Add context to questionnaire metadata
             if "metadata" not in questionnaire:
@@ -208,7 +314,7 @@ Output valid JSON only."""
             return questionnaire
             
         except Exception as e:
-            print(f"Error generating questionnaire: {e}")
+            print(f"Error in generation attempt: {e}")
             raise
     
     def _build_contextual_prompt(self, context: Dict) -> str:
@@ -543,7 +649,7 @@ Base your example frequency and magnitude estimates on:
 """
 
     def _extract_json(self, text: str) -> Dict:
-        """Extract JSON from AI response text."""
+        """Extract JSON from AI response text with enhanced error handling."""
         # Remove markdown code blocks if present
         if "```json" in text:
             start = text.find("```json") + 7
@@ -564,8 +670,33 @@ Base your example frequency and magnitude estimates on:
         try:
             return json.loads(json_str)
         except json.JSONDecodeError as e:
-            print(f"Failed to parse JSON: {e}")
-            print(f"JSON string: {json_str[:500]}...")
+            print(f"\n{'='*70}")
+            print(f"JSON PARSING ERROR")
+            print(f"{'='*70}")
+            print(f"Error: {e}")
+            print(f"Error at line {e.lineno}, column {e.colno}, position {e.pos}")
+            
+            # Show context around the error
+            lines = json_str.split('\n')
+            error_line = e.lineno - 1
+            
+            print(f"\nContext around error (lines {max(0, error_line-2)} to {min(len(lines), error_line+3)}):")
+            print("-" * 70)
+            for i in range(max(0, error_line - 2), min(len(lines), error_line + 3)):
+                prefix = ">>> " if i == error_line else "    "
+                print(f"{prefix}Line {i+1}: {lines[i][:150]}")
+                if i == error_line:
+                    # Point to the error column
+                    print(f"    {' ' * (e.colno - 1)}^-- ERROR HERE")
+            print("-" * 70)
+            
+            # Save the problematic JSON to a file for inspection
+            error_filename = "json_error_debug.json"
+            with open(error_filename, 'w') as f:
+                f.write(json_str)
+            print(f"\nFull JSON saved to: {error_filename}")
+            print("Tip: Check this file for unescaped quotes or special characters")
+            print(f"{'='*70}\n")
             raise
     
     def _validate_questionnaire(self, questionnaire: Dict) -> bool:
