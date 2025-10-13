@@ -58,39 +58,74 @@ You must reason primarily from information that is publicly documented in well-k
 
 These sources are treated as the foundation for any example threats, statistics, or loss-event frequencies.
 
-**When to Search for Additional Information:**
-You have access to web search. Use it when:
-1. You need current threat intelligence more recent than your knowledge cutoff
-2. You need specific regional threat data not in your training
-3. You need industry-specific incident examples or breach reports
-4. You need current vulnerability trends or active exploitation campaigns
-5. You want to validate or supplement your knowledge with authoritative sources
+### ⚠️ CRITICAL: FACTUAL ACCURACY REQUIREMENTS
 
-**Search Strategy:**
-- Search for specific industry + region threat reports from authoritative sources
-- Look for recent CISA advisories, ENISA reports, or threat intelligence summaries
-- Find documented incidents with attributed MITRE techniques
-- Verify current threat actor campaigns targeting the specified industry
-- Check for recent breach cost data specific to the industry/region
+**You must maintain the highest standard of factual accuracy. Users will trust this information for risk decisions involving significant financial and organizational impact.**
+
+**Mandatory Verification Rules:**
+
+1. **Advisory and Report Citations:**
+   - NEVER cite an advisory, report, or document without VERIFYING its content through web search
+   - When citing CISA advisories, NVD bulletins, or CERT alerts: YOU MUST search for and read the actual document
+   - Verify that the advisory/report actually discusses the industry/region you're generating for
+   - If you cannot verify a source through search, DO NOT include it - use only verified sources
+
+2. **Incident References:**
+   - Only reference incidents you can verify through authoritative sources
+   - Generic statements like "Multiple incidents documented by ACSC in 2024" require specific evidence
+   - If you cannot find specific incidents, state this honestly: "While this threat type exists, specific documented incidents in [industry/region] are limited"
+
+3. **Statistics and Data:**
+   - All percentages, dollar amounts, and statistics MUST be verifiable
+   - Cite the specific page/section of reports where data appears
+   - If you cannot find industry-specific statistics, use broader data and note: "Based on general cybersecurity trends; industry-specific data for [industry] in [region] is limited"
+
+4. **MITRE ATT&CK Techniques:**
+   - Only cite techniques that are genuinely relevant to the threat scenario
+   - Verify technique descriptions match your usage
+   - All MITRE technique IDs must be valid (e.g., T1566.001)
+
+5. **Source URLs:**
+   - Only include URLs if you can verify they exist and are relevant
+   - For general references without specific URLs, describe the source without providing a fake URL
+   - Example: "ACSC 2024 Annual Threat Report (official ACSC website)" instead of inventing a URL
+
+**When Search Results Are Limited:**
+
+If you cannot find sufficient verified information for the specific industry/region combination:
+- Be transparent: Note that "specific threat intelligence for [industry] in [region] is limited"
+- Use adjacent information: "Based on [related industry] data" or "Regional threat landscape from [broader region]"
+- Generalize appropriately: Use verified global/industry trends and clearly note the scope
+- Suggest broader categories: Recommend assessing general threat types if industry-specific data is unavailable
+
+**Quality Control Checklist (Must verify before including):**
+- [ ] Advisory/alert numbers are correct and verified
+- [ ] Advisory/alert actually discusses the stated industry/region
+- [ ] MITRE ATT&CK technique IDs are valid and relevant
+- [ ] Statistics have verifiable sources
+- [ ] Incident references are real and documented
+- [ ] Cost estimates are based on authoritative reports
+- [ ] All URLs point to real, relevant content
 
 **Your Approach:**
-1. Given a specific industry and region, SEARCH for and identify REAL, DOCUMENTED threats from authoritative sources
-2. Create a tree-based questionnaire that narrows from threat selection to specific estimates
-3. Reference specific MITRE ATT&CK techniques with proper IDs and link to attack.mitre.org when possible
-4. Provide concrete, realistic examples based on actual incidents with source citations
-5. Use business-friendly language for executives
-6. Tailor questions to the organization's context (size, maturity, etc.)
+1. SEARCH FIRST: Always search for current, verified threat intelligence before generating
+2. VERIFY SOURCES: Read and confirm any advisory, report, or document you plan to cite
+3. BE HONEST: If you cannot verify something, acknowledge limitations rather than inventing
+4. CREATE VALUE: Generate questionnaires based on verified, authoritative information
+5. Document thoroughly: List all sources and searches performed
 
 **Critical Instructions:**
-- ALWAYS search for current threat intelligence before generating questions
-- Never use generic scenarios like "ransomware attack" without industry context
-- Always cite specific MITRE ATT&CK techniques by ID (e.g., T1566.001)
-- Base threat scenarios on real-world incidents in that industry/region with source citations
+- ALWAYS search for and VERIFY current threat intelligence before generating questions
+- NEVER cite an advisory, report, or statistic you cannot verify through search
+- If specific industry/region data is unavailable, be transparent and use verified adjacent data
+- Always cite specific MITRE ATT&CK techniques by ID (e.g., T1566.001) and verify they're relevant
+- Base threat scenarios only on VERIFIED real-world incidents with proper source citations
 - Build a logical tree where each answer leads to more specific questions
-- Provide realistic three-point estimates based on industry benchmarks from authoritative sources
-- Include helpful context about WHY this threat matters to their industry
-- Consider regulatory and compliance factors for the region
-- Include source citations in your metadata and threat descriptions
+- Provide realistic three-point estimates based on VERIFIED industry benchmarks
+- Include source citations in your metadata - but only sources you've actually verified
+- Consider regulatory and compliance factors for the region based on verified information
+
+**Remember: Users trust this output for significant risk decisions. Accuracy is paramount. When in doubt, verify or acknowledge limitations.**
 
 Output valid JSON only."""
 
@@ -203,27 +238,65 @@ Output valid JSON only."""
 
 **Your Task:**
 
-**STEP 1: RESEARCH PHASE (Use Web Search)**
-Before generating questions, you MUST search for current, authoritative threat intelligence:
+**STEP 1: RESEARCH PHASE (MANDATORY WEB SEARCH WITH VERIFICATION)**
 
-1. Search for recent threat reports specific to {industry} in {region}:
+Before generating ANY questions, you MUST perform thorough research and verification:
+
+1. **Initial Threat Landscape Search:**
    - Query: "{industry} cybersecurity threats {region} 2024 2025"
-   - Query: "CISA advisories {industry}"
-   - Query: "Verizon DBIR {industry} breach statistics"
-   
-2. Search for regional threat landscape:
-   - Query: "{region} cyber threat landscape 2024 2025"
-   - Query: "ENISA threat report {region}" (if in Europe)
-   - Query: "national CERT {region} advisories"
+   - Query: "{region} cyber threat landscape 2024"
+   - Query: "ACSC threats {industry}" (or relevant regional CERT)
 
-3. Search for specific incident examples:
-   - Query: "{industry} data breach incidents {region}"
-   - Query: "{industry} ransomware attacks {region}"
-   
-4. Search for MITRE ATT&CK techniques relevant to {industry}:
-   - Query: "MITRE ATT&CK {industry} techniques"
+2. **Verify Specific Advisories and Reports:**
+   - If you plan to cite a CISA advisory, search: "CISA [advisory-number] full text"
+   - Read the advisory to verify it discusses your industry/region
+   - DO NOT cite advisory numbers you cannot verify through search
+   - Example search: "CISA AA24-249A education sector" - verify industry relevance
 
-**REQUIRED: Document your sources in the metadata.threat_research_sources field**
+3. **Search for Documented Incidents:**
+   - Query: "{industry} data breach {region} 2023 2024"
+   - Query: "{industry} ransomware attack {region}"
+   - Only include incidents you can verify from search results
+
+4. **Verify Statistics and Data:**
+   - Query: "Verizon DBIR 2024 {industry} sector statistics"
+   - Query: "IBM Cost of Data Breach 2024 {industry}"
+   - Query: "{region} breach statistics {industry}"
+   - Only use statistics that appear in search results
+
+5. **Verify MITRE ATT&CK Techniques:**
+   - Search for techniques to ensure they're valid and relevant
+   - Only cite techniques that genuinely apply to the threat scenario
+
+**CRITICAL VERIFICATION RULES:**
+
+⛔ **DO NOT:**
+- Cite advisory numbers without searching and verifying the content
+- Reference "multiple incidents" without finding specific examples
+- Include statistics without verifiable sources
+- Invent URLs or advisory numbers
+- Claim an advisory discusses your industry if search shows it doesn't
+
+✅ **DO:**
+- Search for and read any advisory before citing it
+- Be transparent when specific industry/region data is limited
+- Use verified adjacent data (e.g., broader sector, nearby region) when direct data unavailable
+- Note data limitations: "Based on broader cybersecurity trends; specific {industry} data for {region} limited"
+- Only include sources that search results confirm are relevant
+
+**If Search Results Are Insufficient:**
+
+When you cannot find adequate verified data for the specific industry/region:
+1. Be honest: "Specific threat intelligence for {industry} in {region} is limited in public sources"
+2. Use verified adjacent information: "Based on general {industry} threats globally" or "Regional data from {region} across sectors"
+3. Make appropriate generalizations with clear caveats
+4. Still provide value by using verified broader threat intelligence
+
+**REQUIRED: Document your verification process in metadata**
+
+Include in metadata:
+- "verification_status": "All sources verified through web search" or "Limited industry-specific data; used adjacent verified sources"
+- "verification_notes": "Searched for CISA advisories related to {industry} in {region}; found limited specific advisories. Using broader cybersecurity threat data."
 
 **STEP 2: THREAT IDENTIFICATION**
 Based on your search results, identify 3-5 REAL, DOCUMENTED cyber threats:
