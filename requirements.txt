@@ -1,9 +1,8 @@
 Gunicorn
 openai
-google-generativeai==0.5.0
+google-generativeai==0.8.5
 anthropic>=0.18.0
 flask>=3.0.0
-anthropic>=0.18.0
 numpy>=1.24.0
 scipy>=1.11.0
 python-dotenv>=1.0.0
