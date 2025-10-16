@@ -6,9 +6,8 @@ import os
 import json
 import logging
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session, send_file
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 from ai_question_generator import AIQuestionGenerator
-import secrets
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -16,15 +15,6 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
-
-# Configure session to use filesystem instead of cookies
-app.config['SESSION_TYPE'] = 'filesystem'
-app.config['SESSION_FILE_DIR'] = './flask_session'
-app.config['SESSION_PERMANENT'] = False
-
-# Create session directory
-os.makedirs('./flask_session', exist_ok=True)
-os.makedirs('./generated', exist_ok=True)
 
 # Initialize AI generator (will be None if API key not set)
 ai_generator = None
