@@ -135,62 +135,28 @@ def analyze():
         # Import simulation module
         from simulation import run_monte_carlo
         
-        # Get form data with better error handling
-        try:
-            lef_min = request.form.get('lef_min')
-            lef_mle = request.form.get('lef_mle')
-            lef_max = request.form.get('lef_max')
-            lm_min = request.form.get('lm_min')
-            lm_mle = request.form.get('lm_mle')
-            lm_max = request.form.get('lm_max')
-            
-            # Check for missing values
-            if not all([lef_min, lef_mle, lef_max, lm_min, lm_mle, lm_max]):
-                missing = []
-                if not lef_min: missing.append('lef_min')
-                if not lef_mle: missing.append('lef_mle')
-                if not lef_max: missing.append('lef_max')
-                if not lm_min: missing.append('lm_min')
-                if not lm_mle: missing.append('lm_mle')
-                if not lm_max: missing.append('lm_max')
-                
-                logger.error(f"Missing form fields: {missing}")
-                return render_template('error.html', 
-                    error=f"Missing required fields: {', '.join(missing)}. Please complete all estimate fields in the questionnaire."), 400
-            
-            original_inputs = {
-                'lef_min': float(lef_min),
-                'lef_mle': float(lef_mle),
-                'lef_max': float(lef_max),
-                'lm_min': float(lm_min),
-                'lm_mle': float(lm_mle),
-                'lm_max': float(lm_max)
-            }
-            
-        except ValueError as e:
-            logger.error(f"Invalid number format: {e}")
-            return render_template('error.html', 
-                error="Invalid number format. Please enter valid numbers for all estimate fields."), 400
-        
+        # Get form data
+        original_inputs = {
+            'lef_min': float(request.form.get('lef_min')),
+            'lef_mle': float(request.form.get('lef_mle')),
+            'lef_max': float(request.form.get('lef_max')),
+            'lm_min': float(request.form.get('lm_min')),
+            'lm_mle': float(request.form.get('lm_mle')),
+            'lm_max': float(request.form.get('lm_max'))
+        }
         n_simulations = int(request.form.get('n_simulations', 10000))
         
-        # Validate ranges
+        # Validate
         if not (0 <= original_inputs['lef_min'] <= original_inputs['lef_mle'] <= original_inputs['lef_max']):
-            logger.error(f"Invalid LEF range: {original_inputs['lef_min']}, {original_inputs['lef_mle']}, {original_inputs['lef_max']}")
             return render_template('error.html', 
-                error=f"Invalid frequency estimates: min ({original_inputs['lef_min']}) ≤ most likely ({original_inputs['lef_mle']}) ≤ max ({original_inputs['lef_max']}) not satisfied"), 400
+                error="Invalid frequency estimates: must satisfy min ≤ most likely ≤ max"), 400
         
         if not (0 <= original_inputs['lm_min'] <= original_inputs['lm_mle'] <= original_inputs['lm_max']):
-            logger.error(f"Invalid LM range: {original_inputs['lm_min']}, {original_inputs['lm_mle']}, {original_inputs['lm_max']}")
             return render_template('error.html', 
-                error=f"Invalid magnitude estimates: min (${original_inputs['lm_min']:,.0f}) ≤ most likely (${original_inputs['lm_mle']:,.0f}) ≤ max (${original_inputs['lm_max']:,.0f}) not satisfied"), 400
-        
-        logger.info(f"Running Monte Carlo simulation with LEF: {original_inputs['lef_min']}-{original_inputs['lef_mle']}-{original_inputs['lef_max']}, LM: ${original_inputs['lm_min']}-${original_inputs['lm_mle']}-${original_inputs['lm_max']}")
+                error="Invalid magnitude estimates: must satisfy min ≤ most likely ≤ max"), 400
         
         # Run simulation
         results = run_monte_carlo(**original_inputs, n_simulations=n_simulations)
-        
-        logger.info(f"Simulation complete: Mean=${results['mean']:,.0f}, StdDev=${results['std']:,.0f}")
         
         # Get MITRE references if available - load from file
         mitre_references = None
@@ -214,7 +180,6 @@ def analyze():
                 
                 if mitre_techniques:
                     mitre_references = list(mitre_techniques)
-                    logger.info(f"Found {len(mitre_references)} MITRE techniques")
                     
             except Exception as e:
                 logger.warning(f"Could not load MITRE references: {e}")
@@ -228,7 +193,7 @@ def analyze():
         )
         
     except (ValueError, TypeError) as e:
-        logger.error(f"Validation error: {e}", exc_info=True)
+        logger.error(f"Validation error: {e}")
         return render_template('error.html', error=f"Invalid input: {str(e)}"), 400
     except Exception as e:
         logger.error(f"Analysis error: {e}", exc_info=True)

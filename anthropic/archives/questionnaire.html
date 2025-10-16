@@ -393,47 +393,11 @@
             }, 500);
         }
         
-        // Update results on page
         function updatePertValue(key, value) {
             pertValues[key] = parseFloat(value);
-            // Also update hidden form field
-            document.getElementById(key).value = value;
         }
         
         function goNext(nextQuestionId) {
-            // Validate PERT inputs before advancing
-            const currentQuestion = questions.questions[currentQuestionId];
-            
-            if (currentQuestion.type === 'pert_estimate') {
-                const minInput = document.getElementById('input_min');
-                const mleInput = document.getElementById('input_mle');
-                const maxInput = document.getElementById('input_max');
-                
-                if (!minInput || !mleInput || !maxInput) {
-                    alert('Please fill in all estimate fields');
-                    return;
-                }
-                
-                const min = parseFloat(minInput.value);
-                const mle = parseFloat(mleInput.value);
-                const max = parseFloat(maxInput.value);
-                
-                if (isNaN(min) || isNaN(mle) || isNaN(max)) {
-                    alert('Please enter valid numbers for all fields');
-                    return;
-                }
-                
-                if (!(min <= mle && mle <= max)) {
-                    alert('Values must satisfy: Minimum ≤ Most Likely ≤ Maximum');
-                    return;
-                }
-                
-                if (min < 0 || mle < 0 || max < 0) {
-                    alert('All values must be non-negative');
-                    return;
-                }
-            }
-            
             if (nextQuestionId) {
                 questionHistory.push(currentQuestionId);
                 currentQuestionId = nextQuestionId;
