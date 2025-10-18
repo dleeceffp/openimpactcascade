@@ -251,11 +251,13 @@ Output valid JSON only."""
         """Internal method to handle a single generation attempt."""
         try:
             # Adjust temperature based on retry attempt (lower = more conservative)
+            # Increased tokens to 16384 to handle larger responses, some org selections
+            # resulted in truncated responses with breaks the JSON parsing.
             temperature = 0.3 - (attempt * 0.1)
             temperature = max(0.1, temperature)  # Don't go below 0.1
             message = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=8192,
+                max_tokens=16384,
                 temperature=temperature,
                 system=self.system_prompt,
                 messages=[
