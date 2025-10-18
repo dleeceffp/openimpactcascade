@@ -419,28 +419,6 @@
                 <canvas id="riskChart"></canvas>
             </div>
         </div>
-        
-        <!-- MITRE ATT&CK References -->
-        {% if mitre_references %}
-        <div class="card">
-            <div class="mitre-section">
-                <h3>🎯 MITRE ATT&CK Techniques Referenced</h3>
-                <p style="color: #718096; margin-bottom: 15px;">
-                    These threat techniques were identified as relevant to your risk scenario:
-                </p>
-                <div class="mitre-tags">
-                    {% for technique in mitre_references %}
-                    <a href="https://attack.mitre.org/techniques/{{ technique.replace('.', '/') }}/" 
-                       target="_blank" 
-                       class="mitre-tag">
-                        {{ technique }}
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-        {% endif %}
-        
         <!-- Control Adjustment -->
         <div class="card">
             <div class="controls-section">
@@ -486,6 +464,29 @@
                 </div>
             </div>
         </div>
+        
+        <!-- MITRE ATT&CK References -->
+        {% if mitre_references %}
+        <div class="card">
+            <div class="mitre-section">
+                <h3>🎯 MITRE ATT&CK Techniques Referenced</h3>
+                <p style="color: #718096; margin-bottom: 15px;">
+                    These threat techniques were identified as relevant to your risk scenario:
+                </p>
+                <div class="mitre-tags">
+                    {% for technique in mitre_references %}
+                    <a href="https://attack.mitre.org/techniques/{{ technique.replace('.', '/') }}/" 
+                       target="_blank" 
+                       class="mitre-tag">
+                        {{ technique }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        
         
         <!-- Input Parameters -->
         <div class="card">
