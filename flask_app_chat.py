@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, send_file
 from ai_question_generator import AIQuestionGenerator
+from user_tracking import get_tracker, create_api_metadata
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -67,11 +68,18 @@ def generate():
         logger.info(f"Generating questionnaire for {industry} in {region}" + 
                    (f" (org size: {org_size})" if org_size else ""))
         
+        # Get or generate user ID for tracking
+        # In production, this would come from your registration system
+        # For now, using session-based random ID for evaluation
+        tracker = get_tracker(session_based=True)
+        user_id = tracker.get_user_id()
+        
         # Generate questionnaire with optional parameters
         questions = ai_generator.generate_questionnaire(
             industry=industry,
             region=region,
             organization_size=org_size if org_size else None,
+            user_id=user_id,  # Pass user_id for tracking
             max_retries=2
         )
         
@@ -334,6 +342,14 @@ def chat_assist():
         # Build context-aware system prompt
         system_prompt = build_chat_system_prompt(context)
         
+        # Get or generate user ID for tracking
+        tracker = get_tracker(session_based=True)
+        user_id = tracker.get_user_id()
+        
+        # Create metadata with hashed user_id for Anthropic safeguards
+        api_metadata = create_api_metadata(user_id)
+        original_user_id = api_metadata.pop('_original_user_id')  # Remove internal field
+        
         # Build conversation history
         messages = []
         for exchange in history:
@@ -347,7 +363,22 @@ def chat_assist():
             max_tokens=1024,  # Shorter responses for chat
             temperature=0.7,   # More conversational
             system=system_prompt,
-            messages=messages
+            messages=messages,
+            metadata=api_metadata  # Include hashed user_id for safeguards
+        )
+        
+        # Log the API call for safeguards compliance
+        tracker.log_api_call(
+            user_id=original_user_id,
+            hashed_user_id=api_metadata['user_id'],
+            api_type='chat_assist',
+            model='claude-sonnet-4-20250514',
+            request_id=response.id,
+            metadata={
+                'context_industry': context.get('industry'),
+                'context_region': context.get('region'),
+                'fair_component': context.get('fair_component')
+            }
         )
         
         assistant_response = response.content[0].text

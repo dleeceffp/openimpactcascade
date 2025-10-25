@@ -9,6 +9,7 @@ import json
 import anthropic
 from typing import Dict, List, Optional
 from pprint import pprint
+from user_tracking import get_tracker, create_api_metadata
 
 class AIQuestionGenerator:
     """Generates risk assessment questions using Claude AI with industry/region context."""
@@ -179,6 +180,7 @@ Output valid JSON only."""
         security_maturity: Optional[str] = None,   # e.g., "Basic", "Moderate", "Advanced"
         critical_assets: Optional[List[str]] = None,  # e.g., ["customer data", "payment systems"]
         compliance_requirements: Optional[List[str]] = None,  # e.g., ["GDPR", "HIPAA", "PCI-DSS"]
+        user_id: Optional[str] = None,  # User ID for tracking (optional, uses session ID if not provided)
         max_retries: int = 2  # Number of retries if JSON parsing fails
     ) -> Dict:
         """
@@ -232,7 +234,7 @@ Output valid JSON only."""
                 print(f"\n🔄 Retry attempt {attempt}/{max_retries}...\n")
             
             try:
-                return self._generate_with_retry(context, user_prompt, attempt)
+                return self._generate_with_retry(context, user_prompt, attempt, user_id)
             except json.JSONDecodeError as e:
                 last_error = e
                 if attempt < max_retries:
@@ -247,9 +249,13 @@ Output valid JSON only."""
                 print(f"Error generating questionnaire: {e}")
                 raise
     
-    def _generate_with_retry(self, context: Dict, user_prompt: str, attempt: int) -> Dict:
+    def _generate_with_retry(self, context: Dict, user_prompt: str, attempt: int, user_id: Optional[str] = None) -> Dict:
         """Internal method to handle a single generation attempt."""
         try:
+            # Create metadata with hashed user_id for Anthropic safeguards
+            api_metadata = create_api_metadata(user_id)
+            original_user_id = api_metadata.pop('_original_user_id')  # Remove internal field
+            
             # Adjust temperature based on retry attempt (lower = more conservative)
             # Increased tokens to 16384 to handle larger responses, some org selections
             # resulted in truncated responses with breaks the JSON parsing.
@@ -262,7 +268,23 @@ Output valid JSON only."""
                 system=self.system_prompt,
                 messages=[
                     {"role": "user", "content": user_prompt}
-                ]
+                ],
+                metadata=api_metadata  # Include hashed user_id for safeguards
+            )
+            
+            # Log the API call for safeguards compliance
+            tracker = get_tracker()
+            tracker.log_api_call(
+                user_id=original_user_id,
+                hashed_user_id=api_metadata['user_id'],
+                api_type='questionnaire_generation',
+                model='claude-sonnet-4-20250514',
+                request_id=message.id,
+                metadata={
+                    'industry': context.get('industry'),
+                    'region': context.get('region'),
+                    'attempt': attempt
+                }
             )
             
             response_text = message.content[0].text
