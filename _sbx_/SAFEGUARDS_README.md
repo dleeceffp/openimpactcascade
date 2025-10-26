@@ -2,37 +2,6 @@
 
 This document explains the Anthropic API safeguards implementation for OpenImpactCascade, following best practices from [Anthropic's API Safeguards documentation](https://support.claude.com/en/articles/9199617-api-safeguards-tools).
 
----
-
-## ⚠️ Important: Data Privacy & Training
-
-### Your Data is NOT Used for Training
-
-**All API data (prompts and responses) is NOT used to train Anthropic's models.**
-
-This protection is automatic because you're using the **Anthropic API**:
-- ✅ API inputs are NOT used for training
-- ✅ API outputs are NOT used for training
-- ✅ This is guaranteed by [Anthropic's Commercial Terms](https://www.anthropic.com/legal/commercial-terms)
-- ✅ No opt-out needed - this is the default for all API customers
-
-**Source**: Anthropic's Commercial Terms clearly state that API customer data is not used to train their generalized models unless you explicitly opt-in to data sharing programs.
-
-### What This Safeguards System Does
-
-The user tracking system described in this document is for **abuse prevention**, NOT training opt-out:
-
-| Purpose | What It Does |
-|---------|--------------|
-| ✅ **Abuse Prevention** | Track users to investigate policy violations |
-| ✅ **Compliance** | Meet Anthropic's safeguards requirements |
-| ✅ **Accountability** | Identify violators when Anthropic reports abuse |
-| ❌ **NOT Training Opt-Out** | API data already protected by default |
-
-**Key Point**: The `user_id` metadata and hashing system enables abuse investigation. It does NOT control whether your data is used for training (which it isn't).
-
----
-
 ## Overview
 
 We've implemented a comprehensive safeguards system that:
@@ -41,10 +10,6 @@ We've implemented a comprehensive safeguards system that:
 3. ✅ Logs API calls with minimal data for abuse investigation
 4. ✅ Enables free Anthropic safety filters (contact [email protected] to activate)
 5. ✅ Provides tools for responding to abuse complaints
-
-**Purpose**: Enable abuse investigation and comply with Anthropic's safeguards recommendations, NOT to control training data usage.
-
----
 
 ## Architecture
 
@@ -71,8 +36,6 @@ We've implemented a comprehensive safeguards system that:
    - Displays API call history
    - Provides action recommendations
 
----
-
 ## How It Works
 
 ### User ID Flow
@@ -84,14 +47,12 @@ We've implemented a comprehensive safeguards system that:
    ↓
 3. Hash user_id with SHA-256 (e.g., "a1b2c3d4...")
    ↓
-4. Pass hashed ID to Anthropic in metadata (for abuse tracking)
+4. Pass hashed ID to Anthropic in metadata
    ↓
 5. Log: timestamp, user_id, hashed_id, api_type, request_id
    ↓
 6. Store in daily log file (./logs/api_calls/YYYY-MM-DD_api_calls.jsonl)
 ```
-
-**Purpose**: When Anthropic detects abuse, they can provide you with the hashed user_id, allowing you to identify and take action against the violator.
 
 ### What Gets Logged
 
@@ -118,8 +79,6 @@ Logs are stored as JSONL (JSON Lines) in `./logs/api_calls/`:
 {"timestamp": "2025-10-25T13:45:23Z", "user_id": "eval-user-abc123", "hashed_user_id": "a1b2c3d4...", "api_type": "questionnaire_generation", "model": "claude-sonnet-4-20250514", "request_id": "req_xyz789", "metadata": {"industry": "Healthcare", "region": "Canada"}}
 ```
 
----
-
 ## Current Mode: Evaluation
 
 The system is currently in **evaluation mode** with session-based random user IDs:
@@ -141,8 +100,6 @@ Hashed User ID: 7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d2c...
   Type: questionnaire_generation
   Request ID: req_xyz789
 ```
-
----
 
 ## Production Mode: Real Users
 
@@ -175,8 +132,6 @@ For one-time free users without accounts:
 - Generate a unique ID on first use
 - Store in session or cookie
 - Still pass to Anthropic for tracking
-
----
 
 ## Responding to Abuse Complaints
 
@@ -266,8 +221,6 @@ RECOMMENDED ACTIONS
 5. Document the incident for your records
 ```
 
----
-
 ## Enabling Additional Safety Filters
 
 Anthropic offers **free real-time moderation tooling** to detect harmful prompts:
@@ -287,8 +240,6 @@ Request:
 - Automatic blocking of policy violations
 - Reduced abuse complaints
 - Better user experience
-
----
 
 ## Testing the System
 
@@ -324,8 +275,6 @@ python flask_app_chat.py
 # Check logs in ./logs/api_calls/
 ```
 
----
-
 ## Data Retention
 
 - **Log files**: Stored indefinitely (you control retention)
@@ -333,18 +282,13 @@ python flask_app_chat.py
 - **Compliance**: Ensure logs comply with your privacy policy
 - **Cleanup**: Implement log rotation/archival as needed
 
----
-
 ## Privacy Considerations
 
 ### What Anthropic Receives
 
-**Via API Call:**
-- Hashed user_id (SHA-256, irreversible) - for abuse tracking only
-- API requests and responses - NOT used for training per Commercial Terms
+- Hashed user_id (SHA-256, irreversible)
+- API requests and responses
 - Safety classifier results
-
-**Purpose**: Abuse prevention and safety enforcement, NOT training data collection.
 
 ### What Anthropic Does NOT Receive
 
@@ -360,18 +304,6 @@ python flask_app_chat.py
 - Used only for abuse investigation
 - Should comply with your privacy policy
 
-### Data Usage Summary
-
-| Data Type | Sent to Anthropic? | Used for Training? | Used for Abuse Detection? |
-|-----------|-------------------|-------------------|--------------------------|
-| API prompts | ✅ Yes | ❌ No (Commercial Terms) | ✅ Yes (safety) |
-| API responses | ✅ Yes | ❌ No (Commercial Terms) | ✅ Yes (safety) |
-| Hashed user_id | ✅ Yes | ❌ No | ✅ Yes (tracking) |
-| Original user_id | ❌ No | ❌ No | ❌ No |
-| Internal logs | ❌ No | ❌ No | ❌ No |
-
----
-
 ## Security Best Practices
 
 1. **Protect log files**: Restrict access to authorized personnel only
@@ -380,23 +312,17 @@ python flask_app_chat.py
 4. **Regular cleanup**: Archive or delete old logs per your policy
 5. **Secure storage**: Encrypt logs at rest if storing sensitive metadata
 
----
-
 ## Compliance Checklist
 
-- [x] User IDs assigned to API calls (for abuse tracking)
+- [x] User IDs assigned to API calls
 - [x] User IDs cryptographically hashed before sending to Anthropic
 - [x] API calls logged with minimal data
 - [x] Investigation tools available for abuse complaints
-- [x] API data protected from training use (default Commercial Terms)
 - [ ] Additional safety filters enabled (contact Anthropic)
 - [ ] User agreement includes Anthropic Usage Policy reference
 - [ ] Privacy policy updated to reflect logging practices
-- [ ] Privacy policy clarifies API data not used for training
 - [ ] Log retention policy defined
 - [ ] Abuse response procedures documented
-
----
 
 ## Support
 
@@ -404,8 +330,7 @@ python flask_app_chat.py
 
 - [API Safeguards Documentation](https://support.claude.com/en/articles/9199617-api-safeguards-tools)
 - [Usage Policy](https://www.anthropic.com/legal/aup)
-- [Commercial Terms](https://www.anthropic.com/legal/commercial-terms) - See data usage section
-- [Trust Center](https://trust.anthropic.com) - Privacy commitments
+- [Commercial Terms](https://www.anthropic.com/legal/commercial-terms)
 - Safety Filters: [email protected]
 
 ### Internal Resources
@@ -413,35 +338,6 @@ python flask_app_chat.py
 - `user_tracking.py` - Core tracking module
 - `investigate_abuse.py` - Abuse investigation tool
 - `./logs/api_calls/` - Log directory
-
----
-
-## Frequently Asked Questions
-
-### Q: Is my data used to train Claude?
-**A**: No. API data is NOT used for training. This is guaranteed by Anthropic's Commercial Terms for all API customers.
-
-### Q: What is the user tracking for then?
-**A**: Abuse prevention. When Anthropic detects policy violations, they can provide the hashed user_id so you can identify and take action against violators.
-
-### Q: Do I need to opt-out of training?
-**A**: No. API customers are automatically opted out. The user tracking system is for abuse investigation, not training control.
-
-### Q: What happens to my prompts and responses?
-**A**: They're sent to Anthropic for processing but NOT used for training. They may be analyzed by safety systems to detect abuse.
-
-### Q: Can I verify this?
-**A**: Yes. Review:
-- [Anthropic Commercial Terms](https://www.anthropic.com/legal/commercial-terms) - Section on data usage
-- [Anthropic Trust Center](https://trust.anthropic.com) - Privacy commitments
-- [API Documentation](https://docs.anthropic.com/en/api/privacy) - Training data policies
-
-### Q: What's the difference between API and claude.ai?
-**A**: 
-- **API** (what you use): Data NOT used for training
-- **claude.ai** (consumer): Conversations may be used for training unless opted out
-
----
 
 ## Future Enhancements
 
@@ -453,19 +349,10 @@ Potential improvements:
 5. **Alerts**: Notifications for suspicious activity
 6. **Integration**: Connect with your user management system
 
----
-
 ## Questions?
 
 For questions about this implementation:
 1. Review Anthropic's safeguards documentation
-2. Check Anthropic's Commercial Terms for training data policies
-3. Check the code comments in `user_tracking.py`
-4. Test with `python user_tracking.py`
-5. Contact Anthropic support for policy questions
-
----
-
-**Last Updated**: October 2025  
-**Version**: 1.1.0  
-**Status**: Production Ready (Evaluation Mode)
+2. Check the code comments in `user_tracking.py`
+3. Test with `python user_tracking.py`
+4. Contact Anthropic support for policy questions
