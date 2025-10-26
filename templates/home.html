@@ -139,9 +139,18 @@
             <a href="{{ url_for('generate') }}" class="card">
                 <div class="card-icon">🤖</div>
                 <h2>AI-Generated Questionnaire</h2>
-                <p>Describe your industry and region, and let AI create a customized risk assessment questionnaire grounded in authoritative sources like MITRE ATT&CK, CISA advisories, and current threat intelligence.</p>
+                <p>Describe your industry and region, and let AI create a customized risk assessment questionnaire with top 3-5 relevant threat scenarios grounded in authoritative sources like MITRE ATT&CK, CISA advisories, and current threat intelligence.</p>
                 <span class="card-tag ai-tag">✨ AI-Powered</span>
                 <span class="card-tag">MITRE ATT&CK</span>
+                <span class="card-tag">FAIR Methodology</span>
+            </a>
+            
+            <a href="{{ url_for('generate_custom') }}" class="card">
+                <div class="card-icon">🎯</div>
+                <h2>Custom Risk Scenario Assessment</h2>
+                <p>Define your own specific risk scenario (e.g., "Ransomware attack on ERP system") and get a tailored questionnaire focused on that exact threat. AI will research the scenario and provide industry-specific guidance.</p>
+                <span class="card-tag ai-tag">✨ AI-Powered</span>
+                <span class="card-tag">Custom Scenario</span>
                 <span class="card-tag">FAIR Methodology</span>
             </a>
             {% else %}

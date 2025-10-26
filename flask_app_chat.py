@@ -111,6 +111,90 @@ def generate():
         return render_template('error.html', 
             error=f"An error occurred while generating the questionnaire: {str(e)}"), 500
 
+@app.route('/generate-custom', methods=['GET', 'POST'])
+def generate_custom():
+    """Generate a questionnaire for a user-defined risk scenario."""
+    if not ai_generator:
+        return render_template('error.html', 
+            error="AI question generation is not available. Please set ANTHROPIC_API_KEY environment variable."), 503
+    
+    if request.method == 'GET':
+        # Show the custom scenario generation form
+        return render_template('generate_custom.html')
+    
+    # POST - generate the custom scenario questionnaire
+    try:
+        # Get form data
+        industry = request.form.get('industry', '').strip()
+        region = request.form.get('region', '').strip()
+        risk_scenario = request.form.get('risk_scenario', '').strip()
+        scenario_description = request.form.get('scenario_description', '').strip()
+        org_size = request.form.get('organization_size', '').strip()
+        
+        # Validate required fields
+        if not industry or not region or not risk_scenario:
+            return render_template('error.html', 
+                error="Industry, Region, and Risk Scenario are required fields"), 400
+        
+        # Sanitize inputs to prevent JSON issues
+        risk_scenario = risk_scenario.replace('"', '').replace("'", "").replace('\n', ' ').replace('\r', '')
+        risk_scenario = risk_scenario[:200]  # Limit length
+        
+        if scenario_description:
+            scenario_description = scenario_description.replace('"', '').replace('\n', ' ').replace('\r', '')
+            scenario_description = scenario_description[:500]  # Limit length
+        
+        if org_size:
+            org_size = org_size.replace('"', '').replace("'", "").replace('\n', ' ').replace('\r', '')
+            org_size = org_size[:100]
+        
+        logger.info(f"Generating custom scenario questionnaire for {industry} in {region}: {risk_scenario}")
+        
+        # Get or generate user ID for tracking
+        tracker = get_tracker(session_based=True)
+        user_id = tracker.get_user_id()
+        
+        # Generate custom scenario questionnaire
+        questions = ai_generator.generate_custom_scenario_questionnaire(
+            industry=industry,
+            region=region,
+            risk_scenario=risk_scenario,
+            scenario_description=scenario_description if scenario_description else None,
+            organization_size=org_size if org_size else None,
+            user_id=user_id,
+            max_retries=2
+        )
+        
+        # Save to file with custom scenario indicator
+        filename = save_questionnaire(questions, industry, region, custom_scenario=risk_scenario)
+        
+        # Store filename and params in session
+        session['questionnaire_filename'] = filename
+        session['generation_params'] = {
+            'industry': industry,
+            'region': region,
+            'risk_scenario': risk_scenario,
+            'scenario_description': scenario_description,
+            'organization_size': org_size,
+            'generation_mode': 'custom_scenario',
+            'generated_at': datetime.now().isoformat()
+        }
+        
+        logger.info(f"Successfully generated custom scenario questionnaire, saved to {filename}")
+        
+        # Redirect to the questionnaire page
+        return redirect(url_for('questionnaire'))
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON parsing error: {e}")
+        return render_template('error.html', 
+            error=f"Failed to generate valid questionnaire. The AI response could not be parsed. Please try again."), 500
+    
+    except Exception as e:
+        logger.error(f"Generation error: {e}", exc_info=True)
+        return render_template('error.html', 
+            error=f"An error occurred while generating the questionnaire: {str(e)}"), 500
+
 @app.route('/questionnaire')
 def questionnaire():
     """Display the generated questionnaire - loads from file."""
@@ -475,7 +559,7 @@ def internal_error(error):
     return render_template('error.html', error="Internal server error"), 500
 
 
-def save_questionnaire(questionnaire: dict, industry: str, region: str) -> str:
+def save_questionnaire(questionnaire: dict, industry: str, region: str, custom_scenario: str = None) -> str:
     """Save questionnaire to file and return filename."""
     # Create generated directory if it doesn't exist
     os.makedirs('generated', exist_ok=True)
@@ -484,7 +568,13 @@ def save_questionnaire(questionnaire: dict, industry: str, region: str) -> str:
     safe_industry = industry.replace("/", "-").replace(" ", "_")
     safe_region = region.replace("/", "-").replace(" ", "_")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"questions_{safe_industry}_{safe_region}_{timestamp}.json"
+    
+    # Add custom scenario indicator to filename if present
+    if custom_scenario:
+        safe_scenario = custom_scenario.replace("/", "-").replace(" ", "_")[:50]  # Limit length
+        filename = f"questions_custom_{safe_industry}_{safe_region}_{safe_scenario}_{timestamp}.json"
+    else:
+        filename = f"questions_{safe_industry}_{safe_region}_{timestamp}.json"
     
     filepath = os.path.join('generated', filename)
     

@@ -249,6 +249,97 @@ Output valid JSON only."""
                 print(f"Error generating questionnaire: {e}")
                 raise
     
+    def generate_custom_scenario_questionnaire(
+        self,
+        industry: str,
+        region: str,
+        risk_scenario: str,
+        scenario_description: Optional[str] = None,
+        # Additional context parameters:
+        organization_size: Optional[str] = None,
+        annual_revenue: Optional[str] = None,
+        security_maturity: Optional[str] = None,
+        critical_assets: Optional[List[str]] = None,
+        compliance_requirements: Optional[List[str]] = None,
+        user_id: Optional[str] = None,
+        max_retries: int = 2
+    ) -> Dict:
+        """
+        Generate a questionnaire for a user-defined risk scenario.
+        
+        This is the second navigation path where users specify their own risk scenario
+        instead of choosing from AI-suggested threats.
+        
+        Args:
+            industry: The industry sector (e.g., "Construction", "Healthcare")
+            region: Geographic region (e.g., "Canada", "United States", "Europe")
+            risk_scenario: User-defined risk scenario (e.g., "Ransomware attack on ERP system")
+            scenario_description: Optional detailed description of the scenario
+            organization_size: Optional size indicator
+            annual_revenue: Optional revenue range
+            security_maturity: Optional security program maturity level
+            critical_assets: Optional list of critical assets to protect
+            compliance_requirements: Optional list of regulatory requirements
+            user_id: User ID for tracking
+            max_retries: Number of retries if JSON parsing fails
+            
+        Returns:
+            Dictionary containing the complete questionnaire structure
+        """
+        # Build context dictionary
+        context = {
+            "industry": industry,
+            "region": region,
+            "risk_scenario": risk_scenario,
+            "generation_mode": "custom_scenario"
+        }
+        
+        # Add optional parameters
+        if scenario_description:
+            context["scenario_description"] = scenario_description
+        if organization_size:
+            context["organization_size"] = organization_size
+        if annual_revenue:
+            context["annual_revenue"] = annual_revenue
+        if security_maturity:
+            context["security_maturity"] = security_maturity
+        if critical_assets:
+            context["critical_assets"] = critical_assets
+        if compliance_requirements:
+            context["compliance_requirements"] = compliance_requirements
+        
+        user_prompt = self._build_custom_scenario_prompt(context)
+        
+        print(f"\nGenerating custom scenario questionnaire for:")
+        print(f"  Industry: {industry}")
+        print(f"  Region: {region}")
+        print(f"  Risk Scenario: {risk_scenario}")
+        if organization_size:
+            print(f"  Size: {organization_size}")
+        print("\nThis may take 20-30 seconds...\n")
+        
+        # Retry loop for handling JSON parsing failures
+        last_error = None
+        for attempt in range(max_retries + 1):
+            if attempt > 0:
+                print(f"\n🔄 Retry attempt {attempt}/{max_retries}...\n")
+            
+            try:
+                return self._generate_with_retry(context, user_prompt, attempt, user_id)
+            except json.JSONDecodeError as e:
+                last_error = e
+                if attempt < max_retries:
+                    print(f"⚠️  Attempt {attempt + 1} failed with JSON error. Retrying with adjusted parameters...")
+                    continue
+                else:
+                    print(f"\n❌ All {max_retries + 1} attempts failed.")
+                    print("The AI is having trouble generating valid JSON for this combination.")
+                    print(f"Last error: {e}")
+                    raise
+            except Exception as e:
+                print(f"Error generating questionnaire: {e}")
+                raise
+    
     def _generate_with_retry(self, context: Dict, user_prompt: str, attempt: int, user_id: Optional[str] = None) -> Dict:
         """Internal method to handle a single generation attempt."""
         try:
@@ -670,6 +761,348 @@ Base your example frequency and magnitude estimates on:
 7. Generate complete paths for at least 2-3 different threats
 8. Ensure all next_question_id references point to actual questions
 9. Tailor ALL content to the specific {industry} and {region} combination based on your research
+"""
+
+    def _build_custom_scenario_prompt(self, context: Dict) -> str:
+        """Build a prompt for user-defined custom risk scenario."""
+        
+        industry = context["industry"]
+        region = context["region"]
+        risk_scenario = context["risk_scenario"]
+        scenario_description = context.get("scenario_description", "")
+        
+        # Build optional context string
+        optional_context = ""
+        if "organization_size" in context:
+            optional_context += f"\n- Organization Size: {context['organization_size']}"
+        if "annual_revenue" in context:
+            optional_context += f"\n- Annual Revenue: {context['annual_revenue']}"
+        if "security_maturity" in context:
+            optional_context += f"\n- Security Maturity: {context['security_maturity']}"
+        if "critical_assets" in context:
+            optional_context += f"\n- Critical Assets: {', '.join(context['critical_assets'])}"
+        if "compliance_requirements" in context:
+            optional_context += f"\n- Compliance Requirements: {', '.join(context['compliance_requirements'])}"
+        
+        scenario_detail = f"\n- Scenario Details: {scenario_description}" if scenario_description else ""
+        
+        return f"""Create a comprehensive risk assessment questionnaire for a user-defined risk scenario:
+
+**Organization Context:**
+- Industry: {industry}
+- Region: {region}{optional_context}
+
+**User-Defined Risk Scenario:**
+- Scenario: {risk_scenario}{scenario_detail}
+
+**Your Task:**
+
+**STEP 1: RESEARCH PHASE (MANDATORY WEB SEARCH WITH VERIFICATION)**
+
+Before generating ANY questions, you MUST perform thorough research and verification for this SPECIFIC scenario:
+
+1. **Scenario-Specific Threat Research:**
+   - Query: "{risk_scenario} {industry} {region} 2024 2025"
+   - Query: "{risk_scenario} cybersecurity threat intelligence"
+   - Query: "{risk_scenario} MITRE ATT&CK techniques"
+   - Query: "{industry} {risk_scenario} incidents {region}"
+
+2. **Verify Relevance to Industry/Region:**
+   - Search for documented incidents of this scenario in {industry}
+   - Verify regional threat intelligence for {region}
+   - Find industry-specific vulnerabilities related to this scenario
+   - DO NOT cite sources you cannot verify through search
+
+3. **Search for Real-World Incidents:**
+   - Query: "{risk_scenario} {industry} breach 2023 2024"
+   - Query: "{risk_scenario} attack {region}"
+   - Only include incidents you can verify from search results
+
+4. **Verify Statistics and Cost Data:**
+   - Query: "cost of {risk_scenario} {industry}"
+   - Query: "{risk_scenario} financial impact statistics"
+   - Query: "Verizon DBIR {risk_scenario}" or "IBM breach report {risk_scenario}"
+   - Only use statistics that appear in search results
+
+5. **Identify MITRE ATT&CK Techniques:**
+   - Search for specific techniques used in this type of attack
+   - Verify technique IDs are valid and relevant
+   - Map the attack chain for this scenario
+
+**CRITICAL VERIFICATION RULES:**
+
+⛔ **DO NOT:**
+- Make assumptions about the scenario without research
+- Cite advisories or incidents you cannot verify
+- Include generic threat information not specific to the scenario
+- Invent statistics or cost estimates
+
+✅ **DO:**
+- Research the SPECIFIC scenario the user defined
+- Verify all sources through web search
+- Be transparent if this specific scenario has limited documented incidents
+- Use verified adjacent data when direct data is unavailable
+- Clearly note when generalizing from broader threat intelligence
+
+**If Search Results Are Insufficient:**
+
+When you cannot find adequate verified data for this specific scenario in {industry}/{region}:
+1. Be honest: "Specific documented incidents of '{risk_scenario}' in {industry} in {region} are limited"
+2. Use verified similar scenarios: "Based on similar threats in {industry}" with clear caveats
+3. Leverage verified general threat intelligence for this attack type
+4. Still provide value by using authoritative cybersecurity research
+
+**REQUIRED: Document your verification process in metadata**
+
+Include in metadata:
+- "verification_status": "Scenario-specific sources verified" or "Limited scenario-specific data; used verified adjacent sources"
+- "verification_notes": "Searched for '{risk_scenario}' incidents in {industry}/{region}; found [X] documented cases" or "Limited specific incidents; using verified threat intelligence for similar attack types"
+- "scenario_relevance": "How this scenario applies to {industry} in {region} based on research"
+
+**STEP 2: SCENARIO CONTEXTUALIZATION**
+
+Based on your research, provide context for this specific scenario:
+- Identify relevant MITRE ATT&CK techniques for this attack type
+- Reference authoritative sources (CISA, ENISA, Verizon DBIR, etc.)
+- Cite actual incidents from the past 2-3 years when available
+- Explain why this scenario is relevant (or not) to {industry} in {region}
+
+**STEP 3: QUESTION STRUCTURE**
+
+Create a focused questionnaire for THIS SPECIFIC SCENARIO with this flow:
+
+```
+Scenario Context & Validation
+  ├─ Asset at Risk (specific to this scenario)
+  ├─ Current Controls Assessment (tailored to this threat)
+  ├─ Attack Vector Analysis (how this scenario typically unfolds)
+  ├─ Loss Event Frequency Estimation (PERT)
+  └─ Loss Magnitude Estimation (PERT)
+```
+
+**STEP 4: ENSURE SCENARIO SPECIFICITY**
+
+The questionnaire should be TAILORED to the user's scenario, not generic:
+
+❌ BAD: Generic "data breach" questions when user specified "SQL injection on customer portal"
+✅ GOOD: Questions about web application security, input validation, database access controls, customer data exposure - specific to SQL injection scenarios
+
+❌ BAD: Generic ransomware questions when user specified "Ransomware targeting backup systems"
+✅ GOOD: Questions about backup architecture, offline backups, backup encryption, recovery procedures - specific to backup-targeted ransomware
+
+**STEP 5: PROVIDE REALISTIC ESTIMATES FOR THIS SCENARIO**
+
+Base your example frequency and magnitude estimates on:
+- Documented incidents of THIS SPECIFIC scenario type
+- Industry breach cost reports relevant to this attack type
+- Regional regulatory implications for this scenario
+- Business disruption costs specific to this threat
+
+**JSON Schema:**
+
+Generate a questionnaire following the same JSON structure as the standard path, but:
+- NO threat selection question (user already defined the scenario)
+- Start directly with scenario context and asset identification
+- Tailor ALL questions to the specific scenario
+- Include scenario-specific MITRE ATT&CK techniques
+- Reference scenario-specific incidents and sources
+
+```json
+{{{{
+    "version": "1.0",
+    "metadata": {{{{
+        "industry": "{industry}",
+        "region": "{region}",
+        "risk_scenario": "{risk_scenario}",
+        "generation_mode": "custom_scenario",
+        "approach": "user-defined-scenario",
+        "framework": "FAIR + MITRE ATT&CK",
+        "generation_date": "YYYY-MM-DD",
+        "scenario_research_sources": [
+            "List ALL sources you searched for this specific scenario",
+            "Include URLs to specific reports, advisories, or articles about this threat type",
+            "Example: CISA Advisory on [scenario type] - https://www.cisa.gov/...",
+            "Example: Documented incident: [Company] - [scenario] - [Date] - [Source]"
+        ],
+        "search_queries_used": [
+            "List the search queries you used to research this scenario"
+        ],
+        "scenario_relevance": "Explanation of how this scenario applies to {industry} in {region}"
+    }}}},
+    "start_question_id": "scenario_context",
+    "questions": {{{{
+        "scenario_context": {{{{
+            "id": "scenario_context",
+            "text": "Let's assess the risk of: {risk_scenario}",
+            "type": "multiple_choice",
+            "help_text": "Based on threat intelligence, here's what we know about this scenario in {industry}",
+            "context": "Scenario research current as of [date]",
+            "scenario_intel": {{{{
+                "threat_description": "Detailed description based on research",
+                "mitre_techniques": ["T1XXX", "T1YYY"],
+                "mitre_technique_links": ["https://attack.mitre.org/techniques/T1XXX/", ...],
+                "documented_incidents": "Summary of real incidents found in research",
+                "industry_relevance": "Why this matters to {industry} based on search results",
+                "regional_factors": "Regional considerations for {region}"
+            }}}},
+            "choices": [
+                {{{{
+                    "id": "proceed",
+                    "text": "Proceed with assessment",
+                    "description": "Continue to assess this specific risk scenario",
+                    "next_question_id": "scenario_assets"
+                }}}}
+            ]
+        }}}},
+        
+        "scenario_assets": {{{{
+            "id": "scenario_assets",
+            "text": "What critical assets would be impacted by {risk_scenario}?",
+            "type": "multiple_choice",
+            "help_text": "Consider which systems or data are typically targeted in this type of attack",
+            "choices": [
+                {{{{
+                    "id": "asset_type_1",
+                    "text": "Specific asset relevant to this scenario",
+                    "description": "Why this asset is vulnerable to this specific threat",
+                    "next_question_id": "scenario_controls"
+                }}}}
+                // Add 2-4 asset choices specific to the scenario
+            ]
+        }}}},
+        
+        "scenario_controls": {{{{
+            "id": "scenario_controls",
+            "text": "What security controls do you have in place to prevent or detect {risk_scenario}?",
+            "type": "multiple_choice",
+            "help_text": "Select the option that best describes your defenses against this specific threat",
+            "choices": [
+                {{{{
+                    "id": "controls_minimal",
+                    "text": "Basic/Minimal controls",
+                    "description": "Limited defenses specific to this threat type",
+                    "risk_multiplier": 1.5,
+                    "next_question_id": "scenario_frequency"
+                }}}},
+                {{{{
+                    "id": "controls_moderate",
+                    "text": "Moderate controls",
+                    "description": "Industry-standard defenses for this threat",
+                    "risk_multiplier": 1.0,
+                    "next_question_id": "scenario_frequency"
+                }}}},
+                {{{{
+                    "id": "controls_advanced",
+                    "text": "Advanced controls",
+                    "description": "Comprehensive defenses specifically designed for this threat",
+                    "risk_multiplier": 0.5,
+                    "next_question_id": "scenario_frequency"
+                }}}}
+            ]
+        }}}},
+        
+        "scenario_frequency": {{{{
+            "id": "scenario_frequency",
+            "text": "How often might {risk_scenario} occur as a loss event?",
+            "type": "pert_estimate",
+            "fair_component": "LEF",
+            "unit": "events per year",
+            "prompt": "Estimate the number of times per year this specific scenario could result in a loss event",
+            "help_text": "Consider your security controls, documented incidents of this threat type, and threat actor activity",
+            "threat_context": {{{{
+                "threat_name": "{risk_scenario}",
+                "mitre_techniques": ["T1XXX", "T1YYY"],
+                "industry_relevance": "Frequency data for this scenario in {industry} based on research",
+                "current_trends": "Recent activity and trends for this threat type",
+                "source_data": "Reference to frequency data from authoritative sources"
+            }}}},
+            "examples": [
+                {{{{
+                    "label": "Strong security posture (Advanced controls)",
+                    "values": {{{{"min": "X", "mle": "Y", "max": "Z"}}}},
+                    "description": "Well-defended against this specific threat",
+                    "basis": "Based on [source] for organizations with strong controls"
+                }}}},
+                {{{{
+                    "label": "Moderate security posture",
+                    "values": {{{{"min": "X", "mle": "Y", "max": "Z"}}}},
+                    "description": "Standard defenses for this threat",
+                    "basis": "Industry average from [source]"
+                }}}},
+                {{{{
+                    "label": "Weak security posture (Minimal controls)",
+                    "values": {{{{"min": "X", "mle": "Y", "max": "Z"}}}},
+                    "description": "Limited defenses against this threat",
+                    "basis": "High-risk profile from [source]"
+                }}}}
+            ],
+            "outputs": {{{{"min": "lef_min", "mle": "lef_mle", "max": "lef_max"}}}},
+            "next_question_id": "scenario_magnitude"
+        }}}},
+        
+        "scenario_magnitude": {{{{
+            "id": "scenario_magnitude",
+            "text": "What would be the financial impact of {risk_scenario}?",
+            "type": "pert_estimate",
+            "fair_component": "LM",
+            "unit": "USD",
+            "prompt": "Estimate the total cost per incident for this specific scenario",
+            "help_text": "Include all costs specific to this type of incident based on documented cases",
+            "impact_categories": [
+                "Incident response and forensics",
+                "Legal and regulatory costs",
+                "Business disruption and downtime",
+                "Data recovery and system restoration",
+                "Notification costs (if applicable)",
+                "Regulatory fines (consider {region} requirements)",
+                "Reputation damage and customer loss",
+                "Insurance deductible",
+                "[Add scenario-specific cost categories]"
+            ],
+            "threat_context": {{{{
+                "threat_name": "{risk_scenario}",
+                "typical_costs": "Cost benchmarks for this specific scenario type from research",
+                "regulatory_factors": "Regional compliance implications for this scenario in {region}",
+                "recent_incidents": "Examples of similar incidents and their documented costs"
+            }}}},
+            "examples": [
+                {{{{
+                    "label": "Minor incident",
+                    "values": {{{{"min": "X", "mle": "Y", "max": "Z"}}}},
+                    "description": "Limited scope of this scenario",
+                    "basis": "Based on [source] for small-scale incidents of this type"
+                }}}},
+                {{{{
+                    "label": "Moderate incident",
+                    "values": {{{{"min": "X", "mle": "Y", "max": "Z"}}}},
+                    "description": "Typical impact of this scenario",
+                    "basis": "Median cost from documented incidents: [source]"
+                }}}},
+                {{{{
+                    "label": "Severe incident",
+                    "values": {{{{"min": "X", "mle": "Y", "max": "Z"}}}},
+                    "description": "Worst-case scenario based on documented incidents",
+                    "basis": "Based on major documented incidents: [examples with sources]"
+                }}}}
+            ],
+            "outputs": {{{{"min": "lm_min", "mle": "lm_mle", "max": "lm_max"}}}},
+            "next_question_id": null
+        }}}}
+    }}}}
+}}}}
+```
+
+**Critical Requirements:**
+1. YOU MUST USE WEB SEARCH to research this SPECIFIC scenario before generating
+2. Document ALL scenario-specific sources in metadata.scenario_research_sources
+3. Base ALL content on verified research about this threat type
+4. Include relevant MITRE ATT&CK techniques specific to this scenario
+5. Provide cost estimates based on documented incidents of this scenario type
+6. Reference recent (2023-2025) incidents when available
+7. Tailor ALL questions to the user's specific scenario, not generic threats
+8. Ensure all next_question_id references point to actual questions
+9. Be transparent about data limitations for this specific scenario
+10. Explain scenario relevance to {industry} in {region} based on research
 """
 
     def _extract_json(self, text: str) -> Dict:

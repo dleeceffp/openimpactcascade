@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Risk Scenario - OpenImpactCascade</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .info-box {
+            background: #fff5e6;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+        
+        .info-box strong {
+            color: #f59e0b;
+        }
+        
+        .info-box ul {
+            margin: 10px 0 0 20px;
+            font-size: 0.9em;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .required {
+            color: #e53e3e;
+        }
+        
+        .help-text {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        input[type="text"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        input[type="text"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .examples {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        
+        .examples h3 {
+            font-size: 0.9em;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .examples ul {
+            margin-left: 20px;
+        }
+        
+        .examples li {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #666;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-steps {
+            text-align: left;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+        
+        .loading-step {
+            padding: 5px 0;
+            color: #666;
+        }
+        
+        .loading-step.active {
+            color: #667eea;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="{{ url_for('home') }}" class="back-link">← Back to Home</a>
+        
+        <h1>🎯 Custom Risk Scenario Assessment</h1>
+        <p class="subtitle">
+            Define your specific risk scenario and we'll create a tailored questionnaire focused on that exact threat, grounded in authoritative research.
+        </p>
+        
+        <div class="info-box">
+            <strong>🎯 How This Works:</strong>
+            <ul>
+                <li>You define the specific risk scenario you want to assess</li>
+                <li>AI researches that exact threat using MITRE ATT&CK, CISA, and industry sources</li>
+                <li>Questions are tailored to your specific scenario, not generic threats</li>
+                <li>Get scenario-specific frequency and impact estimates</li>
+            </ul>
+        </div>
+        
+        <form id="generateForm" method="POST" action="{{ url_for('generate_custom') }}">
+            <div class="form-group">
+                <label for="industry">Industry <span class="required">*</span></label>
+                <select id="industry" name="industry" required>
+                    <option value="">Select industry...</option>
+                    <option value="Healthcare">Healthcare / Medical Services</option>
+                    <option value="Financial Services">Financial Services / Banking</option>
+                    <option value="Retail">Retail / E-commerce</option>
+                    <option value="Construction">Construction / Real Estate</option>
+                    <option value="Manufacturing">Manufacturing / Industrial</option>
+                    <option value="Technology">Technology / Software</option>
+                    <option value="Education">Education</option>
+                    <option value="Energy/Utilities">Energy / Utilities</option>
+                    <option value="Professional Services">Professional Services (Legal, Accounting, Consulting)</option>
+                    <option value="Transportation">Transportation / Logistics</option>
+                    <option value="Hospitality">Hospitality / Tourism</option>
+                    <option value="Government">Government / Public Sector</option>
+                </select>
+                <p class="help-text">Select the primary industry for your organization</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="region">Region / Country <span class="required">*</span></label>
+                <select id="region" name="region" required>
+                    <option value="">Select region...</option>
+                    <option value="Canada">Canada</option>
+                    <option value="United States">United States</option>
+                    <option value="United Kingdom">United Kingdom</option>
+                    <option value="European Union">European Union</option>
+                    <option value="Australia">Australia</option>
+                    <option value="New Zealand">New Zealand</option>
+                    <option value="Japan">Japan</option>
+                    <option value="Singapore">Singapore</option>
+                    <option value="India">India</option>
+                    <option value="Brazil">Brazil</option>
+                    <option value="Mexico">Mexico</option>
+                    <option value="South Africa">South Africa</option>
+                </select>
+                <p class="help-text">Region helps tailor threats to local adversaries and regulations</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="risk_scenario">Risk Scenario <span class="required">*</span></label>
+                <input 
+                    type="text" 
+                    id="risk_scenario" 
+                    name="risk_scenario" 
+                    placeholder="e.g., Ransomware attack on ERP system"
+                    required
+                    maxlength="200"
+                >
+                <p class="help-text">Describe the specific risk scenario you want to assess</p>
+                
+                <div class="examples">
+                    <h3>Example Scenarios:</h3>
+                    <ul>
+                        <li>Ransomware attack targeting backup systems</li>
+                        <li>SQL injection on customer-facing web portal</li>
+                        <li>Business Email Compromise targeting finance department</li>
+                        <li>Insider threat - data exfiltration by contractor</li>
+                        <li>Supply chain attack via third-party software</li>
+                        <li>DDoS attack on e-commerce platform during peak season</li>
+                        <li>Phishing campaign targeting executive credentials</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="scenario_description">Additional Details (Optional)</label>
+                <textarea 
+                    id="scenario_description" 
+                    name="scenario_description" 
+                    placeholder="Provide any additional context about your scenario, such as specific systems, data types, or concerns..."
+                    maxlength="500"
+                ></textarea>
+                <p class="help-text">Optional: Add more context to help AI tailor the assessment</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="organization_size">Organization Size (Optional)</label>
+                <input 
+                    type="text" 
+                    id="organization_size" 
+                    name="organization_size" 
+                    placeholder="e.g., 50 employees, 500 employees, 5000+ employees"
+                >
+                <p class="help-text">Helps calibrate risk estimates to your organization's scale</p>
+            </div>
+            
+            <div class="button-group">
+                <button type="button" class="btn-secondary" onclick="window.location.href='{{ url_for('home') }}'">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-primary" id="submitBtn">
+                    Generate Assessment 🎯
+                </button>
+            </div>
+        </form>
+        
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p><strong>Researching your specific scenario...</strong></p>
+            <div class="loading-steps">
+                <div class="loading-step active" id="step1">🔍 Searching for scenario-specific threat intelligence...</div>
+                <div class="loading-step" id="step2">📋 Verifying documented incidents and sources...</div>
+                <div class="loading-step" id="step3">🎯 Building scenario-tailored questions...</div>
+                <div class="loading-step" id="step4">✅ Finalizing custom assessment...</div>
+            </div>
+            <p style="font-size: 0.9em; color: #666; margin-top: 15px;">
+                This may take 20-40 seconds as we research your specific scenario and find relevant threat intelligence.
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('generateForm').addEventListener('submit', function(e) {
+            // Show loading indicator
+            document.getElementById('generateForm').style.display = 'none';
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('submitBtn').disabled = true;
+            
+            // Animate through the steps
+            let currentStep = 1;
+            const stepInterval = setInterval(() => {
+                if (currentStep < 4) {
+                    document.getElementById('step' + currentStep).classList.remove('active');
+                    currentStep++;
+                    document.getElementById('step' + currentStep).classList.add('active');
+                }
+            }, 8000); // Change step every 8 seconds
+            
+            // Store interval ID to clear if page unloads
+            window.stepInterval = stepInterval;
+        });
+        
+        // Clear interval on page unload
+        window.addEventListener('beforeunload', function() {
+            if (window.stepInterval) {
+                clearInterval(window.stepInterval);
+            }
+        });
+    </script>
+</body>
+</html>
