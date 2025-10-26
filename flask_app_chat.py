@@ -195,6 +195,117 @@ def generate_custom():
         return render_template('error.html', 
             error=f"An error occurred while generating the questionnaire: {str(e)}"), 500
 
+@app.route('/refine_scenario', methods=['POST'])
+def refine_scenario():
+    """Refine a verbose user narrative into crisp risk scenario options using AI."""
+    if not ai_generator:
+        return jsonify({'error': 'AI service not available'}), 503
+    
+    try:
+        data = request.get_json()
+        narrative = data.get('narrative', '').strip()
+        industry = data.get('industry', '').strip()
+        region = data.get('region', '').strip()
+        
+        if not narrative:
+            return jsonify({'error': 'Narrative is required'}), 400
+        
+        # Limit narrative length
+        narrative = narrative[:2000]
+        
+        logger.info(f"Refining scenario narrative ({len(narrative)} chars) for {industry} in {region}")
+        
+        # Get user ID for tracking
+        tracker = get_tracker(session_based=True)
+        user_id = tracker.get_user_id()
+        hashed_user_id = tracker.hash_user_id(user_id)
+        
+        # Build refinement prompt
+        context_info = ""
+        if industry and region:
+            context_info = f" for a {industry} organization in {region}"
+        
+        refinement_prompt = f"""You are a cybersecurity risk expert helping a user articulate their risk concern clearly.
+
+**User's Narrative:**
+"{narrative}"
+
+**Context:**{context_info}
+
+**Your Task:**
+Analyze the user's narrative and generate 3-5 crisp, measurable risk scenario statements that capture their concern. Each scenario should:
+- Be specific and actionable (not vague)
+- Focus on a single threat/attack type
+- Be 50-150 characters long
+- Use clear cybersecurity terminology
+- Be suitable for FAIR risk analysis
+
+**Format your response as a JSON array:**
+```json
+{{
+  "scenarios": [
+    {{"text": "Ransomware attack on backup systems", "rationale": "User mentioned concerns about backups and ransomware"}},
+    {{"text": "...", "rationale": "..."}}
+  ],
+  "key_concerns": ["concern1", "concern2"],
+  "recommended_scenario": 0
+}}
+```
+
+The "recommended_scenario" index should point to the most specific and actionable option.
+"""
+        
+        # Call Anthropic API
+        response = ai_generator.client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=2000,
+            temperature=0.7,
+            metadata={
+                "user_id": hashed_user_id
+            },
+            messages=[{
+                "role": "user",
+                "content": refinement_prompt
+            }]
+        )
+        
+        # Log the API call
+        tracker.log_api_call(
+            user_id=user_id,
+            hashed_user_id=hashed_user_id,
+            api_type="scenario_refinement",
+            model="claude-sonnet-4-20250514",
+            request_id=response.id,
+            metadata={"industry": industry, "region": region, "narrative_length": len(narrative)}
+        )
+        
+        # Extract JSON from response
+        response_text = response.content[0].text
+        
+        # Try to extract JSON from markdown code blocks if present
+        if "```json" in response_text:
+            json_start = response_text.find("```json") + 7
+            json_end = response_text.find("```", json_start)
+            response_text = response_text[json_start:json_end].strip()
+        elif "```" in response_text:
+            json_start = response_text.find("```") + 3
+            json_end = response_text.find("```", json_start)
+            response_text = response_text[json_start:json_end].strip()
+        
+        result = json.loads(response_text)
+        
+        logger.info(f"Successfully refined scenario into {len(result.get('scenarios', []))} options")
+        
+        return jsonify(result), 200
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON parsing error in scenario refinement: {e}")
+        return jsonify({'error': 'Failed to parse AI response. Please try again.'}), 500
+    
+    except Exception as e:
+        logger.error(f"Scenario refinement error: {e}", exc_info=True)
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
+
 @app.route('/questionnaire')
 def questionnaire():
     """Display the generated questionnaire - loads from file."""

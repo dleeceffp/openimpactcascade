@@ -33,24 +33,27 @@ os.makedirs(LOG_DIR, exist_ok=True)
 class UserTracker:
     """Manages user ID generation, hashing, and API call logging."""
     
-    def __init__(self, session_based: bool = True):
+    def __init__(self, session_based: bool = True, code_generator: str = "wsa"):
         """
         Initialize user tracker.
         
         Args:
             session_based: If True, generates a random user ID per session (for evaluation).
                           If False, expects user IDs to be provided from registration system.
+            code_generator: Identifier for the code generator/tree (e.g., 'wsa' for Windsurf Anthropic).
+                          Used to distinguish between competing implementations during testing.
         """
         self.session_based = session_based
+        self.code_generator = code_generator
         self.session_user_id = None
         
         if session_based:
             self.session_user_id = self._generate_session_user_id()
-            logger.info(f"Generated session user ID: {self.session_user_id}")
+            logger.info(f"Generated session user ID: {self.session_user_id} (code_generator: {self.code_generator})")
     
     def _generate_session_user_id(self) -> str:
         """Generate a random user ID for this session (evaluation mode)."""
-        return f"eval-user-{uuid.uuid4().hex[:12]}"
+        return f"eval-{self.code_generator}-{uuid.uuid4().hex[:12]}"
     
     def hash_user_id(self, user_id: str) -> str:
         """
@@ -233,11 +236,20 @@ class UserTracker:
 # Global tracker instance
 _tracker = None
 
-def get_tracker(session_based: bool = True) -> UserTracker:
-    """Get or create the global user tracker instance."""
+def get_tracker(session_based: bool = True, code_generator: str = "wsa") -> UserTracker:
+    """
+    Get or create the global user tracker instance.
+    
+    Args:
+        session_based: If True, generates random user IDs per session
+        code_generator: Identifier for code generator/tree (e.g., 'wsa' for Windsurf Anthropic)
+    
+    Returns:
+        UserTracker instance
+    """
     global _tracker
     if _tracker is None:
-        _tracker = UserTracker(session_based=session_based)
+        _tracker = UserTracker(session_based=session_based, code_generator=code_generator)
     return _tracker
 
 
