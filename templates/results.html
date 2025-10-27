@@ -814,7 +814,15 @@
         <div class="chat-header">
             <span>🤖</span>
             <h3>Risk Reduction Assistant</h3>
-            <button class="toggle-chat" onclick="toggleChat()">×</button>
+            <div style="display: flex; gap: 5px;">
+                <button class="toggle-chat" onclick="exportChat()" title="Export chat as text">
+                    💾
+                </button>
+                <button class="toggle-chat" onclick="saveChat()" title="Save chat to server">
+                    📥
+                </button>
+                <button class="toggle-chat" onclick="toggleChat()">×</button>
+            </div>
         </div>
         
         <div class="chat-context" id="chatContext">
@@ -1110,6 +1118,123 @@
             
             // Scroll to bottom
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // Export chat as downloadable text file
+        function exportChat() {
+            if (chatHistory.length === 0) {
+                alert('No chat history to export. Start a conversation first!');
+                return;
+            }
+            
+            // Build export content
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const context = {
+                industry: '{{ generation_params.industry if generation_params else "" }}',
+                region: '{{ generation_params.region if generation_params else "" }}',
+                risk_scenario: '{{ generation_params.risk_scenario if generation_params else "" }}',
+                expected_loss: {{ results.mean }},
+                p90_loss: {{ results.p90 }}
+            };
+            
+            let content = `Risk Reduction Chat Export\n`;
+            content += `Generated: ${new Date().toLocaleString()}\n`;
+            content += `\n${'='.repeat(60)}\n`;
+            content += `ASSESSMENT CONTEXT\n`;
+            content += `${'='.repeat(60)}\n`;
+            content += `Industry: ${context.industry}\n`;
+            content += `Region: ${context.region}\n`;
+            content += `Risk Scenario: ${context.risk_scenario}\n`;
+            content += `Expected Annual Loss: $${context.expected_loss.toLocaleString()}\n`;
+            content += `90th Percentile Loss: $${context.p90_loss.toLocaleString()}\n`;
+            content += `\n${'='.repeat(60)}\n`;
+            content += `CONVERSATION\n`;
+            content += `${'='.repeat(60)}\n\n`;
+            
+            chatHistory.forEach((exchange, index) => {
+                content += `[${index + 1}] YOU:\n${exchange.user}\n\n`;
+                content += `[${index + 1}] ASSISTANT:\n${exchange.assistant}\n\n`;
+                content += `${'-'.repeat(60)}\n\n`;
+            });
+            
+            // Create download
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `risk-reduction-chat-${timestamp}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            // Show success message
+            const successMsg = document.createElement('div');
+            successMsg.className = 'chat-message assistant';
+            successMsg.innerHTML = `
+                <div class="message-label">System</div>
+                <div class="message-bubble">✅ Chat exported successfully! Check your downloads folder.</div>
+            `;
+            document.getElementById('chatMessages').appendChild(successMsg);
+            setTimeout(() => successMsg.remove(), 3000);
+        }
+        
+        // Save chat to server
+        async function saveChat() {
+            if (chatHistory.length === 0) {
+                alert('No chat history to save. Start a conversation first!');
+                return;
+            }
+            
+            const context = {
+                industry: '{{ generation_params.industry if generation_params else "" }}',
+                region: '{{ generation_params.region if generation_params else "" }}',
+                risk_scenario: '{{ generation_params.risk_scenario if generation_params else "" }}',
+                expected_loss: {{ results.mean }},
+                p90_loss: {{ results.p90 }},
+                lef_min: {{ original_inputs.lef_min }},
+                lef_mle: {{ original_inputs.lef_mle }},
+                lef_max: {{ original_inputs.lef_max }},
+                lm_min: {{ original_inputs.lm_min }},
+                lm_mle: {{ original_inputs.lm_mle }},
+                lm_max: {{ original_inputs.lm_max }}
+            };
+            
+            try {
+                const response = await fetch('/chat/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        chat_history: chatHistory,
+                        context: context,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // Show success message in chat
+                    const successMsg = document.createElement('div');
+                    successMsg.className = 'chat-message assistant';
+                    successMsg.innerHTML = `
+                        <div class="message-label">System</div>
+                        <div class="message-bubble">
+                            ✅ Chat saved successfully!<br>
+                            <small>File: ${data.filename}</small>
+                        </div>
+                    `;
+                    document.getElementById('chatMessages').appendChild(successMsg);
+                    setTimeout(() => successMsg.remove(), 5000);
+                } else {
+                    alert('Failed to save chat: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Save chat error:', error);
+                alert('Failed to save chat. Please try again.');
+            }
         }
     </script>
 </body>

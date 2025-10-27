@@ -673,6 +673,76 @@ def chat_results():
         }), 500
 
 
+@app.route('/chat/save', methods=['POST'])
+def save_chat():
+    """Save chat conversation to file for later reference."""
+    try:
+        data = request.get_json()
+        chat_history = data.get('chat_history', [])
+        context = data.get('context', {})
+        timestamp = data.get('timestamp', datetime.now().isoformat())
+        
+        if not chat_history:
+            return jsonify({
+                'status': 'error',
+                'error': 'No chat history provided'
+            }), 400
+        
+        # Create saved_chats directory if it doesn't exist
+        save_dir = './saved_chats'
+        os.makedirs(save_dir, exist_ok=True)
+        
+        # Generate filename with timestamp
+        file_timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00')).strftime('%Y%m%d_%H%M%S')
+        industry_slug = context.get('industry', 'unknown').lower().replace(' ', '_')[:20]
+        filename = f"chat_{industry_slug}_{file_timestamp}.json"
+        filepath = os.path.join(save_dir, filename)
+        
+        # Get user ID for tracking
+        tracker = get_tracker(session_based=True, code_generator="wsa")
+        user_id = tracker.get_user_id()
+        
+        # Build save data
+        save_data = {
+            'timestamp': timestamp,
+            'user_id': user_id,
+            'context': {
+                'industry': context.get('industry'),
+                'region': context.get('region'),
+                'risk_scenario': context.get('risk_scenario'),
+                'expected_loss': context.get('expected_loss'),
+                'p90_loss': context.get('p90_loss'),
+                'lef_min': context.get('lef_min'),
+                'lef_mle': context.get('lef_mle'),
+                'lef_max': context.get('lef_max'),
+                'lm_min': context.get('lm_min'),
+                'lm_mle': context.get('lm_mle'),
+                'lm_max': context.get('lm_max')
+            },
+            'chat_history': chat_history,
+            'message_count': len(chat_history)
+        }
+        
+        # Save to file
+        with open(filepath, 'w') as f:
+            json.dump(save_data, f, indent=2)
+        
+        logger.info(f"Saved chat conversation: {filename} ({len(chat_history)} messages)")
+        
+        return jsonify({
+            'status': 'success',
+            'filename': filename,
+            'message_count': len(chat_history)
+        })
+        
+    except Exception as e:
+        logger.error(f"Save chat error: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'error': f'Failed to save chat: {str(e)}'
+        }), 500
+
+
 def build_results_chat_system_prompt(context):
     """Build a context-aware system prompt for the results page chat assistant."""
     
