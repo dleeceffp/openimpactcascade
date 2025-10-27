@@ -593,6 +593,143 @@ def chat_assist():
         }), 500
 
 
+@app.route('/chat/results', methods=['POST'])
+def chat_results():
+    """AI chat assistant for results page - helps with risk reduction strategies."""
+    if not ai_generator:
+        return jsonify({
+            'status': 'error',
+            'response': 'AI assistant is not available. Please set ANTHROPIC_API_KEY.'
+        }), 503
+    
+    try:
+        data = request.get_json()
+        user_message = data.get('message', '').strip()
+        context = data.get('context', {})
+        history = data.get('history', [])
+        
+        if not user_message:
+            return jsonify({
+                'status': 'error',
+                'response': 'No message provided'
+            }), 400
+        
+        # Build context-aware system prompt for results page
+        system_prompt = build_results_chat_system_prompt(context)
+        
+        # Get or generate user ID for tracking
+        tracker = get_tracker(session_based=True, code_generator="wsa")
+        user_id = tracker.get_user_id()
+        
+        # Create metadata with hashed user_id for Anthropic safeguards
+        api_metadata = create_api_metadata(user_id)
+        original_user_id = api_metadata.pop('_original_user_id')  # Remove internal field
+        
+        # Build conversation history
+        messages = []
+        for exchange in history:
+            messages.append({"role": "user", "content": exchange['user']})
+            messages.append({"role": "assistant", "content": exchange['assistant']})
+        messages.append({"role": "user", "content": user_message})
+        
+        # Call Claude API
+        response = ai_generator.client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1500,  # Longer responses for detailed recommendations
+            temperature=0.7,
+            system=system_prompt,
+            messages=messages,
+            metadata=api_metadata
+        )
+        
+        # Log the API call for safeguards compliance
+        tracker.log_api_call(
+            user_id=original_user_id,
+            hashed_user_id=api_metadata['user_id'],
+            api_type='chat_results',
+            model='claude-sonnet-4-20250514',
+            request_id=response.id,
+            metadata={
+                'context_industry': context.get('industry'),
+                'context_region': context.get('region'),
+                'expected_loss': context.get('expected_loss')
+            }
+        )
+        
+        assistant_response = response.content[0].text
+        
+        logger.info(f"Results chat: '{user_message[:50]}...' -> '{assistant_response[:50]}...'")
+        
+        return jsonify({
+            'status': 'success',
+            'response': assistant_response
+        })
+        
+    except Exception as e:
+        logger.error(f"Results chat error: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'response': 'I apologize, but I encountered an error. Please try rephrasing your question.'
+        }), 500
+
+
+def build_results_chat_system_prompt(context):
+    """Build a context-aware system prompt for the results page chat assistant."""
+    
+    industry = context.get('industry', 'your organization')
+    region = context.get('region', 'your region')
+    expected_loss = context.get('expected_loss', 0)
+    p90_loss = context.get('p90_loss', 0)
+    
+    base_prompt = f"""You are an expert cybersecurity risk consultant helping a user understand their risk analysis results and develop risk reduction strategies.
+
+**Context:**
+- Industry: {industry}
+- Region: {region}
+- Expected Annual Loss: ${expected_loss:,.0f}
+- 90th Percentile Loss: ${p90_loss:,.0f}
+- Loss Event Frequency (LEF): {context.get('lef_min', 0)} to {context.get('lef_max', 0)} events/year
+- Loss Magnitude (LM): ${context.get('lm_min', 0):,.0f} to ${context.get('lm_max', 0):,.0f} per event
+
+**Your Role:**
+You help users understand how to reduce their cybersecurity risk through two main approaches:
+
+1. **Reducing Likelihood (LEF)** - Preventive controls that stop attacks before they succeed:
+   - Access controls (MFA, least privilege, PAM)
+   - Network segmentation and firewalls
+   - Patch management and vulnerability scanning
+   - Security awareness training
+   - Email filtering and web filtering
+   - Endpoint protection (EDR, antivirus)
+
+2. **Reducing Impact (LM)** - Detective and recovery controls that minimize damage:
+   - Backup and recovery systems (3-2-1 rule)
+   - Incident response planning
+   - Data encryption
+   - Network monitoring and SIEM
+   - Disaster recovery and business continuity
+   - Cyber insurance
+
+**Guidelines:**
+- Provide specific, actionable recommendations tailored to {industry} in {region}
+- Explain the cost-benefit tradeoff of different controls
+- Prioritize controls based on effectiveness and feasibility
+- Reference industry best practices and frameworks (NIST, CIS Controls, ISO 27001)
+- Be realistic about implementation challenges
+- Suggest phased approaches for budget-constrained organizations
+- Explain how controls map to the FAIR model (likelihood vs. impact reduction)
+
+**Tone:**
+- Professional but approachable
+- Practical and action-oriented
+- Honest about limitations and tradeoffs
+- Encouraging about incremental improvements
+
+When users ask about reducing risk, provide concrete examples relevant to their industry and explain the expected impact on their risk metrics."""
+
+    return base_prompt
+
+
 def build_chat_system_prompt(context):
     """Build a context-aware system prompt for the chat assistant."""
     
