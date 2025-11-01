@@ -277,16 +277,22 @@ class VertexRAGEngine:
         
         try:
             # Execute RAG retrieval query using the corpus
-            response = rag.retrieval_query(
-                rag_resources=[
-                    rag.RagResource(
-                        rag_corpus=self.rag_corpus.name
-                    )
-                ],
-                text=query,
-                similarity_top_k=max_results,
-                vector_distance_threshold=self.similarity_threshold
-            )
+            # Note: Parameter names may vary by Vertex AI version
+            # Try with minimal parameters first
+            try:
+                # Try with basic parameters only (most compatible)
+                response = rag.retrieval_query(
+                    rag_resources=[
+                        rag.RagResource(
+                            rag_corpus=self.rag_corpus.name
+                        )
+                    ],
+                    text=query
+                )
+            except TypeError as e:
+                # If basic call fails, log and re-raise
+                logger.error(f"RAG API call failed even with minimal parameters: {e}")
+                raise
             
             # Parse response and create RAGContext objects
             contexts = []
@@ -296,6 +302,11 @@ class VertexRAGEngine:
                     # Extract relevance score (distance is inverse of similarity)
                     distance = getattr(context, 'distance', 1.0)
                     similarity_score = max(0.0, 1.0 - distance)
+                    
+                    # Apply similarity threshold filter
+                    if similarity_score < self.similarity_threshold:
+                        logger.debug(f"Skipping context {i+1}: score {similarity_score:.3f} below threshold {self.similarity_threshold}")
+                        continue
                     
                     # Extract source information
                     source_uri = getattr(context, 'source_uri', f"Document {i+1}")
@@ -316,6 +327,9 @@ class VertexRAGEngine:
             
             # Sort by relevance score (descending)
             contexts.sort(key=lambda x: x.relevance_score, reverse=True)
+            
+            # Limit to max_results (post-processing since API may not support parameter)
+            contexts = contexts[:max_results]
             
             return contexts
             
