@@ -78,24 +78,34 @@ def create_rag_corpus(
     
     try:
         # Configure embedding model
-        embedding_config = rag.EmbeddingModelConfig()
         if embedding_model:
-            embedding_config.publisher_model = embedding_model
+            embedding_model_config = rag.RagEmbeddingModelConfig(
+                vertex_prediction_endpoint=rag.VertexPredictionEndpoint(
+                    publisher_model=f"publishers/google/models/{embedding_model}"
+                )
+            )
+        else:
+            # Use default text-embedding-005
+            embedding_model_config = rag.RagEmbeddingModelConfig(
+                vertex_prediction_endpoint=rag.VertexPredictionEndpoint(
+                    publisher_model="publishers/google/models/text-embedding-005"
+                )
+            )
         
-        # Create corpus
-        corpus = rag.RagCorpus.create(
+        # Create corpus with backend config
+        rag_corpus = rag.create_corpus(
             display_name=display_name,
             description=description or f"RAG corpus for {display_name}",
-            embedding_model_config=embedding_config,
-            # Using managed vector database (default)
-            # For custom vector DB, add: vector_db_config=rag.RagVectorDbConfig(...)
+            backend_config=rag.RagVectorDbConfig(
+                rag_embedding_model_config=embedding_model_config
+            )
         )
         
         print(f"\n✓ Successfully created RAG Corpus!")
-        print(f"  Corpus Name: {corpus.name}")
-        print(f"  Resource ID: {corpus.resource_name}")
+        print(f"  Corpus Name: {rag_corpus.name}")
+        print(f"  Display Name: {rag_corpus.display_name}")
         
-        return corpus.name
+        return rag_corpus.name
         
     except Exception as e:
         print(f"\n✗ Failed to create RAG corpus: {e}")
@@ -123,13 +133,14 @@ def list_existing_corpora(project_id: str, location: str = "northamerica-northea
         vertexai.init(project=project_id, location=location)
         
         # List corpora
-        corpora = rag.RagCorpus.list()
+        corpora_pager = rag.list_corpora()
+        corpora_list = list(corpora_pager)
         
-        if not corpora:
+        if not corpora_list:
             print("  No existing corpora found")
         else:
-            print(f"  Found {len(corpora)} corpus(es):")
-            for corpus in corpora:
+            print(f"  Found {len(corpora_list)} corpus(es):")
+            for corpus in corpora_list:
                 print(f"    - {corpus.display_name} ({corpus.name})")
                 
     except Exception as e:
@@ -153,14 +164,24 @@ def verify_corpus(corpus_name: str, project_id: str, location: str = "northameri
     try:
         vertexai.init(project=project_id, location=location)
         
-        # Try to get the corpus
-        corpus = rag.RagCorpus(corpus_name)
+        # Try to get the corpus by listing and finding it
+        corpora_pager = rag.list_corpora()
+        corpora_list = list(corpora_pager)
         
-        print(f"✓ Corpus verified successfully")
-        print(f"  Display Name: {corpus.display_name}")
-        print(f"  State: Ready for document import")
+        corpus_found = None
+        for corpus in corpora_list:
+            if corpus.name == corpus_name:
+                corpus_found = corpus
+                break
         
-        return True
+        if corpus_found:
+            print(f"✓ Corpus verified successfully")
+            print(f"  Display Name: {corpus_found.display_name}")
+            print(f"  State: Ready for document import")
+            return True
+        else:
+            print(f"✗ Corpus not found in list")
+            return False
         
     except Exception as e:
         print(f"✗ Corpus verification failed: {e}")

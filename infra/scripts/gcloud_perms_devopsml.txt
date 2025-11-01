@@ -1,0 +1,86 @@
+export ORG_ID="316939150015"
+export PROJECT_ID="oicsbx"
+export MEMBER="group:gcp-devopsml-admins@ymmvindustrial.com"
+
+echo "Granting organization-level role to create new projects..."
+gcloud organizations add-iam-policy-binding "${ORG_ID}" \
+    --member="${MEMBER}" \
+    --role="roles/resourcemanager.projectCreator" \
+    --condition=None
+
+echo "Granting project-level roles to project: ${PROJECT_ID} for member: ${MEMBER}..."
+
+# Role to enable APIs
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+    --member="${MEMBER}" \
+    --role="roles/serviceusage.serviceUsageAdmin" \
+    --condition=None
+
+# Role to create service accounts
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+    --member="${MEMBER}" \
+    --role="roles/iam.serviceAccountAdmin" \
+    --condition=None
+
+# Role for Vertex AI access
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+    --member="${MEMBER}" \
+    --role="roles/aiplatform.user" \
+    --condition=None
+
+# Role for BigQuery access
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+    --member="${MEMBER}" \
+    --role="roles/bigquery.admin" \
+    --condition=None
+
+# Role for Cloud Build (building containers)
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+    --member="${MEMBER}" \
+    --role="roles/cloudbuild.editor" \
+    --condition=None
+
+# Role for Artifact Registry (storing container images)
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+    --member="${MEMBER}" \
+    --role="roles/artifactregistry.admin" \
+    --condition=None
+
+# --- Choose ONE of the following deployment target roles based on your needs ---
+# Uncomment the line for your chosen deployment target
+
+# Role for Cloud Run (instantiating containers)
+# gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+#     --member="${MEMBER}" \
+#     --role="roles/run.developer" \
+#     --condition=None
+
+# Role for Google Kubernetes Engine (GKE) (instantiating containers)
+# gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+#     --member="${MEMBER}" \
+#     --role="roles/container.developer" \
+#     --condition=None
+
+# Role for Compute Engine (instantiating containers)
+# gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+#     --member="${MEMBER}" \
+#     --role="roles/compute.instanceAdmin.v1" \
+#     --condition=None
+
+# --- Optional roles for Vertex AI Workbench instances (uncomment if applicable) ---
+
+# Role for Vertex AI Workbench Admin
+# gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+#     --member="${MEMBER}" \
+#     --role="roles/notebooks.admin" \
+#     --condition=None
+
+# Role to act as a service account, often needed for Workbench instances or pipelines
+# gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+#     --member="${MEMBER}" \
+#     --role="roles/iam.serviceAccountUser" \
+#     --condition=None
+
+echo "All specified roles have been granted."
+echo "Remember to uncomment the specific deployment target role that applies to your setup."
+echo "Also, consider the optional Vertex AI Workbench roles if needed."
