@@ -74,21 +74,35 @@ class RAGCorpusUploader:
     def _init_auth(self):
         """Initialize authentication."""
         try:
+            logger.info("="*60)
+            logger.info("AUTHENTICATION")
+            logger.info("="*60)
+            
             credentials, auth_project = default()
             logger.info(f"✓ Authentication successful")
             logger.info(f"  Auth project: {auth_project}")
+            logger.info(f"  Target project: {self.project_id}")
             logger.info(f"  Credentials type: {type(credentials).__name__}")
+            logger.info(f"  Credentials valid: {credentials.valid}")
+            
+            logger.info(f"\nInitializing Vertex AI...")
+            logger.info(f"  Project: {self.project_id}")
+            logger.info(f"  Location: {self.location}")
             
             vertexai.init(
                 project=self.project_id,
                 location=self.location,
                 credentials=credentials
             )
+            logger.info(f"✓ Vertex AI initialized")
             
+            logger.info(f"\nInitializing Storage client...")
             self.storage_client = storage.Client(
                 project=self.project_id,
                 credentials=credentials
             )
+            logger.info(f"✓ Storage client initialized")
+            logger.info("="*60)
             
         except DefaultCredentialsError as e:
             logger.error("=" * 60)
@@ -113,17 +127,26 @@ class RAGCorpusUploader:
     def _find_corpus(self):
         """Find corpus by display name."""
         try:
-            logger.info("Listing corpora...")
+            logger.info("="*60)
+            logger.info("FINDING CORPUS")
+            logger.info("="*60)
+            logger.info(f"Looking for: {self.corpus_display_name}")
+            logger.info(f"Listing corpora in {self.project_id}/{self.location}...")
+            
             corpora_pager = rag.list_corpora()
-            
             corpora_list = list(corpora_pager)
-            logger.info(f"Found {len(corpora_list)} total corpora")
             
-            for corpus in corpora_list:
+            logger.info(f"\nFound {len(corpora_list)} total corpora:")
+            for i, corpus in enumerate(corpora_list, 1):
+                logger.info(f"  {i}. {corpus.display_name}")
+                logger.info(f"     Name: {corpus.name}")
                 if corpus.display_name == self.corpus_display_name:
+                    logger.info(f"     ✓ MATCH!")
+                    logger.info("="*60)
                     return corpus
             
-            logger.error(f"No corpus found with display name: {self.corpus_display_name}")
+            logger.error(f"\n✗ No corpus found with display name: {self.corpus_display_name}")
+            logger.info("="*60)
             return None
             
         except Exception as e:
@@ -148,57 +171,124 @@ class RAGCorpusUploader:
     
     def load_metadata_files(self) -> List[Dict]:
         """Load all metadata files."""
-        metadata_files = []
+        logger.info("="*60)
+        logger.info("LOADING METADATA FILES")
+        logger.info("="*60)
+        logger.info(f"Metadata directory: {self.metadata_dir}")
+        logger.info(f"Directory exists: {self.metadata_dir.exists()}")
         
-        for metadata_path in self.metadata_dir.glob("*.metadata.json"):
+        if not self.metadata_dir.exists():
+            logger.error(f"✗ Metadata directory does not exist: {self.metadata_dir}")
+            return []
+        
+        metadata_files = []
+        all_json_files = list(self.metadata_dir.glob("*.metadata.json"))
+        logger.info(f"Found {len(all_json_files)} .metadata.json files")
+        
+        for i, metadata_path in enumerate(all_json_files, 1):
             try:
+                logger.info(f"  Loading {i}/{len(all_json_files)}: {metadata_path.name}")
                 with open(metadata_path, 'r') as f:
                     metadata = json.load(f)
                     metadata['_metadata_path'] = str(metadata_path)
+                    
+                    # Debug: show key fields
+                    gcs_path = metadata.get('gcs_path', 'MISSING')
+                    gcs_bucket = metadata.get('gcs_bucket', 'MISSING')
+                    logger.info(f"    GCS bucket: {gcs_bucket}")
+                    logger.info(f"    GCS path: {gcs_path}")
+                    
                     metadata_files.append(metadata)
             except Exception as e:
-                logger.error(f"Error loading {metadata_path}: {e}")
+                logger.error(f"  ✗ Error loading {metadata_path}: {e}")
         
-        logger.info(f"Loaded {len(metadata_files)} metadata files")
+        logger.info(f"\n✓ Successfully loaded {len(metadata_files)} metadata files")
+        logger.info("="*60)
         return metadata_files
     
     def upload_document(self, metadata: Dict) -> bool:
         """Upload single document to RAG corpus."""
         
+        logger.info("\n" + "-"*60)
+        
         gcs_path = metadata.get('gcs_path')
         if not gcs_path:
-            logger.error("No gcs_path in metadata")
+            logger.error("✗ No gcs_path in metadata")
+            logger.error(f"   Metadata keys: {list(metadata.keys())}")
             return False
         
         # Skip if already uploaded
         if gcs_path in self.uploaded_files:
-            logger.info(f"Skipping already uploaded: {gcs_path}")
+            logger.info(f"⊘ Skipping already uploaded: {gcs_path}")
             return True
         
-        logger.info(f"Uploading: {gcs_path}")
+        logger.info(f"📤 UPLOADING DOCUMENT")
+        logger.info(f"   GCS path: {gcs_path}")
         
         try:
             # Build GCS URI
-            gcs_uri = metadata.get('gcs_url', f"gs://{metadata['gcs_bucket']}/{gcs_path}")
+            gcs_bucket = metadata.get('gcs_bucket')
+            if not gcs_bucket:
+                logger.error("✗ No gcs_bucket in metadata")
+                return False
             
-            # SIMPLIFIED: Use minimal parameters - let SDK use defaults
+            gcs_uri = metadata.get('gcs_url', f"gs://{gcs_bucket}/{gcs_path}")
+            logger.info(f"   GCS URI: {gcs_uri}")
+            
+            # Verify file exists in GCS
+            logger.info(f"   Verifying file exists in GCS...")
+            try:
+                bucket = self.storage_client.bucket(gcs_bucket)
+                blob = bucket.blob(gcs_path)
+                if not blob.exists():
+                    logger.error(f"✗ File does not exist in GCS: {gcs_uri}")
+                    return False
+                logger.info(f"   ✓ File exists (size: {blob.size} bytes)")
+            except Exception as e:
+                logger.error(f"✗ Error checking GCS file: {e}")
+                return False
+            
+            # Import to RAG corpus
+            logger.info(f"   Calling rag.import_files()...")
+            logger.info(f"   Corpus: {self.corpus.name}")
+            logger.info(f"   Path: {gcs_uri}")
+            
             response = rag.import_files(
                 corpus_name=self.corpus.name,
                 paths=[gcs_uri]
             )
             
-            logger.info(f"  ✓ Uploaded: {gcs_path}")
+            logger.info(f"   Response type: {type(response)}")
+            logger.info(f"   Response: {response}")
+            
+            # Check if response indicates success
+            if hasattr(response, 'name'):
+                logger.info(f"   Operation name: {response.name}")
+            if hasattr(response, 'done'):
+                logger.info(f"   Operation done: {response.done}")
+            if hasattr(response, 'error'):
+                if response.error:
+                    logger.error(f"   ✗ Operation error: {response.error}")
+                    return False
+            
+            logger.info(f"   ✓ Import call successful")
             
             # Mark as uploaded
             self.uploaded_files.add(gcs_path)
             self._save_progress()
+            logger.info(f"   ✓ Progress saved")
             
+            logger.info(f"✓ UPLOAD COMPLETE: {gcs_path}")
             return True
             
         except Exception as e:
-            logger.error(f"Error uploading {gcs_path}: {e}")
+            logger.error(f"✗ ERROR uploading {gcs_path}")
+            logger.error(f"   Exception type: {type(e).__name__}")
+            logger.error(f"   Exception message: {e}")
             import traceback
-            logger.error(traceback.format_exc())
+            logger.error("   Full traceback:")
+            for line in traceback.format_exc().split('\n'):
+                logger.error(f"   {line}")
             return False
     
     def upload_batch(
@@ -209,10 +299,24 @@ class RAGCorpusUploader:
     ):
         """Upload documents in batches."""
         
+        logger.info("\n" + "="*60)
+        logger.info("UPLOAD BATCH")
+        logger.info("="*60)
+        logger.info(f"Total metadata files: {len(metadata_list)}")
+        logger.info(f"Already uploaded: {len(self.uploaded_files)}")
+        
         # Filter out already uploaded
         to_upload = [m for m in metadata_list if m.get('gcs_path') not in self.uploaded_files]
         
-        logger.info(f"Uploading {len(to_upload)} documents in batches of {batch_size}...")
+        logger.info(f"Documents to upload: {len(to_upload)}")
+        logger.info(f"Batch size: {batch_size}")
+        logger.info(f"Delay between batches: {delay_seconds}s")
+        
+        if not to_upload:
+            logger.info("\n✓ All documents already uploaded!")
+            return
+        
+        logger.info("="*60)
         
         successful = 0
         failed = 0
@@ -222,9 +326,13 @@ class RAGCorpusUploader:
             batch_num = i // batch_size + 1
             total_batches = (len(to_upload) - 1) // batch_size + 1
             
-            logger.info(f"\nBatch {batch_num}/{total_batches}")
+            logger.info(f"\n" + "="*60)
+            logger.info(f"BATCH {batch_num}/{total_batches}")
+            logger.info(f"Documents in this batch: {len(batch)}")
+            logger.info("="*60)
             
-            for metadata in batch:
+            for j, metadata in enumerate(batch, 1):
+                logger.info(f"\n[Batch {batch_num}, Doc {j}/{len(batch)}]")
                 if self.upload_document(metadata):
                     successful += 1
                 else:
@@ -232,7 +340,7 @@ class RAGCorpusUploader:
             
             # Rate limiting between batches
             if i + batch_size < len(to_upload):
-                logger.info(f"  Waiting {delay_seconds} seconds...")
+                logger.info(f"\n⏱️  Waiting {delay_seconds} seconds before next batch...")
                 time.sleep(delay_seconds)
         
         # Print summary
@@ -277,6 +385,12 @@ class RAGCorpusUploader:
 def main():
     """Main entry point."""
     
+    print("="*60)
+    print("GCS TO RAG CORPUS UPLOADER")
+    print("="*60)
+    print(f"Start time: {datetime.now().isoformat()}")
+    print("="*60)
+    
     parser = argparse.ArgumentParser(
         description="Upload GCS documents to Vertex AI RAG corpus",
         formatter_class=argparse.RawDescriptionHelpFormatter
@@ -299,6 +413,12 @@ def main():
     
     # Initialize uploader
     try:
+        logger.info("\nInitializing uploader...")
+        logger.info(f"  Corpus: {args.corpus or args.corpus_id}")
+        logger.info(f"  Project: {args.project}")
+        logger.info(f"  Location: {args.location}")
+        logger.info(f"  Metadata dir: {args.metadata_dir}")
+        
         uploader = RAGCorpusUploader(
             corpus_display_name=args.corpus or "unknown",
             project_id=args.project,
@@ -306,16 +426,23 @@ def main():
             metadata_dir=args.metadata_dir,
             corpus_id=args.corpus_id
         )
+        logger.info("✓ Uploader initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize uploader: {e}")
+        logger.error(f"\n✗ Failed to initialize uploader: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return 1
     
     # Load metadata
+    logger.info("\nLoading metadata files...")
     metadata_list = uploader.load_metadata_files()
     
     if not metadata_list:
-        logger.error("No metadata files found")
+        logger.error("\n✗ No metadata files found")
+        logger.error(f"   Check directory: {args.metadata_dir}")
         return 1
+    
+    logger.info(f"✓ Loaded {len(metadata_list)} metadata files")
     
     # Upload documents
     uploader.upload_batch(
