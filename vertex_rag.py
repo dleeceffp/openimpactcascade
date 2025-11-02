@@ -18,8 +18,9 @@ from datetime import datetime
 # GCP Vertex AI imports
 try:
     from google.cloud import aiplatform
-    from vertexai.preview import rag
-    from vertexai.preview.generative_models import GenerativeModel, Tool
+    from vertexai import rag
+    from vertexai.generative_models import GenerativeModel, Tool
+    import vertexai
     VERTEX_AI_AVAILABLE = True
 except ImportError:
     VERTEX_AI_AVAILABLE = False
@@ -82,7 +83,7 @@ class VertexRAGEngine:
         
         try:
             # Initialize Vertex AI
-            aiplatform.init(project=self.project_id, location=self.location)
+            vertexai.init(project=self.project_id, location=self.location)
             self.enabled = True
             logger.info(f"Vertex AI RAG initialized: project={self.project_id}, location={self.location}")
         except Exception as e:
@@ -243,36 +244,33 @@ class VertexRAGEngine:
         
         try:
             # Query the RAG corpus using Vertex AI RAG API
-            # Note: This is a placeholder for the actual Vertex AI RAG API call
-            # The exact API may vary based on Vertex AI RAG implementation
+            # Parameters must be wrapped in RagRetrievalConfig for northamerica-northeast1
+            response = rag.retrieval_query(
+                rag_resources=[
+                    rag.RagResource(
+                        rag_corpus=self.rag_corpus_name,
+                    )
+                ],
+                text=query,
+                rag_retrieval_config=rag.RagRetrievalConfig(
+                    top_k=max_results,
+                    filter=rag.Filter(
+                        vector_distance_threshold=0.5
+                    ) if filter_metadata is None else None,
+                ),
+            )
             
-            # Example structure (adjust based on actual Vertex AI RAG API):
-            # response = rag.retrieval_query(
-            #     rag_resources=[
-            #         rag.RagResource(
-            #             rag_corpus=self.rag_corpus_name,
-            #         )
-            #     ],
-            #     text=query,
-            #     similarity_top_k=max_results,
-            #     vector_distance_threshold=0.5,
-            # )
-            
-            # For now, return empty list as placeholder
-            # This will be replaced with actual Vertex AI RAG API calls
-            logger.warning("RAG corpus query not yet implemented - placeholder")
-            
-            # Placeholder return structure
             contexts = []
             
-            # TODO: Parse response and create RAGContext objects
-            # for result in response.contexts:
-            #     contexts.append(RAGContext(
-            #         content=result.text,
-            #         source=result.source_uri,
-            #         relevance_score=result.score,
-            #         metadata=result.metadata
-            #     ))
+            # Parse response and create RAGContext objects
+            if response and hasattr(response, 'contexts') and response.contexts:
+                for result in response.contexts.contexts:
+                    contexts.append(RAGContext(
+                        content=result.text if hasattr(result, 'text') else str(result),
+                        source=result.source_uri if hasattr(result, 'source_uri') else "unknown",
+                        relevance_score=result.distance if hasattr(result, 'distance') else 0.0,
+                        metadata=filter_metadata or {}
+                    ))
             
             return contexts
             

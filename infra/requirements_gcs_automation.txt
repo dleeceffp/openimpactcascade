@@ -1,0 +1,21 @@
+# Requirements for GCS Knowledge Base Automation
+# Install: pip install -r requirements_gcs_automation.txt
+
+# Core RAG dependencies (from requirements_with_rag.txt)
+google-cloud-aiplatform>=1.38.0
+anthropic>=0.18.0
+
+# GCS automation specific
+google-cloud-storage>=2.10.0
+
+# Document processing
+PyPDF2>=3.0.0
+python-docx>=0.8.11
+
+# Optional: Better PDF extraction
+# pdfplumber>=0.10.0  # For tables and complex PDFs
+# pytesseract>=0.3.10  # For OCR on image-based PDFs
+
+# Utilities
+python-dotenv>=1.0.0  # For .env file support
+tqdm>=4.66.0  # Progress bars (optional enhancement)

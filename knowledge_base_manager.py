@@ -16,7 +16,8 @@ from datetime import datetime
 
 try:
     from google.cloud import aiplatform
-    from vertexai.preview import rag
+    from vertexai import rag
+    import vertexai
     from google.cloud import storage
     VERTEX_AI_AVAILABLE = True
 except ImportError:
@@ -64,7 +65,7 @@ class KnowledgeBaseManager:
         if not self.project_id:
             raise ValueError("GOOGLE_CLOUD_PROJECT required")
         
-        aiplatform.init(project=self.project_id, location=self.location)
+        vertexai.init(project=self.project_id, location=self.location)
         self.storage_client = storage.Client(project=self.project_id)
     
     def create_rag_corpus(
