@@ -337,6 +337,11 @@ class RAGCorpusUploader:
                     successful += 1
                 else:
                     failed += 1
+                
+                # Delay between individual uploads
+                if j < len(batch):
+                    logger.info(f"   ⏱️  Waiting 2 seconds before next document...")
+                    time.sleep(15.0)
             
             # Rate limiting between batches
             if i + batch_size < len(to_upload):
