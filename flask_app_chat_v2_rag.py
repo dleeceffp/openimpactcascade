@@ -12,7 +12,7 @@ import logging
 from datetime import datetime
 from typing import Dict
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, send_file
-from ai_question_generator_with_rag import AIQuestionGenerator
+from ai_question_generator_with_rag import AIQuestionGeneratorWithRAG
 from user_tracking import get_tracker, create_api_metadata
 
 # Setup logging
