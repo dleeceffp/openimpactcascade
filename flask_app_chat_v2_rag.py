@@ -367,6 +367,37 @@ def save_questionnaire(questions: Dict, industry: str, region: str, version: str
     
     return filename
 
+@app.route('/analyze', methods=['POST'])
+def analyze():
+    """Stub route - analysis not implemented in test version."""
+    return render_template('error.html',
+        error="Analysis feature is not available in this test version. This version is for comparative testing of questionnaire generation only."), 501
+
+@app.route('/recalculate', methods=['POST'])
+def recalculate():
+    """Stub route - recalculation not implemented in test version."""
+    return jsonify({'error': 'Recalculation not available in test version'}), 501
+
+@app.route('/chat/assist', methods=['POST'])
+def chat_assist():
+    """Stub route - redirects to main chat endpoint."""
+    return chat()
+
+@app.route('/chat/results', methods=['POST'])
+def chat_results():
+    """Stub route - results chat not implemented in test version."""
+    return jsonify({'error': 'Results chat not available in test version'}), 501
+
+@app.route('/chat/save', methods=['POST'])
+def save_chat():
+    """Stub route - chat saving not implemented in test version."""
+    return jsonify({'error': 'Chat saving not available in test version'}), 501
+
+@app.route('/download/<filename>')
+def download_file(filename):
+    """Stub route - file download not implemented in test version."""
+    return jsonify({'error': 'File download not available in test version'}), 501
+
 @app.route('/api/download')
 def download():
     """Download the current questionnaire as JSON."""
