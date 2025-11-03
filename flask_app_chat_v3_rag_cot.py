@@ -32,7 +32,7 @@ os.makedirs('./generated', exist_ok=True)
 # Initialize AI generator with version-specific tracker
 ai_generator = None
 try:
-    ai_generator = AIQuestionGenerator()
+    ai_generator = AIQuestionGeneratorWithRAGAndCoT()
     logger.info(f"[{VERSION}] AI Question Generator initialized successfully (RAG + Chain of Thought)")
 except ValueError as e:
     logger.warning(f"[{VERSION}] AI Generator not available: {e}")
