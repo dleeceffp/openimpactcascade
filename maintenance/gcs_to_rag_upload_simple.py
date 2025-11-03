@@ -341,7 +341,7 @@ class RAGCorpusUploader:
                 # Delay between individual uploads
                 if j < len(batch):
                     logger.info(f"   ⏱️  Waiting 2 seconds before next document...")
-                    time.sleep(15.0)
+                    time.sleep(0.5)
             
             # Rate limiting between batches
             if i + batch_size < len(to_upload):

@@ -50,7 +50,8 @@ class VertexRAGEngine:
     def __init__(
         self,
         project_id: Optional[str] = None,
-        location: str = "northamerica-northeast1",
+        #location: str = "northamerica-northeast1",
+        location: str = "us-east1",
         corpus_display_name: Optional[str] = None,
         similarity_threshold: float = 0.5,
         enable_fallback: bool = True
@@ -66,7 +67,8 @@ class VertexRAGEngine:
             enable_fallback: If True, gracefully degrade when RAG unavailable
         """
         self.project_id = project_id or os.environ.get('GOOGLE_CLOUD_PROJECT')
-        self.location = location or os.environ.get('GCP_REGION', 'northamerica-northeast1')
+        #self.location = location or os.environ.get('GCP_REGION', 'northamerica-northeast1')
+        self.location = location or os.environ.get('GCP_REGION', 'us-east1')
         self.corpus_display_name = corpus_display_name or os.environ.get('VERTEX_RAG_CORPUS')
         self.similarity_threshold = float(os.environ.get('RAG_SIMILARITY_THRESHOLD', similarity_threshold))
         self.enable_fallback = enable_fallback
