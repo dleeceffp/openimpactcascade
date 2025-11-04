@@ -64,7 +64,7 @@ class VertexRAGEngine:
         project_id: Optional[str] = None,
         location: str = "us-east1",
         corpus_display_name: Optional[str] = None,
-        similarity_threshold: float = 0.5,
+        similarity_threshold: float = 0.2,  # Lowered from 0.5 based on typical scores
         enable_fallback: bool = True,
         service_account_key_path: Optional[str] = None
     ):
@@ -75,7 +75,9 @@ class VertexRAGEngine:
             project_id: GCP project ID (defaults to GOOGLE_CLOUD_PROJECT env var)
             location: GCP region (default: us-east1)
             corpus_display_name: Display name of the RAG corpus
-            similarity_threshold: Minimum similarity score (0-1, default: 0.5)
+            similarity_threshold: Minimum similarity score (0-1, default: 0.2)
+                                 Note: Typical RAG scores range 0.2-0.4 for good matches.
+                                 Can be overridden via RAG_SIMILARITY_THRESHOLD env var.
             enable_fallback: If True, gracefully degrade when RAG unavailable
             service_account_key_path: Path to service account JSON key file
                                      (defaults to GOOGLE_APPLICATION_CREDENTIALS env var)
@@ -83,7 +85,9 @@ class VertexRAGEngine:
         self.project_id = project_id or os.environ.get('GOOGLE_CLOUD_PROJECT')
         self.location = location or os.environ.get('GCP_REGION', 'us-east1')
         self.corpus_display_name = corpus_display_name or os.environ.get('VERTEX_RAG_CORPUS')
-        self.similarity_threshold = float(os.environ.get('RAG_SIMILARITY_THRESHOLD', similarity_threshold))
+        # Default threshold lowered to 0.2 based on typical RAG corpus scores
+        # Can be overridden via RAG_SIMILARITY_THRESHOLD environment variable
+        self.similarity_threshold = float(os.environ.get('RAG_SIMILARITY_THRESHOLD', 0.2))
         self.enable_fallback = enable_fallback
         self.enabled = False
         self.rag_corpus = None
