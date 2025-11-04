@@ -1,7 +1,7 @@
 """
 GCP Vertex AI RAG Engine Integration for Risk Assessment Platform.
 
-UPDATED VERSION - Added Service Account Authentication Support for Remote Servers
+UPDATED VERSION - Based on working API patterns from create_rag_corpus.py
 
 This module provides grounding context for:
 1. Preliminary risk identification (questionnaire generation)
@@ -9,10 +9,6 @@ This module provides grounding context for:
 
 Uses Vertex AI RAG API to retrieve relevant context from a curated knowledge base
 containing threat intelligence, MITRE ATT&CK data, industry reports, and compliance docs.
-
-Authentication Methods (in order of precedence):
-1. Service Account Key File (GOOGLE_APPLICATION_CREDENTIALS env var) - RECOMMENDED FOR SERVERS
-2. Application Default Credentials (ADC) - gcloud auth application-default login
 """
 
 import os
@@ -25,8 +21,6 @@ from datetime import datetime
 try:
     from vertexai import rag
     import vertexai
-    from google.auth import default as google_auth_default
-    from google.oauth2 import service_account
     VERTEX_AI_AVAILABLE = True
 except ImportError:
     VERTEX_AI_AVAILABLE = False
@@ -51,44 +45,35 @@ class VertexRAGEngine:
     Provides two main capabilities:
     1. Retrieve grounding context for questionnaire generation
     2. Retrieve coaching context for chat assistance
-    
-    Authentication:
-    - Automatically uses service account if GOOGLE_APPLICATION_CREDENTIALS is set
-    - Falls back to Application Default Credentials if not set
     """
     
     def __init__(
         self,
         project_id: Optional[str] = None,
+        #location: str = "northamerica-northeast1",
         location: str = "us-east1",
         corpus_display_name: Optional[str] = None,
         similarity_threshold: float = 0.5,
-        enable_fallback: bool = True,
-        service_account_key_path: Optional[str] = None
+        enable_fallback: bool = True
     ):
         """
         Initialize Vertex AI RAG Engine.
         
         Args:
             project_id: GCP project ID (defaults to GOOGLE_CLOUD_PROJECT env var)
-            location: GCP region (default: us-east1)
-            corpus_display_name: Display name of the RAG corpus
+            location: GCP region (default: northamerica-northeast1 for Montreal)
+            corpus_display_name: Display name of the RAG corpus (e.g., "oic-rarag-kb")
             similarity_threshold: Minimum similarity score (0-1, default: 0.5)
             enable_fallback: If True, gracefully degrade when RAG unavailable
-            service_account_key_path: Path to service account JSON key file
-                                     (defaults to GOOGLE_APPLICATION_CREDENTIALS env var)
         """
         self.project_id = project_id or os.environ.get('GOOGLE_CLOUD_PROJECT')
+        #self.location = location or os.environ.get('GCP_REGION', 'northamerica-northeast1')
         self.location = location or os.environ.get('GCP_REGION', 'us-east1')
         self.corpus_display_name = corpus_display_name or os.environ.get('VERTEX_RAG_CORPUS')
         self.similarity_threshold = float(os.environ.get('RAG_SIMILARITY_THRESHOLD', similarity_threshold))
         self.enable_fallback = enable_fallback
         self.enabled = False
         self.rag_corpus = None
-        self.credentials = None
-        
-        # Get service account key path from parameter or environment
-        self.service_account_key_path = service_account_key_path or os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
         
         if not VERTEX_AI_AVAILABLE:
             logger.warning("Vertex AI not available. RAG features disabled.")
@@ -109,28 +94,15 @@ class VertexRAGEngine:
             return
         
         try:
-            # Initialize credentials
-            self._initialize_credentials()
-            
-            # Initialize Vertex AI with credentials
-            if self.credentials:
-                logger.info(f"Initializing Vertex AI with service account credentials")
-                vertexai.init(
-                    project=self.project_id,
-                    location=self.location,
-                    credentials=self.credentials
-                )
-            else:
-                logger.info(f"Initializing Vertex AI with Application Default Credentials")
-                vertexai.init(project=self.project_id, location=self.location)
+            # Initialize Vertex AI
+            vertexai.init(project=self.project_id, location=self.location)
             
             # Find corpus by display name
             self.rag_corpus = self._find_corpus_by_name(self.corpus_display_name)
             
             if self.rag_corpus:
                 self.enabled = True
-                auth_method = "service account" if self.credentials else "ADC"
-                logger.info(f"✅ Vertex AI RAG initialized: project={self.project_id}, location={self.location}, corpus={self.corpus_display_name}, auth={auth_method}")
+                logger.info(f"Vertex AI RAG initialized: project={self.project_id}, location={self.location}, corpus={self.corpus_display_name}")
             else:
                 logger.warning(f"RAG corpus '{self.corpus_display_name}' not found")
                 if not self.enable_fallback:
@@ -140,36 +112,6 @@ class VertexRAGEngine:
             logger.error(f"Failed to initialize Vertex AI: {e}")
             if not self.enable_fallback:
                 raise
-    
-    def _initialize_credentials(self):
-        """
-        Initialize Google Cloud credentials.
-        
-        Priority:
-        1. Service account key file (GOOGLE_APPLICATION_CREDENTIALS)
-        2. Application Default Credentials (ADC)
-        """
-        # Try service account key file first
-        if self.service_account_key_path:
-            if os.path.exists(self.service_account_key_path):
-                try:
-                    self.credentials = service_account.Credentials.from_service_account_file(
-                        self.service_account_key_path,
-                        scopes=['https://www.googleapis.com/auth/cloud-platform']
-                    )
-                    logger.info(f"✅ Loaded service account credentials from: {self.service_account_key_path}")
-                    return
-                except Exception as e:
-                    logger.error(f"Failed to load service account key: {e}")
-                    if not self.enable_fallback:
-                        raise
-            else:
-                logger.warning(f"Service account key file not found: {self.service_account_key_path}")
-        
-        # Fall back to ADC
-        logger.info("Using Application Default Credentials (ADC)")
-        # credentials will be None, and vertexai.init() will use ADC automatically
-        self.credentials = None
     
     def _find_corpus_by_name(self, display_name: str) -> Optional[Any]:
         """
@@ -267,17 +209,17 @@ class VertexRAGEngine:
         Retrieve coaching context for chat assistance.
         
         This is used during chat interactions to provide relevant guidance
-        based on the user's question and the FAIR component they're working on.
+        on risk estimation, control effectiveness, and industry best practices.
         
         Args:
-            user_question: User's question or topic
-            industry: Target industry for context
-            region: Geographic region for context
-            fair_component: FAIR component (LEF/LM) for targeted guidance
+            user_question: The user's question or topic
+            industry: Target industry
+            region: Geographic region
+            fair_component: FAIR component (LEF or LM) if applicable
             max_results: Maximum number of context chunks to retrieve
             
         Returns:
-            List of RAGContext objects with relevant coaching information
+            List of RAGContext objects with coaching information
         """
         if not self.enabled or not self.rag_corpus:
             logger.debug("RAG not enabled, returning empty context")
@@ -287,12 +229,15 @@ class VertexRAGEngine:
         query_parts = [user_question]
         
         if fair_component:
-            if fair_component == 'LEF':
-                query_parts.append("loss event frequency probability estimation attack likelihood")
-            elif fair_component == 'LM':
-                query_parts.append("loss magnitude impact cost estimation financial impact")
+            if fair_component == "LEF":
+                query_parts.append("loss event frequency estimation incident rates")
+            elif fair_component == "LM":
+                query_parts.append("loss magnitude estimation financial impact costs")
         
-        query_parts.append(f"{industry} {region}")
+        query_parts.extend([
+            f"{industry} industry best practices",
+            f"{region} region guidance benchmarks"
+        ])
         
         query = " ".join(query_parts)
         
@@ -319,29 +264,37 @@ class VertexRAGEngine:
         max_results: int = 5
     ) -> List[RAGContext]:
         """
-        Query the RAG corpus and return contexts.
+        Internal method to query the RAG corpus using Vertex AI RAG API.
         
         Args:
-            query: Search query text
+            query: Search query
             max_results: Maximum results to return
             
         Returns:
             List of RAGContext objects
         """
         if not self.rag_corpus:
+            logger.warning("RAG corpus not available")
             return []
         
         try:
-            # Retrieve from RAG corpus
-            response = rag.retrieval_query(
-                rag_resources=[
-                    rag.RagResource(
-                        rag_corpus=self.rag_corpus.name,
-                    )
-                ],
-                text=query,
-                similarity_top_k=max_results * 2  # Request more to filter by threshold
-            )
+            # Execute RAG retrieval query using the corpus
+            # Note: Parameter names may vary by Vertex AI version
+            # Try with minimal parameters first
+            try:
+                # Try with basic parameters only (most compatible)
+                response = rag.retrieval_query(
+                    rag_resources=[
+                        rag.RagResource(
+                            rag_corpus=self.rag_corpus.name
+                        )
+                    ],
+                    text=query
+                )
+            except TypeError as e:
+                # If basic call fails, log and re-raise
+                logger.error(f"RAG API call failed even with minimal parameters: {e}")
+                raise
             
             # Parse response and create RAGContext objects
             contexts = []
@@ -438,8 +391,6 @@ class VertexRAGEngine:
         Returns:
             Dictionary with status information
         """
-        auth_method = "service_account" if self.credentials else "adc"
-        
         return {
             "enabled": self.enabled,
             "vertex_ai_available": VERTEX_AI_AVAILABLE,
@@ -449,9 +400,7 @@ class VertexRAGEngine:
             "corpus_found": self.rag_corpus is not None,
             "corpus_resource_name": self.rag_corpus.name if self.rag_corpus else None,
             "similarity_threshold": self.similarity_threshold,
-            "fallback_enabled": self.enable_fallback,
-            "auth_method": auth_method,
-            "service_account_key_configured": self.service_account_key_path is not None
+            "fallback_enabled": self.enable_fallback
         }
 
 
@@ -461,20 +410,18 @@ _rag_engine = None
 
 def get_rag_engine(
     project_id: Optional[str] = None,
-    location: str = "us-east1",
+    location: str = "northamerica-northeast1",
     corpus_display_name: Optional[str] = None,
-    enable_fallback: bool = True,
-    service_account_key_path: Optional[str] = None
+    enable_fallback: bool = True
 ) -> VertexRAGEngine:
     """
     Get or create the global RAG engine instance.
     
     Args:
         project_id: GCP project ID
-        location: GCP region (default: us-east1)
+        location: GCP region (default: northamerica-northeast1)
         corpus_display_name: RAG corpus display name
         enable_fallback: Enable graceful degradation
-        service_account_key_path: Path to service account JSON key
         
     Returns:
         VertexRAGEngine instance
@@ -485,8 +432,7 @@ def get_rag_engine(
             project_id=project_id,
             location=location,
             corpus_display_name=corpus_display_name,
-            enable_fallback=enable_fallback,
-            service_account_key_path=service_account_key_path
+            enable_fallback=enable_fallback
         )
     return _rag_engine
 
@@ -555,13 +501,7 @@ if __name__ == '__main__':
         print("  1. Install: pip install google-cloud-aiplatform")
         print("  2. Set: export GOOGLE_CLOUD_PROJECT=your-project-id")
         print("  3. Set: export VERTEX_RAG_CORPUS=your-corpus-display-name")
-        print("  4. Set: export GCP_REGION=us-east1")
-        print("  5. Authenticate using ONE of these methods:")
-        print("     METHOD 1 (Recommended for servers):")
-        print("       - Create service account in GCP Console")
-        print("       - Download JSON key file")
-        print("       - Set: export GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json")
-        print("     METHOD 2 (For local development):")
-        print("       - Run: gcloud auth application-default login")
+        print("  4. Set: export GCP_REGION=northamerica-northeast1")
+        print("  5. Authenticate: gcloud auth application-default login")
     
     print("\n=== Test Complete ===")
