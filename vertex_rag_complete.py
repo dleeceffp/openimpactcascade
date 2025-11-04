@@ -33,6 +33,8 @@ except ImportError:
     logging.warning("Vertex AI libraries not installed. RAG features will be disabled.")
 
 logger = logging.getLogger(__name__)
+# Set to INFO level for debugging
+logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(name)s:%(message)s')
 
 
 @dataclass
@@ -333,6 +335,8 @@ class VertexRAGEngine:
         
         try:
             # Retrieve from RAG corpus
+            # Note: similarity_top_k parameter was removed from the API
+            # We handle result limiting via post-processing (see below)
             response = rag.retrieval_query(
                 rag_resources=[
                     rag.RagResource(
@@ -345,33 +349,87 @@ class VertexRAGEngine:
             # Parse response and create RAGContext objects
             contexts = []
             
+            # Debug: Log response structure
+            logger.info(f"Response type: {type(response)}")
+            logger.info(f"Has contexts attr: {hasattr(response, 'contexts')}")
+            
             if hasattr(response, 'contexts') and response.contexts:
-                for i, context in enumerate(response.contexts.contexts):
-                    # Extract relevance score (distance is inverse of similarity)
-                    distance = getattr(context, 'distance', 1.0)
-                    similarity_score = max(0.0, 1.0 - distance)
+                logger.info(f"response.contexts type: {type(response.contexts)}")
+                logger.info(f"Has contexts.contexts: {hasattr(response.contexts, 'contexts')}")
+                
+                if hasattr(response.contexts, 'contexts'):
+                    contexts_list = response.contexts.contexts
+                    logger.info(f"Number of raw contexts: {len(contexts_list)}")
                     
-                    # Apply similarity threshold filter
-                    if similarity_score < self.similarity_threshold:
-                        logger.debug(f"Skipping context {i+1}: score {similarity_score:.3f} below threshold {self.similarity_threshold}")
-                        continue
-                    
-                    # Extract source information
-                    source_uri = getattr(context, 'source_uri', f"Document {i+1}")
-                    
-                    # Extract text content
-                    text_content = getattr(context, 'text', '')
-                    
-                    # Create RAGContext
-                    rag_context = RAGContext(
-                        content=text_content,
-                        source=source_uri,
-                        relevance_score=similarity_score,
-                        metadata={}
-                    )
-                    
-                    contexts.append(rag_context)
-                    logger.debug(f"Retrieved context {i+1}: score={similarity_score:.3f}, source={source_uri}")
+                    for i, context in enumerate(contexts_list):
+                        logger.debug(f"Context {i+1} attributes: {[x for x in dir(context) if not x.startswith('_')]}")
+                        
+                        # Extract relevance score - try multiple attribute names
+                        distance = None
+                        similarity_score = 0.0
+                        
+                        # Try different possible attribute names for score
+                        for score_attr in ['distance', 'score', 'relevance_score', 'similarity']:
+                            if hasattr(context, score_attr):
+                                distance = getattr(context, score_attr)
+                                logger.debug(f"Found score attribute '{score_attr}': {distance}")
+                                break
+                        
+                        if distance is not None:
+                            # If it's called 'distance', convert to similarity (inverse)
+                            if score_attr == 'distance':
+                                similarity_score = max(0.0, 1.0 - float(distance))
+                            else:
+                                # Otherwise assume it's already a similarity score
+                                similarity_score = float(distance)
+                        else:
+                            logger.warning(f"Context {i+1}: No score attribute found, using default 0.5")
+                            similarity_score = 0.5
+                        
+                        logger.debug(f"Context {i+1}: similarity_score={similarity_score:.3f}, threshold={self.similarity_threshold}")
+                        
+                        # Apply similarity threshold filter
+                        if similarity_score < self.similarity_threshold:
+                            logger.info(f"Skipping context {i+1}: score {similarity_score:.3f} below threshold {self.similarity_threshold}")
+                            continue
+                        
+                        # Extract source information - try multiple attribute names
+                        source_uri = None
+                        for source_attr in ['source_uri', 'source', 'uri', 'document_id', 'file_name']:
+                            if hasattr(context, source_attr):
+                                source_uri = getattr(context, source_attr)
+                                break
+                        
+                        if not source_uri:
+                            source_uri = f"Document {i+1}"
+                        
+                        # Extract text content - try multiple attribute names
+                        text_content = None
+                        for text_attr in ['text', 'content', 'chunk', 'passage']:
+                            if hasattr(context, text_attr):
+                                text_content = getattr(context, text_attr)
+                                if text_content:  # Make sure it's not empty
+                                    break
+                        
+                        if not text_content:
+                            logger.warning(f"Context {i+1}: No text content found")
+                            text_content = ''
+                        
+                        # Create RAGContext
+                        rag_context = RAGContext(
+                            content=text_content,
+                            source=source_uri,
+                            relevance_score=similarity_score,
+                            metadata={}
+                        )
+                        
+                        contexts.append(rag_context)
+                        logger.info(f"Retrieved context {i+1}: score={similarity_score:.3f}, source={source_uri}, length={len(text_content)}")
+                else:
+                    logger.warning("response.contexts exists but has no 'contexts' attribute")
+            else:
+                logger.warning("Response has no 'contexts' attribute or it's empty")
+
             
             # Sort by relevance score (descending)
             contexts.sort(key=lambda x: x.relevance_score, reverse=True)
