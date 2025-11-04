@@ -339,8 +339,7 @@ class VertexRAGEngine:
                         rag_corpus=self.rag_corpus.name,
                     )
                 ],
-                text=query,
-                similarity_top_k=max_results * 2  # Request more to filter by threshold
+                text=query
             )
             
             # Parse response and create RAGContext objects
