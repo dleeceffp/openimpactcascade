@@ -211,26 +211,66 @@ def questionnaire():
     filename = session.get('questionnaire_filename')
     params = session.get('generation_params', {})
     
+    logger.info(f"[{VERSION}] 📋 Questionnaire route called")
+    logger.info(f"[{VERSION}]   - Filename from session: {filename}")
+    logger.info(f"[{VERSION}]   - Params from session: {params}")
+    
     if not filename:
+        logger.warning(f"[{VERSION}] ❌ No filename in session, redirecting to home")
         return redirect(url_for('home'))
     
     try:
+        filepath = f'./generated/{filename}'
+        logger.info(f"[{VERSION}]   - Loading file: {filepath}")
+        
+        # Check if file exists
+        import os
+        if not os.path.exists(filepath):
+            logger.error(f"[{VERSION}] ❌ File does not exist: {filepath}")
+            return render_template('error.html',
+                error="Questionnaire not found. Please generate a new one."), 404
+        
+        # Get file size
+        file_size = os.path.getsize(filepath)
+        logger.info(f"[{VERSION}]   - File size: {file_size} bytes")
+        
         # Load questionnaire from file
-        with open(f'./generated/{filename}', 'r') as f:
+        with open(filepath, 'r') as f:
             questions = json.load(f)
+        
+        logger.info(f"[{VERSION}]   - JSON loaded successfully")
+        logger.info(f"[{VERSION}]   - Questions type: {type(questions)}")
+        
+        # Debug the structure
+        if isinstance(questions, dict):
+            logger.info(f"[{VERSION}]   - Questions keys: {list(questions.keys())}")
+            if 'questions' in questions:
+                logger.info(f"[{VERSION}]   - Number of questions: {len(questions['questions'])}")
+            if 'metadata' in questions:
+                logger.info(f"[{VERSION}]   - Metadata: {questions.get('metadata', {})}")
+        elif isinstance(questions, list):
+            logger.info(f"[{VERSION}]   - Questions is a list with {len(questions)} items")
+        
+        logger.info(f"[{VERSION}] ✅ Rendering questionnaire_chat.html")
+        logger.info(f"[{VERSION}]   - Template params: questions={type(questions)}, params={params}, version={VERSION}")
         
         return render_template('questionnaire_chat.html',
                              questions=questions,
                              params=params,
                              version=VERSION)
-    except FileNotFoundError:
-        logger.error(f"[{VERSION}] Questionnaire file not found: {filename}")
+    except FileNotFoundError as e:
+        logger.error(f"[{VERSION}] ❌ Questionnaire file not found: {filename}", exc_info=True)
         return render_template('error.html',
             error="Questionnaire not found. Please generate a new one."), 404
-    except json.JSONDecodeError:
-        logger.error(f"[{VERSION}] Invalid JSON in questionnaire file: {filename}")
+    except json.JSONDecodeError as e:
+        logger.error(f"[{VERSION}] ❌ Invalid JSON in questionnaire file: {filename}", exc_info=True)
+        logger.error(f"[{VERSION}]   - JSON error: {str(e)}")
         return render_template('error.html',
             error="Questionnaire file is corrupted. Please generate a new one."), 500
+    except Exception as e:
+        logger.error(f"[{VERSION}] ❌ Unexpected error loading questionnaire: {e}", exc_info=True)
+        return render_template('error.html',
+            error=f"Error loading questionnaire: {str(e)}"), 500
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
