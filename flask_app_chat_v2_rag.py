@@ -63,6 +63,7 @@ def generate():
     # POST - generate the questionnaire
     try:
         # Get form data
+        logger.info(f"[{VERSION}] Post request - retrieving form data")
         industry = request.form.get('industry', '').strip()
         region = request.form.get('region', '').strip()
         org_size = request.form.get('organization_size', '').strip()
