@@ -25,6 +25,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 # Version identifier
 VERSION = "v3-cot"
 PORT = 8888
+logger.info(f"========== STARTING {VERSION} on PORT {PORT} ==========")
 
 # Create required directories
 os.makedirs('./generated', exist_ok=True)
@@ -34,8 +35,9 @@ ai_generator = None
 try:
     ai_generator = AIQuestionGeneratorWithRAGAndCoT()
     logger.info(f"[{VERSION}] AI Question Generator initialized successfully (RAG + Chain of Thought)")
-except ValueError as e:
-    logger.warning(f"[{VERSION}] AI Generator not available: {e}")
+except Exception as e:
+    logger.error(f"[{VERSION}] AI Generator initialization failed: {e}", exc_info=True)
+    ai_generator = None
 
 @app.route('/')
 def home():

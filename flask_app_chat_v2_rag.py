@@ -25,6 +25,8 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 # Version identifier
 VERSION = "v2-rag"
 PORT = 8080
+# Right after line 27 in flask_app_chat_v2_rag.py
+logger.info(f"========== STARTING {VERSION} on PORT {PORT} ==========")
 
 # Create required directories
 os.makedirs('./generated', exist_ok=True)
@@ -34,8 +36,9 @@ ai_generator = None
 try:
     ai_generator = AIQuestionGeneratorWithRAG()
     logger.info(f"[{VERSION}] AI Question Generator initialized successfully (RAG + Web Search)")
-except ValueError as e:
-    logger.warning(f"[{VERSION}] AI Generator not available: {e}")
+except Exception as e:
+    logger.warning(f"[{VERSION}] AI Generator not available: {e}", exc_info=True)
+    ai_generator = None
 
 @app.route('/')
 def home():

@@ -25,6 +25,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 # Version identifier
 VERSION = "v1-websearch"
 PORT = 8000
+logger.info(f"========== STARTING {VERSION} on PORT {PORT} ==========")
 
 # Create required directories
 os.makedirs('./generated', exist_ok=True)
@@ -34,8 +35,9 @@ ai_generator = None
 try:
     ai_generator = AIQuestionGenerator()
     logger.info(f"[{VERSION}] AI Question Generator initialized successfully (Web Search Only)")
-except ValueError as e:
-    logger.warning(f"[{VERSION}] AI Generator not available: {e}")
+except Exception as e:
+    logger.error(f"[{VERSION}] AI Generator initialization failed: {e}", exc_info=True)
+    ai_generator = None
 
 @app.route('/')
 def home():
