@@ -284,6 +284,7 @@ Structure your response as:
 <questionnaire>
 ```json
 {
+  "version": "1.0",
   "metadata": {
     "industry": "string",
     "region": "string",
@@ -292,37 +293,61 @@ Structure your response as:
     "methodology": "FAIR + MITRE ATT&CK",
     "reasoning_summary": "Brief summary of key analytical decisions"
   },
+  "start_question_id": "threat_selection",
   "questions": {
-    "threat_scenarios": [
-      {
-        "id": "T1",
-        "scenario": "Threat scenario description",
-        "threat_actor": "Actor type and motivation",
-        "mitre_techniques": ["T1566.001", "T1486"],
-        "lef_estimates": {
-          "min": 0.5,
-          "most_likely": 2,
-          "max": 5,
-          "unit": "events per year",
-          "justification": "Explanation of estimates"
-        },
-        "lm_estimates": {
-          "min": 50000,
-          "most_likely": 250000,
-          "max": 1000000,
-          "unit": "USD per event",
-          "justification": "Explanation of estimates"
-        },
-        "sources": ["Source 1", "Source 2"]
-      }
-    ]
+    "threat_selection": {
+      "id": "threat_selection",
+      "text": "Which risk scenario do you want to analyze?",
+      "type": "multiple_choice",
+      "choices": [
+        {
+          "id": "threat_1_id",
+          "text": "Threat name",
+          "description": "Description with MITRE techniques",
+          "mitre_techniques": ["T1566.001"],
+          "next_question_id": "threat_1_assets"
+        }
+      ]
+    },
+    "threat_1_assets": {
+      "id": "threat_1_assets",
+      "text": "What critical assets would be impacted?",
+      "type": "multiple_choice",
+      "choices": [
+        {
+          "id": "asset_1",
+          "text": "Asset name",
+          "next_question_id": "threat_1_controls"
+        }
+      ]
+    },
+    "threat_1_frequency": {
+      "id": "threat_1_frequency",
+      "text": "How often could this occur?",
+      "type": "pert_estimate",
+      "estimate_type": "frequency_per_year",
+      "next_question_id": "threat_1_magnitude"
+    },
+    "threat_1_magnitude": {
+      "id": "threat_1_magnitude",
+      "text": "What would be the financial impact?",
+      "type": "pert_estimate",
+      "estimate_type": "loss_magnitude_usd",
+      "next_question_id": null
+    }
   }
 }
 ```
 </questionnaire>
 
-Generate high-quality, factually grounded risk assessment questionnaires with transparent reasoning.
-"""
+**CRITICAL JSON Requirements:**
+- You MUST include "start_question_id" at the top level
+- You MUST include "questions" as a dictionary (not a list) at the top level
+- Each question MUST have an "id" field
+- Each question MUST have a "next_question_id" (or null for the last question)
+- DO NOT use "threat_scenarios" as a key - use the question tree structure shown above
+
+Generate high-quality, factually grounded risk assessment questionnaires with transparent reasoning."""
         
         return base_prompt
     

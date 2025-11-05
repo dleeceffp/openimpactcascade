@@ -363,7 +363,7 @@ Output valid JSON only."""
             message_parts.append("Use this context as your PRIMARY source for threat intelligence.")
             message_parts.append("="*70 + "\n")
         
-        # Add generation request
+        # Add generation request with complete JSON schema
         message_parts.append(f"""Generate a risk assessment questionnaire for:
 
 **Target Organization:**
@@ -379,7 +379,102 @@ Output valid JSON only."""
 5. Reference specific MITRE ATT&CK techniques
 6. Document all sources in metadata
 
-Return the questionnaire as valid JSON following the schema in your system prompt.
+**CRITICAL: You MUST use this exact JSON structure:**
+
+```json
+{{
+    "version": "1.0",
+    "metadata": {{
+        "industry": "{industry}",
+        "region": "{region}",
+        "approach": "industry-region-threat-tree",
+        "framework": "FAIR + MITRE ATT&CK",
+        "generation_date": "YYYY-MM-DD",
+        "threat_research_sources": [
+            "List ALL sources you searched and referenced"
+        ]
+    }},
+    "start_question_id": "threat_selection",
+    "questions": {{
+        "threat_selection": {{
+            "id": "threat_selection",
+            "text": "Based on current threat intelligence for {industry} organizations in {region}, which risk scenario do you want to analyze?",
+            "type": "multiple_choice",
+            "help_text": "These threats are based on recent advisories and documented incidents",
+            "choices": [
+                {{
+                    "id": "threat_1_id",
+                    "text": "Specific threat name",
+                    "description": "2-3 sentence description with MITRE techniques",
+                    "mitre_techniques": ["T1566.001", "T1078"],
+                    "next_question_id": "threat_1_assets"
+                }}
+            ]
+        }},
+        "threat_1_assets": {{
+            "id": "threat_1_assets",
+            "text": "What critical assets would be impacted?",
+            "type": "multiple_choice",
+            "choices": [
+                {{
+                    "id": "asset_1",
+                    "text": "Asset name",
+                    "next_question_id": "threat_1_controls"
+                }}
+            ]
+        }},
+        "threat_1_controls": {{
+            "id": "threat_1_controls",
+            "text": "What security controls do you have in place?",
+            "type": "multiple_choice",
+            "choices": [
+                {{
+                    "id": "controls_minimal",
+                    "text": "Basic controls",
+                    "risk_multiplier": 1.5,
+                    "next_question_id": "threat_1_frequency"
+                }}
+            ]
+        }},
+        "threat_1_frequency": {{
+            "id": "threat_1_frequency",
+            "text": "How often do you estimate this threat could occur?",
+            "type": "pert_estimate",
+            "estimate_type": "frequency_per_year",
+            "help_text": "Provide three-point estimate",
+            "guidance": {{
+                "minimum": "Best case (e.g., 0.1 = once every 10 years)",
+                "most_likely": "Most realistic estimate",
+                "maximum": "Worst case"
+            }},
+            "next_question_id": "threat_1_magnitude"
+        }},
+        "threat_1_magnitude": {{
+            "id": "threat_1_magnitude",
+            "text": "What would be the financial impact per incident?",
+            "type": "pert_estimate",
+            "estimate_type": "loss_magnitude_usd",
+            "help_text": "Estimate in USD",
+            "guidance": {{
+                "minimum": "Best case (minimal impact)",
+                "most_likely": "Most realistic estimate",
+                "maximum": "Worst case (catastrophic)"
+            }},
+            "next_question_id": null
+        }}
+    }}
+}}
+```
+
+**IMPORTANT:** 
+- You MUST include "start_question_id" at the top level
+- You MUST include "questions" as a dictionary (not a list) at the top level
+- Each question MUST have an "id" field
+- Each question MUST have a "next_question_id" (or null for the last question)
+- Create a complete question tree for each threat scenario
+- DO NOT use "questionnaire" or "threat_scenarios" as top-level keys
+
+Return ONLY valid JSON matching this structure.
 """)
         
         return "\n".join(message_parts)
@@ -582,7 +677,79 @@ Return the questionnaire as valid JSON following the schema in your system promp
 **Critical:** The questionnaire should be tailored to "{risk_scenario}" - not generic risk questions.
 All questions should directly assess this specific scenario.
 
-Return the questionnaire as valid JSON following the schema in your system prompt.""")
+**CRITICAL: You MUST use this exact JSON structure:**
+
+```json
+{{
+    "version": "1.0",
+    "metadata": {{
+        "industry": "{industry}",
+        "region": "{region}",
+        "custom_scenario": "{risk_scenario}",
+        "approach": "custom-scenario-assessment",
+        "framework": "FAIR + MITRE ATT&CK",
+        "generation_date": "YYYY-MM-DD"
+    }},
+    "start_question_id": "scenario_context",
+    "questions": {{
+        "scenario_context": {{
+            "id": "scenario_context",
+            "text": "Refined description of the risk scenario",
+            "type": "info",
+            "context": "Clear 2-3 sentence description of '{risk_scenario}'",
+            "next_question_id": "scenario_assets"
+        }},
+        "scenario_assets": {{
+            "id": "scenario_assets",
+            "text": "What critical assets would be impacted by this scenario?",
+            "type": "multiple_choice",
+            "choices": [
+                {{
+                    "id": "asset_1",
+                    "text": "Asset name",
+                    "next_question_id": "scenario_controls"
+                }}
+            ]
+        }},
+        "scenario_controls": {{
+            "id": "scenario_controls",
+            "text": "What security controls do you have in place?",
+            "type": "multiple_choice",
+            "choices": [
+                {{
+                    "id": "controls_minimal",
+                    "text": "Basic controls",
+                    "risk_multiplier": 1.5,
+                    "next_question_id": "scenario_frequency"
+                }}
+            ]
+        }},
+        "scenario_frequency": {{
+            "id": "scenario_frequency",
+            "text": "How often could this scenario occur?",
+            "type": "pert_estimate",
+            "estimate_type": "frequency_per_year",
+            "next_question_id": "scenario_magnitude"
+        }},
+        "scenario_magnitude": {{
+            "id": "scenario_magnitude",
+            "text": "What would be the financial impact?",
+            "type": "pert_estimate",
+            "estimate_type": "loss_magnitude_usd",
+            "next_question_id": null
+        }}
+    }}
+}}
+```
+
+**IMPORTANT:** 
+- You MUST include "start_question_id" at the top level
+- You MUST include "questions" as a dictionary (not a list) at the top level
+- Each question MUST have an "id" field
+- Each question MUST have a "next_question_id" (or null for the last question)
+- DO NOT use "questionnaire" or "threat_scenarios" as top-level keys
+
+Return ONLY valid JSON matching this structure.""")
         
         return "\n".join(message_parts)
 
