@@ -1,8 +1,8 @@
 """
 Flask web application for AI-powered risk assessment questionnaire generation.
-VERSION 2: RAG + Web Search
-Port: 8080
-User ID Prefix: RAG-
+VERSION 3: RAG + Chain of Thought
+Port: 8888
+User ID Prefix: COT-
 """
 
 import os
@@ -10,7 +10,7 @@ import json
 import logging
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
-from ai_question_generator_with_rag import AIQuestionGeneratorWithRAG
+from ai_question_generator_with_rag_cot import AIQuestionGeneratorWithRAGAndCoT
 from user_tracking import get_tracker, create_api_metadata
 
 # Setup logging
@@ -18,12 +18,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-v2-rag-8080')
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-v3-cot-8888')
 
 # Version identifier
-VERSION = "v2-rag"
-PORT = 8080
-USER_ID_PREFIX = "RAG-"
+VERSION = "v3-cot"
+PORT = 8888
+USER_ID_PREFIX = "COT-"
 
 # Token cost tracking (Claude Sonnet 4 pricing as of 2024)
 COST_PER_1K_INPUT_TOKENS = 0.003  # $3 per million input tokens
@@ -37,18 +37,25 @@ usage_stats = {
     'total_cost': 0.0,
     'rag_enabled_count': 0,
     'rag_sources_total': 0,
+    'cot_enabled_count': 0,
+    'avg_reasoning_length': 0,
     'requests': []
 }
 
 # Create required directories
-os.makedirs('./generated', exist_ok=True)
+os.makedirs('./generated_v3', exist_ok=True)
 os.makedirs('./stats', exist_ok=True)
+os.makedirs('./reasoning', exist_ok=True)
 
-# Initialize AI generator with RAG
+# Initialize AI generator with RAG and CoT
 ai_generator = None
 try:
-    ai_generator = AIQuestionGeneratorWithRAG(enable_rag=True)
-    logger.info(f"[{VERSION}] AI Question Generator with RAG initialized successfully")
+    ai_generator = AIQuestionGeneratorWithRAGAndCoT(
+        enable_rag=True, 
+        enable_cot=True,
+        max_output_tokens=24000  # Higher limit for CoT reasoning
+    )
+    logger.info(f"[{VERSION}] AI Question Generator with RAG+CoT initialized successfully")
 except ValueError as e:
     logger.warning(f"[{VERSION}] AI Generator not available: {e}")
 
@@ -69,7 +76,7 @@ def calculate_cost(input_tokens: int, output_tokens: int) -> dict:
     }
 
 
-def track_request(industry: str, region: str, org_size: str, usage_info: dict, rag_info: dict):
+def track_request(industry: str, region: str, org_size: str, usage_info: dict, rag_info: dict, cot_info: dict):
     """Track request metrics and costs."""
     global usage_stats
     
@@ -82,6 +89,14 @@ def track_request(industry: str, region: str, org_size: str, usage_info: dict, r
         usage_stats['rag_enabled_count'] += 1
         usage_stats['rag_sources_total'] += rag_info.get('rag_sources_count', 0)
     
+    if cot_info.get('cot_enabled'):
+        usage_stats['cot_enabled_count'] += 1
+        # Update running average of reasoning length
+        current_avg = usage_stats['avg_reasoning_length']
+        new_length = cot_info.get('reasoning_length', 0)
+        cot_count = usage_stats['cot_enabled_count']
+        usage_stats['avg_reasoning_length'] = ((current_avg * (cot_count - 1)) + new_length) / cot_count
+    
     request_record = {
         'timestamp': datetime.now().isoformat(),
         'version': VERSION,
@@ -89,7 +104,8 @@ def track_request(industry: str, region: str, org_size: str, usage_info: dict, r
         'region': region,
         'organization_size': org_size,
         'usage': usage_info,
-        'rag': rag_info
+        'rag': rag_info,
+        'cot': cot_info
     }
     
     usage_stats['requests'].append(request_record)
@@ -99,7 +115,7 @@ def track_request(industry: str, region: str, org_size: str, usage_info: dict, r
     with open(stats_file, 'w') as f:
         json.dump(usage_stats, f, indent=2)
     
-    logger.info(f"[{VERSION}] Request tracked - Tokens: {usage_info['total_tokens']}, Cost: ${usage_info['total_cost']:.6f}, RAG: {rag_info.get('rag_enabled')}")
+    logger.info(f"[{VERSION}] Request tracked - Tokens: {usage_info['total_tokens']}, Cost: ${usage_info['total_cost']:.6f}, RAG: {rag_info.get('rag_enabled')}, CoT: {cot_info.get('cot_enabled')}")
 
 
 @app.route('/')
@@ -132,7 +148,9 @@ def stats():
             'avg_output_tokens': round(avg_output, 0),
             'avg_cost_per_request': round(avg_cost, 4),
             'rag_enabled_percentage': round(100 * usage_stats['rag_enabled_count'] / max(1, usage_stats['total_requests']), 1),
-            'avg_rag_sources_when_enabled': round(avg_rag_sources, 1)
+            'avg_rag_sources_when_enabled': round(avg_rag_sources, 1),
+            'cot_enabled_percentage': round(100 * usage_stats['cot_enabled_count'] / max(1, usage_stats['total_requests']), 1),
+            'avg_reasoning_length_chars': round(usage_stats['avg_reasoning_length'], 0)
         },
         'recent_requests': usage_stats['requests'][-10:]  # Last 10 requests
     })
@@ -140,7 +158,7 @@ def stats():
 
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
-    """Generate a new questionnaire using AI with RAG."""
+    """Generate a new questionnaire using AI with RAG and CoT."""
     if not ai_generator:
         return render_template('error.html', 
             error="AI question generation is not available. Please set ANTHROPIC_API_KEY environment variable."), 503
@@ -172,7 +190,7 @@ def generate():
         base_user_id = tracker.get_user_id()
         user_id = f"{USER_ID_PREFIX}{base_user_id}"
         
-        # Generate questionnaire with RAG
+        # Generate questionnaire with RAG and CoT
         start_time = datetime.now()
         questions = ai_generator.generate_questionnaire(
             industry=industry,
@@ -190,23 +208,45 @@ def generate():
             'rag_sources_count': questions.get('metadata', {}).get('rag_sources_count', 0)
         }
         
+        # Extract CoT information
+        cot_info = {
+            'cot_enabled': questions.get('metadata', {}).get('cot_reasoning_enabled', False),
+            'reasoning_length': len(questions.get('metadata', {}).get('generation_reasoning', '')),
+            'reasoning_quality_score': questions.get('metadata', {}).get('reasoning_quality', {}).get('score', 0)
+        }
+        
+        # Save reasoning separately for review
+        if cot_info['cot_enabled'] and 'generation_reasoning' in questions.get('metadata', {}):
+            reasoning_filename = save_reasoning(
+                questions['metadata']['generation_reasoning'],
+                industry, region
+            )
+            cot_info['reasoning_filename'] = reasoning_filename
+        
         # Extract token usage from response metadata if available
         response_text = json.dumps(questions)
         estimated_output_tokens = len(response_text) // 4
         
-        # RAG adds context to input, estimate additional tokens
+        # CoT adds significant reasoning text to output
+        cot_reasoning_tokens = 0
+        if cot_info['cot_enabled']:
+            cot_reasoning_tokens = cot_info['reasoning_length'] // 4
+            estimated_output_tokens += cot_reasoning_tokens
+        
+        # RAG adds context to input
         rag_context_tokens = 0
         if rag_info['rag_enabled']:
-            rag_context_tokens = rag_info['rag_sources_count'] * 500  # Rough estimate per source
+            rag_context_tokens = rag_info['rag_sources_count'] * 500
         
         estimated_input_tokens = (len(industry) + len(region) + len(org_size or '')) * 5 + rag_context_tokens
         
         # Calculate costs
         usage_info = calculate_cost(estimated_input_tokens, estimated_output_tokens)
         usage_info['duration_seconds'] = round(duration, 2)
+        usage_info['cot_reasoning_tokens'] = cot_reasoning_tokens
         
         # Track the request
-        track_request(industry, region, org_size, usage_info, rag_info)
+        track_request(industry, region, org_size, usage_info, rag_info, cot_info)
         
         # Add version and usage info to questionnaire metadata
         if 'metadata' not in questions:
@@ -230,10 +270,11 @@ def generate():
             'generated_at': datetime.now().isoformat(),
             'version': VERSION,
             'usage': usage_info,
-            'rag': rag_info
+            'rag': rag_info,
+            'cot': cot_info
         }
         
-        logger.info(f"[{VERSION}] Successfully generated questionnaire - Cost: ${usage_info['total_cost']:.6f}, RAG sources: {rag_info['rag_sources_count']}")
+        logger.info(f"[{VERSION}] Successfully generated questionnaire - Cost: ${usage_info['total_cost']:.6f}, RAG sources: {rag_info['rag_sources_count']}, CoT quality: {cot_info.get('reasoning_quality_score', 0):.1f}/10")
         logger.info(f"[{VERSION}] Redirecting to questionnaire route")
         
         return redirect(url_for('questionnaire'))
@@ -255,14 +296,14 @@ def questionnaire():
         return redirect(url_for('home'))
     
     try:
-        filepath = os.path.join('generated', filename)
+        filepath = os.path.join('generated_v3', filename)
         logger.info(f"[{VERSION}] Attempting to load questionnaire from: {filepath}")
         
         if not os.path.exists(filepath):
             logger.error(f"[{VERSION}] File not found: {filepath}")
             # List files in directory for debugging
-            files_in_dir = os.listdir('generated') if os.path.exists('generated') else []
-            logger.info(f"[{VERSION}] Files in generated: {files_in_dir}")
+            files_in_dir = os.listdir('generated_v3') if os.path.exists('generated_v3') else []
+            logger.info(f"[{VERSION}] Files in generated_v3: {files_in_dir}")
             return render_template('error.html',
                 error=f"Questionnaire file not found: {filename}"), 404
         
@@ -279,18 +320,32 @@ def questionnaire():
                              version=VERSION)
     except Exception as e:
         logger.error(f"[{VERSION}] Error loading questionnaire: {e}", exc_info=True)
-        return render_template('error.html',
-            error=f"Error loading questionnaire: {str(e)}"), 500
-    except Exception as e:
-        logger.error(f"[{VERSION}] Error loading questionnaire: {e}")
         return render_template('error.html', 
-            error="Failed to load questionnaire"), 500
+            error=f"Error loading questionnaire: {str(e)}"), 500
+
+
+@app.route('/reasoning/<filename>')
+def view_reasoning(filename):
+    """View the reasoning file for a questionnaire."""
+    try:
+        filepath = os.path.join('reasoning', filename)
+        if not os.path.exists(filepath):
+            return "Reasoning file not found", 404
+        
+        with open(filepath, 'r') as f:
+            reasoning = f.read()
+        
+        return f"<pre style='white-space: pre-wrap; font-family: monospace; padding: 20px;'>{reasoning}</pre>"
+    except Exception as e:
+        logger.error(f"[{VERSION}] Error loading reasoning: {e}")
+        return "Error loading reasoning file", 500
 
 
 @app.route('/health')
 def health():
     """Health check endpoint."""
     rag_enabled = ai_generator and ai_generator.rag_engine and ai_generator.rag_engine.enabled
+    cot_enabled = ai_generator and ai_generator.enable_cot
     
     return jsonify({
         'status': 'healthy',
@@ -299,22 +354,24 @@ def health():
         'user_id_prefix': USER_ID_PREFIX,
         'ai_enabled': ai_generator is not None,
         'rag_enabled': rag_enabled,
+        'cot_enabled': cot_enabled,
         'total_requests': usage_stats['total_requests'],
         'total_cost_usd': round(usage_stats['total_cost'], 4),
-        'rag_enabled_percentage': round(100 * usage_stats['rag_enabled_count'] / max(1, usage_stats['total_requests']), 1)
+        'rag_enabled_percentage': round(100 * usage_stats['rag_enabled_count'] / max(1, usage_stats['total_requests']), 1),
+        'cot_enabled_percentage': round(100 * usage_stats['cot_enabled_count'] / max(1, usage_stats['total_requests']), 1)
     }), 200
 
 
 def save_questionnaire(questionnaire: dict, industry: str, region: str) -> str:
     """Save questionnaire to file and return filename."""
-    os.makedirs('generated', exist_ok=True)
+    os.makedirs('generated_v3', exist_ok=True)
     
     safe_industry = industry.replace("/", "-").replace(" ", "_")
     safe_region = region.replace("/", "-").replace(" ", "_")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     filename = f"questions_{safe_industry}_{safe_region}_{timestamp}.json"
-    filepath = os.path.join('generated', filename)
+    filepath = os.path.join('generated_v3', filename)
     
     logger.info(f"[{VERSION}] Saving questionnaire to: {filepath}")
     logger.info(f"[{VERSION}] Questionnaire has {len(questionnaire.get('questions', []))} questions")
@@ -332,11 +389,36 @@ def save_questionnaire(questionnaire: dict, industry: str, region: str) -> str:
     return filename
 
 
+def save_reasoning(reasoning: str, industry: str, region: str) -> str:
+    """Save reasoning text to separate file for review."""
+    os.makedirs('reasoning', exist_ok=True)
+    
+    safe_industry = industry.replace("/", "-").replace(" ", "_")
+    safe_region = region.replace("/", "-").replace(" ", "_")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    filename = f"reasoning_{safe_industry}_{safe_region}_{timestamp}.txt"
+    filepath = os.path.join('reasoning', filename)
+    
+    with open(filepath, 'w') as f:
+        f.write("="*70 + "\n")
+        f.write("CHAIN-OF-THOUGHT REASONING\n")
+        f.write(f"Industry: {industry}\n")
+        f.write(f"Region: {region}\n")
+        f.write(f"Generated: {datetime.now().isoformat()}\n")
+        f.write("="*70 + "\n\n")
+        f.write(reasoning)
+    
+    logger.info(f"[{VERSION}] Saved reasoning to {filepath}")
+    return filename
+
+
 if __name__ == "__main__":
     debug_mode = os.environ.get('FLASK_ENV') == 'development'
     logger.info(f"Starting {VERSION} on port {PORT}")
     logger.info(f"User ID Prefix: {USER_ID_PREFIX}")
     logger.info(f"RAG Enabled: {ai_generator and ai_generator.rag_engine and ai_generator.rag_engine.enabled}")
+    logger.info(f"CoT Enabled: {ai_generator and ai_generator.enable_cot}")
     app.run(
         debug=debug_mode,
         host='0.0.0.0',

@@ -41,7 +41,7 @@ usage_stats = {
 }
 
 # Create required directories
-os.makedirs('./generated', exist_ok=True)
+os.makedirs('./generated_v2', exist_ok=True)
 os.makedirs('./stats', exist_ok=True)
 
 # Initialize AI generator with RAG
@@ -255,14 +255,14 @@ def questionnaire():
         return redirect(url_for('home'))
     
     try:
-        filepath = os.path.join('generated', filename)
+        filepath = os.path.join('generated_v2', filename)
         logger.info(f"[{VERSION}] Attempting to load questionnaire from: {filepath}")
         
         if not os.path.exists(filepath):
             logger.error(f"[{VERSION}] File not found: {filepath}")
             # List files in directory for debugging
-            files_in_dir = os.listdir('generated') if os.path.exists('generated') else []
-            logger.info(f"[{VERSION}] Files in generated: {files_in_dir}")
+            files_in_dir = os.listdir('generated_v2') if os.path.exists('generated_v2') else []
+            logger.info(f"[{VERSION}] Files in generated_v2: {files_in_dir}")
             return render_template('error.html',
                 error=f"Questionnaire file not found: {filename}"), 404
         
@@ -307,14 +307,14 @@ def health():
 
 def save_questionnaire(questionnaire: dict, industry: str, region: str) -> str:
     """Save questionnaire to file and return filename."""
-    os.makedirs('generated', exist_ok=True)
+    os.makedirs('generated_v2', exist_ok=True)
     
     safe_industry = industry.replace("/", "-").replace(" ", "_")
     safe_region = region.replace("/", "-").replace(" ", "_")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     filename = f"questions_{safe_industry}_{safe_region}_{timestamp}.json"
-    filepath = os.path.join('generated', filename)
+    filepath = os.path.join('generated_v2', filename)
     
     logger.info(f"[{VERSION}] Saving questionnaire to: {filepath}")
     logger.info(f"[{VERSION}] Questionnaire has {len(questionnaire.get('questions', []))} questions")
