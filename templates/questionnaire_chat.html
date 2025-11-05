@@ -356,6 +356,14 @@
             margin-bottom: 15px;
         }
         
+        .guidance {
+            display: block;
+            color: #a0aec0;
+            font-size: 0.85em;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        
         .choices {
             display: flex;
             flex-direction: column;
@@ -585,22 +593,35 @@
                 });
                 html += '</div>';
             } else if (question.type === 'pert_estimate') {
+                // Determine unit label based on estimate_type
+                const unitLabel = question.estimate_type === 'frequency_per_year' ? 
+                    'events per year' : 'USD';
+                
+                // Get guidance if available
+                const guidance = question.guidance || {};
+                
                 html += `
                     <div class="pert-input-group">
                         <div class="input-field">
-                            <label>Minimum (${question.unit})</label>
+                            <label>Minimum (${unitLabel})</label>
                             <input type="number" step="any" min="0" required 
-                                   id="input_min" onchange="updatePertValue('${question.outputs.min}', this.value)">
+                                   id="input_min" 
+                                   placeholder="${guidance.minimum || 'Best case scenario'}">
+                            ${guidance.minimum ? `<small class="guidance">${guidance.minimum}</small>` : ''}
                         </div>
                         <div class="input-field">
-                            <label>Most Likely (${question.unit})</label>
+                            <label>Most Likely (${unitLabel})</label>
                             <input type="number" step="any" min="0" required 
-                                   id="input_mle" onchange="updatePertValue('${question.outputs.mle}', this.value)">
+                                   id="input_mle"
+                                   placeholder="${guidance.most_likely || 'Most realistic estimate'}">
+                            ${guidance.most_likely ? `<small class="guidance">${guidance.most_likely}</small>` : ''}
                         </div>
                         <div class="input-field">
-                            <label>Maximum (${question.unit})</label>
+                            <label>Maximum (${unitLabel})</label>
                             <input type="number" step="any" min="0" required 
-                                   id="input_max" onchange="updatePertValue('${question.outputs.max}', this.value)">
+                                   id="input_max"
+                                   placeholder="${guidance.maximum || 'Worst case scenario'}">
+                            ${guidance.maximum ? `<small class="guidance">${guidance.maximum}</small>` : ''}
                         </div>
                     </div>
                 `;
