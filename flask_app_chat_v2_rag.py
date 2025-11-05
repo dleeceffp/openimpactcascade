@@ -413,14 +413,162 @@ def save_questionnaire(questions: Dict, industry: str, region: str, version: str
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    """Stub route - analysis not implemented in test version."""
-    return render_template('error.html',
-        error="Analysis feature is not available in this test version. This version is for comparative testing of questionnaire generation only."), 501
+    """Process the questionnaire responses and run Monte Carlo analysis."""
+    try:
+        # Import simulation module
+        from simulation import run_monte_carlo
+        
+        # Get form data with better error handling
+        try:
+            lef_min = request.form.get('lef_min')
+            lef_mle = request.form.get('lef_mle')
+            lef_max = request.form.get('lef_max')
+            lm_min = request.form.get('lm_min')
+            lm_mle = request.form.get('lm_mle')
+            lm_max = request.form.get('lm_max')
+            
+            # Check for missing values
+            if not all([lef_min, lef_mle, lef_max, lm_min, lm_mle, lm_max]):
+                missing = []
+                if not lef_min: missing.append('lef_min')
+                if not lef_mle: missing.append('lef_mle')
+                if not lef_max: missing.append('lef_max')
+                if not lm_min: missing.append('lm_min')
+                if not lm_mle: missing.append('lm_mle')
+                if not lm_max: missing.append('lm_max')
+                
+                logger.error(f"[{VERSION}] Missing form fields: {missing}")
+                return render_template('error.html', 
+                    error=f"Missing required fields: {', '.join(missing)}. Please complete all estimate fields in the questionnaire."), 400
+            
+            original_inputs = {
+                'lef_min': float(lef_min),
+                'lef_mle': float(lef_mle),
+                'lef_max': float(lef_max),
+                'lm_min': float(lm_min),
+                'lm_mle': float(lm_mle),
+                'lm_max': float(lm_max)
+            }
+            
+        except ValueError as e:
+            logger.error(f"[{VERSION}] Invalid number format: {e}")
+            return render_template('error.html', 
+                error="Invalid number format. Please enter valid numbers for all estimate fields."), 400
+        
+        n_simulations = int(request.form.get('n_simulations', 10000))
+        
+        # Validate ranges
+        if not (0 <= original_inputs['lef_min'] <= original_inputs['lef_mle'] <= original_inputs['lef_max']):
+            logger.error(f"[{VERSION}] Invalid LEF range: {original_inputs['lef_min']}, {original_inputs['lef_mle']}, {original_inputs['lef_max']}")
+            return render_template('error.html', 
+                error=f"Invalid frequency estimates: min ({original_inputs['lef_min']}) ≤ most likely ({original_inputs['lef_mle']}) ≤ max ({original_inputs['lef_max']}) not satisfied"), 400
+        
+        if not (0 <= original_inputs['lm_min'] <= original_inputs['lm_mle'] <= original_inputs['lm_max']):
+            logger.error(f"[{VERSION}] Invalid LM range: {original_inputs['lm_min']}, {original_inputs['lm_mle']}, {original_inputs['lm_max']}")
+            return render_template('error.html', 
+                error=f"Invalid magnitude estimates: min (${original_inputs['lm_min']:,.0f}) ≤ most likely (${original_inputs['lm_mle']:,.0f}) ≤ max (${original_inputs['lm_max']:,.0f}) not satisfied"), 400
+        
+        logger.info(f"[{VERSION}] Running Monte Carlo simulation with LEF: {original_inputs['lef_min']}-{original_inputs['lef_mle']}-{original_inputs['lef_max']}, LM: ${original_inputs['lm_min']}-${original_inputs['lm_mle']}-${original_inputs['lm_max']}")
+        
+        # Run simulation
+        results = run_monte_carlo(**original_inputs, n_simulations=n_simulations)
+        
+        # Validate results structure
+        required_keys = ['mean', 'std', 'min', 'max', 'p10', 'p25', 'p50', 'p75', 'p90', 'p95']
+        missing_keys = [key for key in required_keys if key not in results]
+        
+        if missing_keys:
+            logger.error(f"[{VERSION}] Simulation returned invalid results. Missing keys: {missing_keys}")
+            logger.error(f"[{VERSION}] Results keys: {list(results.keys())}")
+            logger.error(f"[{VERSION}] Results: {results}")
+            return render_template('error.html',
+                error=f"Simulation error: Invalid results format. Missing: {', '.join(missing_keys)}"), 500
+        
+        logger.info(f"[{VERSION}] Simulation complete: Mean=${results['mean']:,.0f}, StdDev=${results['std']:,.0f}")
+        
+        # Get MITRE references if available - load from file
+        mitre_references = None
+        filename = session.get('questionnaire_filename')
+        
+        if filename:
+            filepath = os.path.join('generated', filename)
+            try:
+                with open(filepath, 'r') as f:
+                    questions = json.load(f)
+                    
+                # Extract MITRE techniques from questions
+                mitre_techniques = set()
+                for q_id, q_data in questions.get('questions', {}).items():
+                    if 'choices' in q_data:
+                        for choice in q_data['choices']:
+                            if 'mitre_techniques' in choice:
+                                mitre_techniques.update(choice['mitre_techniques'])
+                    if 'threat_context' in q_data and 'mitre_techniques' in q_data['threat_context']:
+                        mitre_techniques.update(q_data['threat_context']['mitre_techniques'])
+                
+                if mitre_techniques:
+                    mitre_references = list(mitre_techniques)
+                    logger.info(f"[{VERSION}] Found {len(mitre_references)} MITRE techniques")
+                    
+            except Exception as e:
+                logger.warning(f"[{VERSION}] Could not load MITRE references: {e}")
+        
+        return render_template('results.html',
+            results=results,
+            original_inputs=original_inputs,
+            n_simulations=n_simulations,
+            mitre_references=mitre_references,
+            generation_params=session.get('generation_params')
+        )
+        
+    except (ValueError, TypeError) as e:
+        logger.error(f"[{VERSION}] Validation error: {e}", exc_info=True)
+        return render_template('error.html', error=f"Invalid input: {str(e)}"), 400
+    except Exception as e:
+        logger.error(f"[{VERSION}] Analysis error: {e}", exc_info=True)
+        return render_template('error.html', 
+            error=f"Error during analysis: {str(e)}"), 500
 
 @app.route('/recalculate', methods=['POST'])
 def recalculate():
-    """Stub route - recalculation not implemented in test version."""
-    return jsonify({'error': 'Recalculation not available in test version'}), 501
+    """Recalculate simulation with adjusted parameters."""
+    try:
+        from simulation import run_monte_carlo
+        
+        data = request.get_json()
+        
+        # Get parameters
+        inputs = data.get('original_inputs')
+        likelihood_reduction = data.get('likelihood_reduction', 0) / 100.0
+        impact_reduction = data.get('impact_reduction', 0) / 100.0
+        n_simulations = min(int(data.get('n_simulations', 10000)), 100000)
+        
+        # Apply reductions
+        adjusted_inputs = {
+            'lef_min': inputs['lef_min'] * (1 - likelihood_reduction),
+            'lef_mle': inputs['lef_mle'] * (1 - likelihood_reduction),
+            'lef_max': inputs['lef_max'] * (1 - likelihood_reduction),
+            'lm_min': inputs['lm_min'] * (1 - impact_reduction),
+            'lm_mle': inputs['lm_mle'] * (1 - impact_reduction),
+            'lm_max': inputs['lm_max'] * (1 - impact_reduction)
+        }
+        
+        logger.info(f"[{VERSION}] Recalculating with likelihood reduction: {likelihood_reduction*100}%, impact reduction: {impact_reduction*100}%")
+        
+        # Run simulation
+        new_results = run_monte_carlo(**adjusted_inputs, n_simulations=n_simulations)
+        
+        return jsonify({
+            'status': 'success',
+            'results': new_results
+        })
+        
+    except Exception as e:
+        logger.error(f"[{VERSION}] Recalculation error: {e}")
+        return jsonify({
+            'error': 'Recalculation failed',
+            'details': str(e)
+        }), 500
 
 @app.route('/chat/assist', methods=['POST'])
 def chat_assist():
