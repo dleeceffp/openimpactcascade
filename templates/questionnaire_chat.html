@@ -593,13 +593,26 @@
                 });
                 html += '</div>';
             } else if (question.type === 'pert_estimate') {
-                // Determine unit label and field prefix based on estimate_type
-                const isFrequency = question.estimate_type === 'frequency_per_year';
-                const unitLabel = isFrequency ? 'events per year' : 'USD';
-                const prefix = isFrequency ? 'lef' : 'lm';
+                // Handle both v1 schema (unit + fair_component) and v2/v3 schema (estimate_type + guidance)
+                let unitLabel, prefix, guidance;
                 
-                // Get guidance if available
-                const guidance = question.guidance || {};
+                if (question.estimate_type) {
+                    // v2/v3 RAG schema
+                    const isFrequency = question.estimate_type === 'frequency_per_year';
+                    unitLabel = isFrequency ? 'events per year' : 'USD';
+                    prefix = isFrequency ? 'lef' : 'lm';
+                    guidance = question.guidance || {};
+                } else if (question.unit) {
+                    // v1 websearch schema
+                    unitLabel = question.unit;
+                    prefix = question.fair_component === 'LEF' ? 'lef' : 'lm';
+                    guidance = {};
+                } else {
+                    // Fallback
+                    unitLabel = 'value';
+                    prefix = 'unknown';
+                    guidance = {};
+                }
                 
                 html += `
                     <div class="pert-input-group">
