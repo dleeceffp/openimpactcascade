@@ -240,9 +240,9 @@ def questionnaire():
             questions = json.load(f)
         
         logger.info(f"[{VERSION}]   - JSON loaded successfully")
-        logger.info(f"[{VERSION}]   - Questions type: {type(questions)}")
+        #logger.info(f"[{VERSION}]   - Questions type: {type(questions)}")
         
-        # Debug the structure
+        """# Debug the structure
         if isinstance(questions, dict):
             logger.info(f"[{VERSION}]   - Questions keys: {list(questions.keys())}")
             if 'questions' in questions:
@@ -254,7 +254,7 @@ def questionnaire():
             logger.info(f"[{VERSION}]   - Questions is a list with {len(questions)} items")
         
         logger.info(f"[{VERSION}] ✅ Rendering questionnaire_chat.html")
-        logger.info(f"[{VERSION}]   - Template params: questions={type(questions)}, params={params}, version={VERSION}")
+        logger.info(f"[{VERSION}]   - Template params: questions={type(questions)}, params={params}, version={VERSION}")"""
         
         """return render_template('questionnaire_chat.html',
                              questions=questions,
