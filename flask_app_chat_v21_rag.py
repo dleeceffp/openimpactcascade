@@ -299,6 +299,7 @@ def chat():
         response = generate_chat_response(user_message, context, user_id)
         
         return jsonify({
+            'status': 'success', # required for chat assistant
             'response': response,
             'version': VERSION
         })
