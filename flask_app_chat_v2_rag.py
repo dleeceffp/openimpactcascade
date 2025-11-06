@@ -247,7 +247,7 @@ def questionnaire():
             logger.info(f"[{VERSION}]   - Questions keys: {list(questions.keys())}")
             if 'questions' in questions:
                 logger.info(f"[{VERSION}]   - Number of questions: {len(questions['questions'])}")
-                logger.info(f"[{VERSION}] - Question object {type(questions['questions'])}")
+                logger.info(f"[{VERSION}] - testing_next_line")
             if 'metadata' in questions:
                 logger.info(f"[{VERSION}]   - Metadata: {questions.get('metadata', {})}")
         elif isinstance(questions, list):
