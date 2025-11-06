@@ -260,7 +260,7 @@ def questionnaire():
                              questions=questions,
                              params=params,
                              version=VERSION)"""
-        return render_template('questionnaire_rationale.html',
+        return render_template('questionnaire_chat_rationale.html',
                              questions=questions,
                              params=params,
                              version=VERSION)
