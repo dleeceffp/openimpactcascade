@@ -556,7 +556,9 @@
                     
                     <div id="questionDisplay"></div>
                     
-                    <form id="questionnaireForm" method="POST" action="{{ url_for('analyze') }}">
+                    <form id="questionnaireForm" method="POST" action="/submit" onsubmit="return submitForm()">
+                        <input type="hidden" name="industry" value="{{ params.industry }}">
+                        <input type="hidden" name="region" value="{{ params.region }}">
                         <input type="hidden" name="lef_min" id="lef_min">
                         <input type="hidden" name="lef_mle" id="lef_mle">
                         <input type="hidden" name="lef_max" id="lef_max">
