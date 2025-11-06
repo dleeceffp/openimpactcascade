@@ -256,7 +256,11 @@ def questionnaire():
         logger.info(f"[{VERSION}] ✅ Rendering questionnaire_chat.html")
         logger.info(f"[{VERSION}]   - Template params: questions={type(questions)}, params={params}, version={VERSION}")
         
-        return render_template('questionnaire_chat.html',
+        """return render_template('questionnaire_chat.html',
+                             questions=questions,
+                             params=params,
+                             version=VERSION)"""
+        return render_template('questionnaire_rationale.html',
                              questions=questions,
                              params=params,
                              version=VERSION)
