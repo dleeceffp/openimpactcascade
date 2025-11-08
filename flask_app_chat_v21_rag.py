@@ -598,8 +598,35 @@ def chat_assist():
 
 @app.route('/chat/results', methods=['POST'])
 def chat_results():
-    """Stub route - results chat not implemented in test version."""
-    return jsonify({'error': 'Results chat not available in test version'}), 501
+    """Handle chat messages on the results page."""
+    try:
+        data = request.get_json()
+        user_message = data.get('message', '').strip()
+        context = data.get('context', {})
+        
+        if not user_message:
+            return jsonify({'error': 'Message is required'}), 400
+        
+        # Get tracker with version-specific code generator ID
+        tracker = get_tracker(session_based=True, code_generator="v2-rag")
+        user_id = tracker.get_user_id()
+        
+        logger.info(f"[{VERSION}] Results chat request from {user_id}: {user_message[:50]}...")
+        
+        # Generate response using Claude with RAG grounding
+        response = generate_chat_response(user_message, context, user_id)
+        
+        return jsonify({
+            'status': 'success',  # required for chat assistant
+            'response': response,
+            'version': VERSION
+        })
+    except Exception as e:
+        logger.error(f"[{VERSION}] Results chat error: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
 
 @app.route('/chat/save', methods=['POST'])
 def save_chat():
