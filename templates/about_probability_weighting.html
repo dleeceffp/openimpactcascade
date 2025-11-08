@@ -365,135 +365,105 @@
                 </p>
             </div>
             
-            <h2>How OpenImpactCascade Addresses This</h2>
+            <h2>Understanding the Lambda Parameter</h2>
             
-            <h3>Modified PERT with Configurable Lambda</h3>
+            <h3>What Controls Distribution Shape?</h3>
             <p>
-                Our implementation allows for <strong>asymmetric probability weighting</strong> by adjusting the lambda parameter in the Beta distribution. Here's how it works:
+                PERT distributions use a parameter called <strong>lambda (λ)</strong> that controls how probability is distributed across your three estimates. Think of lambda as a "confidence dial" for your most likely estimate:
             </p>
             
             <div class="formula-box">
-                <p style="font-size: 1.1em; margin-bottom: 10px;">Standard PERT Formula:</p>
+                <p style="font-size: 1.1em; margin-bottom: 10px;">The PERT Formula:</p>
                 <div class="formula">Mean = (Min + λ × Mode + Max) / (λ + 2)</div>
-                <p style="font-size: 0.9em; color: #718096; margin-top: 10px;">Where λ (lambda) controls distribution shape</p>
+                <p style="font-size: 0.9em; color: #718096; margin-top: 10px;">Lambda determines how much weight the "most likely" value receives</p>
             </div>
             
-            <div class="code-block">
-<span class="code-comment"># Current implementation in simulation.py (line 102)</span>
-lambda_param = 4  <span class="code-comment"># Standard PERT - symmetric</span>
-
-<span class="code-comment"># Shape parameters for Beta distribution</span>
-alpha = 1 + lambda_param * (mode_val - min_val) / range_val
-beta = 1 + lambda_param * (max_val - mode_val) / range_val
-
-<span class="code-comment"># Generate samples</span>
-beta_samples = np.random.beta(alpha, beta, n_samples)
-pert_samples = min_val + beta_samples * range_val
-            </div>
-            
-            <h3>Proposed Enhancement: Adaptive Lambda</h3>
+            <h3>How Lambda Affects Your Risk Estimates</h3>
             <p>
-                To better model real-world cyber risk, we can modify the lambda parameter based on the type of estimate:
+                Different lambda values create different probability distributions:
             </p>
             
             <div class="success-box">
-                <h3>✅ Recommended Lambda Values</h3>
+                <h3>Lambda Values and Their Effects</h3>
                 <ul>
-                    <li><strong>Loss Magnitude (LM):</strong> λ = 6-8 (right-skewed, fat tail on high end)</li>
-                    <li><strong>Loss Event Frequency (LEF):</strong> λ = 4-6 (moderately right-skewed)</li>
-                    <li><strong>Control Effectiveness:</strong> λ = 3-4 (more symmetric)</li>
+                    <li><strong>λ = 4 (Standard PERT):</strong> Creates a symmetric, bell-shaped distribution. Good for project timelines, but not for cyber losses.</li>
+                    <li><strong>λ = 6-8 (Right-Skewed):</strong> Pushes most probability toward the lower end, with a long tail toward high values. This matches real-world cyber loss patterns.</li>
+                    <li><strong>Higher Lambda:</strong> More probability mass near the minimum, creating the "most incidents are small, few are catastrophic" pattern we see in reality.</li>
                 </ul>
                 <p style="margin-top: 15px;">
-                    Higher lambda values push more probability mass toward the minimum, creating the right-skewed distribution observed in real-world data.
+                    For cyber risk, higher lambda values (6-8) better reflect the reality that most incidents cause modest losses, while rare events can be catastrophic.
                 </p>
             </div>
             
-            <h3>Alternative: Lognormal Distribution</h3>
+            <h2>Impact on Your Risk Assessment</h2>
+            
+            <h3>Why Distribution Shape Matters</h3>
             <p>
-                For even more realistic modeling, we could implement <strong>lognormal distributions</strong> for Loss Magnitude, which naturally produce right-skewed, heavy-tailed distributions:
+                The shape of your probability distribution significantly affects the risk metrics you'll see in your results:
             </p>
             
-            <div class="code-block">
-<span class="code-comment"># Lognormal alternative for Loss Magnitude</span>
-mu = np.log(mode_val)
-sigma = (np.log(max_val) - np.log(min_val)) / 4
-
-lm_samples = np.random.lognormal(mu, sigma, n_samples)
-<span class="code-comment"># Clip to [min, max] range</span>
-lm_samples = np.clip(lm_samples, min_val, max_val)
+            <div class="highlight-box">
+                <h3>Symmetric vs. Right-Skewed Distributions</h3>
+                <p><strong>With Symmetric PERT (λ=4):</strong></p>
+                <ul>
+                    <li>Median losses appear higher than what most organizations actually experience</li>
+                    <li>Extreme losses (95th percentile) may be underestimated</li>
+                    <li>The distribution suggests high and low impacts are equally likely</li>
+                </ul>
+                
+                <p style="margin-top: 15px;"><strong>With Right-Skewed Distributions (λ=6-8):</strong></p>
+                <ul>
+                    <li>Median losses align with typical incident costs</li>
+                    <li>Tail risk (95th, 99th percentiles) captures true catastrophic potential</li>
+                    <li>The distribution reflects reality: most incidents are manageable, few are devastating</li>
+                </ul>
             </div>
-            
-            <h2>Impact on Risk Assessment</h2>
-            
-            <h3>What This Means for Your Analysis</h3>
-            <p>
-                Using the current symmetric PERT implementation, you might see:
-            </p>
-            <ul>
-                <li><strong>Underestimated tail risk:</strong> 95th percentile losses appear lower than reality</li>
-                <li><strong>Overestimated median losses:</strong> P50 appears higher than typical incidents</li>
-                <li><strong>Misleading VaR:</strong> Value at Risk calculations don't capture true catastrophic potential</li>
-            </ul>
-            
-            <p>
-                With right-skewed distributions (higher lambda or lognormal), you get:
-            </p>
-            <ul>
-                <li><strong>Realistic tail risk:</strong> 95th and 99th percentiles reflect true catastrophic scenarios</li>
-                <li><strong>Lower median losses:</strong> P50 aligns with "most incidents are small" reality</li>
-                <li><strong>Better decision support:</strong> Executives see the true risk profile</li>
-            </ul>
             
             <div class="evidence-box">
-                <h4>📈 Example Impact: $500K Ransomware Assessment</h4>
-                <p><strong>Inputs:</strong> Min = $50K, Mode = $500K, Max = $10M</p>
+                <h4>📈 Concrete Example: Ransomware Risk Assessment</h4>
+                <p><strong>Your Estimates:</strong> Min = $50K, Most Likely = $500K, Max = $10M</p>
                 
-                <p><strong>Standard PERT (λ=4):</strong></p>
+                <p><strong>If using symmetric distribution (λ=4):</strong></p>
                 <ul>
-                    <li>P50 (Median): $850K</li>
-                    <li>P95: $3.2M</li>
-                    <li>Mean: $1.2M</li>
+                    <li>Median loss (P50): $850K</li>
+                    <li>Worst-case planning (P95): $3.2M</li>
+                    <li>Expected annual loss: $1.2M</li>
                 </ul>
                 
-                <p><strong>Right-Skewed PERT (λ=7):</strong></p>
+                <p style="margin-top: 15px;"><strong>If using right-skewed distribution (λ=7):</strong></p>
                 <ul>
-                    <li>P50 (Median): $450K ✅ (closer to mode)</li>
-                    <li>P95: $4.8M ✅ (captures tail risk)</li>
-                    <li>Mean: $1.1M (similar, but distribution is more realistic)</li>
+                    <li>Median loss (P50): $450K ✅ (closer to your "most likely" estimate)</li>
+                    <li>Worst-case planning (P95): $4.8M ✅ (better captures catastrophic scenarios)</li>
+                    <li>Expected annual loss: $1.1M (similar overall, but more realistic distribution)</li>
                 </ul>
+                
+                <p style="margin-top: 15px; font-style: italic;">
+                    Notice how the right-skewed distribution produces a median closer to what you expect in typical incidents, while still accounting for the rare but devastating losses in the tail.
+                </p>
             </div>
             
-            <h2>Implementation Roadmap</h2>
+            <h2>What This Means for Decision-Making</h2>
             
-            <h3>Phase 1: Configurable Lambda (Easy)</h3>
+            <h3>Using Risk Metrics Appropriately</h3>
             <p>
-                Modify <code>generate_pert_samples()</code> to accept a lambda parameter, defaulting to higher values for Loss Magnitude:
-            </p>
-            
-            <div class="code-block">
-def generate_pert_samples(min_val, mode_val, max_val, n_samples, 
-                         lambda_param=4, distribution_type='pert'):
-    """
-    Enhanced PERT with configurable skewness.
-    
-    Args:
-        lambda_param: Controls distribution shape
-                     4 = symmetric (standard PERT)
-                     6-8 = right-skewed (cyber losses)
-                     2-3 = left-skewed (rare)
-    """
-    <span class="code-comment"># ... existing implementation with lambda_param ...</span>
-            </div>
-            
-            <h3>Phase 2: Automatic Distribution Selection (Advanced)</h3>
-            <p>
-                Automatically select the appropriate distribution based on the estimate type:
+                Understanding distribution shape helps you interpret your risk assessment results:
             </p>
             <ul>
-                <li><strong>LEF:</strong> Modified PERT (λ=5)</li>
-                <li><strong>LM:</strong> Lognormal or Modified PERT (λ=7)</li>
-                <li><strong>Control Effectiveness:</strong> Standard PERT (λ=4)</li>
+                <li><strong>Median (P50):</strong> What you'll likely experience in a typical incident. Right-skewed distributions keep this close to your "most likely" estimate.</li>
+                <li><strong>Mean (Average):</strong> Useful for budgeting over many years, but can be pulled higher by rare catastrophic events.</li>
+                <li><strong>95th Percentile:</strong> Your "worst-case planning" number. Right-skewed distributions ensure this captures true tail risk.</li>
+                <li><strong>Maximum:</strong> The absolute worst-case scenario. Rare, but possible.</li>
             </ul>
+            
+            <div class="highlight-box">
+                <h3>Communicating Risk to Leadership</h3>
+                <p>
+                    When presenting risk assessments to executives, right-skewed distributions help you tell the accurate story:
+                </p>
+                <p style="margin-top: 10px;">
+                    <em>"Most ransomware incidents we'd face would cost around $450K to recover from. However, we need to plan for the possibility of a catastrophic event—there's a 5% chance losses could exceed $4.8M if everything goes wrong. This is why investing in strong backups and detection capabilities is critical."</em>
+                </p>
+            </div>
             
             <h2>Academic Support</h2>
             <p>
