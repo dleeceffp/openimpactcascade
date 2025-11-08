@@ -49,6 +49,16 @@ def home():
                          port=PORT,
                          description="RAG + LLM with Web Search")
 
+@app.route('/about/mitre')
+def about_mitre():
+    """Information page about MITRE ATT&CK framework."""
+    return render_template('about_mitre.html')
+
+@app.route('/about/fair')
+def about_fair():
+    """Information page about FAIR methodology."""
+    return render_template('about_fair.html')
+
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     """Generate a new questionnaire using AI."""

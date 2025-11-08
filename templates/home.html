@@ -125,6 +125,34 @@
         .warning-message strong {
             color: #c05621;
         }
+        
+        .info-links {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        
+        .info-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: all 0.3s;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .info-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
@@ -132,6 +160,15 @@
         <div class="header">
             <h1>🎯 OpenImpactCascade</h1>
             <p>AI-Powered Quantitative Risk Analysis with FAIR Methodology</p>
+        </div>
+        
+        <div class="info-links">
+            <a href="{{ url_for('about_mitre') }}" class="info-link">
+                🛡️ About MITRE ATT&CK
+            </a>
+            <a href="{{ url_for('about_fair') }}" class="info-link">
+                📊 About FAIR Methodology
+            </a>
         </div>
         
         <div class="cards">
