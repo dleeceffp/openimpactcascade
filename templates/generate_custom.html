@@ -172,14 +172,23 @@
         
         .scenario-text {
             font-weight: 600;
-            color: #333;
-            margin-bottom: 5px;
+            color: #2d3748;
+            font-size: 1.1em;
+            margin-bottom: 8px;
+        }
+        
+        .scenario-description {
+            color: #4a5568;
+            margin-bottom: 8px;
+            line-height: 1.5;
         }
         
         .scenario-rationale {
-            font-size: 0.9em;
-            color: #666;
+            font-size: 0.85em;
+            color: #718096;
             font-style: italic;
+            padding-top: 8px;
+            border-top: 1px solid #e2e8f0;
         }
         
         .scenario-actions {
@@ -609,16 +618,17 @@
                 optionDiv.className = 'scenario-option';
                 
                 // Mark recommended scenario
-                if (index === data.recommended_scenario) {
+                if (scenario.recommended === true) {
                     optionDiv.classList.add('recommended');
                 }
                 
                 optionDiv.innerHTML = `
-                    <div class="scenario-text">${scenario.text}</div>
+                    <div class="scenario-text">${scenario.title}</div>
+                    <div class="scenario-description">${scenario.description}</div>
                     <div class="scenario-rationale">${scenario.rationale}</div>
                 `;
                 
-                optionDiv.onclick = () => selectScenario(scenario.text, index);
+                optionDiv.onclick = () => selectScenario(scenario.title, index);
                 container.appendChild(optionDiv);
             });
         }
