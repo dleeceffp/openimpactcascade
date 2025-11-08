@@ -59,6 +59,11 @@ def about_fair():
     """Information page about FAIR methodology."""
     return render_template('about_fair.html')
 
+@app.route('/about/probability-weighting')
+def about_probability_weighting():
+    """Information page about probability weighting modifications for cyber risk."""
+    return render_template('about_probability_weighting.html')
+
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     """Generate a new questionnaire using AI."""
