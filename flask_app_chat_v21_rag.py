@@ -221,6 +221,99 @@ def generate_custom():
         return render_template('error.html', 
             error=f"An error occurred while generating the questionnaire: {str(e)}"), 500
 
+@app.route('/refine_scenario', methods=['POST'])
+def refine_scenario():
+    """Refine a user's narrative risk concern into structured scenario options."""
+    if not ai_generator:
+        return jsonify({'error': 'AI question generation is not available'}), 503
+    
+    try:
+        data = request.get_json()
+        narrative = data.get('narrative', '').strip()
+        industry = data.get('industry', '').strip()
+        region = data.get('region', '').strip()
+        
+        if not narrative or not industry or not region:
+            return jsonify({'error': 'Narrative, industry, and region are required'}), 400
+        
+        logger.info(f"[{VERSION}] Refining scenario for {industry} in {region}")
+        
+        # Get tracker
+        tracker = get_tracker(session_based=True, code_generator="v2-rag")
+        user_id = tracker.get_user_id()
+        
+        # Use AI to refine the narrative into structured scenarios
+        import anthropic
+        
+        client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
+        
+        system_prompt = """You are a cybersecurity risk assessment expert. Analyze the user's risk concern narrative and extract:
+1. Key concerns (2-4 specific worries)
+2. Recommended scenario options (3-5 specific, actionable risk scenarios)
+
+Return JSON format:
+{
+    "key_concerns": ["concern 1", "concern 2", ...],
+    "scenarios": [
+        {
+            "title": "Specific Risk Scenario",
+            "description": "Brief explanation of this scenario",
+            "rationale": "Why this is relevant based on their concern",
+            "recommended": true/false
+        }
+    ]
+}"""
+
+        user_prompt = f"""Industry: {industry}
+Region: {region}
+
+User's Risk Concern:
+{narrative}
+
+Analyze this concern and provide structured scenario options."""
+
+        api_metadata = create_api_metadata(user_id)
+        original_user_id = api_metadata.pop('_original_user_id')
+        
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4000,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+            metadata=api_metadata
+        )
+        
+        # Log API call
+        tracker.log_api_call(
+            user_id=original_user_id,
+            hashed_user_id=api_metadata['user_id'],
+            api_type='scenario_refinement',
+            model='claude-sonnet-4-20250514',
+            request_id=response.id
+        )
+        
+        # Extract JSON from response
+        content = response.content[0].text
+        
+        # Try to extract JSON if wrapped in code blocks
+        if '```json' in content:
+            content = content.split('```json')[1].split('```')[0].strip()
+        elif '```' in content:
+            content = content.split('```')[1].split('```')[0].strip()
+        
+        result = json.loads(content)
+        
+        logger.info(f"[{VERSION}] Successfully refined scenario: {len(result.get('scenarios', []))} options")
+        
+        return jsonify(result)
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"[{VERSION}] JSON parsing error in scenario refinement: {e}")
+        return jsonify({'error': 'Failed to parse AI response'}), 500
+    except Exception as e:
+        logger.error(f"[{VERSION}] Scenario refinement error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/questionnaire')
 def questionnaire():
     """Display the generated questionnaire with chat interface."""
