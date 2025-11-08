@@ -170,6 +170,17 @@
             margin-bottom: 8px;
         }
         
+        /* Selected state takes priority over recommended */
+        .scenario-option.recommended.selected {
+            border-color: #667eea;
+            background: #f0f3ff;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+        
+        .scenario-option.recommended.selected::before {
+            color: #667eea;
+        }
+        
         .scenario-text {
             font-weight: 600;
             color: #2d3748;
