@@ -477,7 +477,7 @@ Be concise, practical, and supportive."""
     if context.get('region'):
         prompt_parts.append(f"Region: {context['region']}")
     
-    # Add current question context (sent from frontend)
+    # Add current question context (sent from questionnaire page)
     if context.get('question_text'):
         prompt_parts.append(f"\nCurrent Question: {context['question_text']}")
     if context.get('question_type'):
@@ -486,6 +486,28 @@ Be concise, practical, and supportive."""
         prompt_parts.append(f"FAIR Component: {context['fair_component']}")
     if context.get('help_text'):
         prompt_parts.append(f"Help Text: {context['help_text']}")
+    
+    # Add results page context (sent from results page)
+    if context.get('page') == 'results':
+        if context.get('risk_scenario'):
+            prompt_parts.append(f"\nRisk Scenario: {context['risk_scenario']}")
+        if context.get('expected_loss'):
+            prompt_parts.append(f"Expected Annual Loss: ${context['expected_loss']:,.0f}")
+        if context.get('p90_loss'):
+            prompt_parts.append(f"90th Percentile Loss: ${context['p90_loss']:,.0f}")
+        
+        # Add FAIR estimates for context
+        if context.get('lef_min') is not None:
+            prompt_parts.append(f"\nLoss Event Frequency Estimates:")
+            prompt_parts.append(f"  Min: {context['lef_min']} events/year")
+            prompt_parts.append(f"  Most Likely: {context['lef_mle']} events/year")
+            prompt_parts.append(f"  Max: {context['lef_max']} events/year")
+        
+        if context.get('lm_min') is not None:
+            prompt_parts.append(f"\nLoss Magnitude Estimates:")
+            prompt_parts.append(f"  Min: ${context['lm_min']:,.0f}")
+            prompt_parts.append(f"  Most Likely: ${context['lm_mle']:,.0f}")
+            prompt_parts.append(f"  Max: ${context['lm_max']:,.0f}")
     
     user_prompt = "\n".join(prompt_parts)
     
