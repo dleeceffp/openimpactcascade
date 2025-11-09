@@ -260,6 +260,10 @@
         }
         
         @media (max-width: 1024px) {
+            .main-content {
+                margin-right: 0;
+            }
+            
             .chat-sidebar {
                 right: -400px;
                 transition: right 0.3s;
@@ -289,6 +293,7 @@
             flex: 1;
             overflow-y: auto;
             padding: 20px;
+            margin-right: 400px;
         }
         
         .container { max-width: 1200px; margin: 0 auto; }
@@ -511,9 +516,6 @@
                         <span class="control-value" id="likelihoodValue">0%</span>
                     </label>
                     <input type="range" id="likelihoodSlider" min="0" max="100" value="0" class="slider">
-                    <div class="control-help">
-                        Examples: MFA (30-50%), EDR (40-60%), Security Awareness (20-30%)
-                    </div>
                 </div>
                 
                 <div class="control-item">
@@ -522,9 +524,6 @@
                         <span class="control-value" id="impactValue">0%</span>
                     </label>
                     <input type="range" id="impactSlider" min="0" max="100" value="0" class="slider">
-                    <div class="control-help">
-                        Examples: Backups (50-70%), Cyber Insurance (30-50%), IR Plan (20-40%)
-                    </div>
                 </div>
                 
                 <div class="control-buttons">
