@@ -99,12 +99,6 @@ def run_monte_carlo(
             'lm': lm_distribution,
             'lef_lambda': lef_lambda if lef_distribution == 'pert' else None,
             'lm_lambda': lm_lambda if lm_distribution == 'pert' else None
-        },
-        # Include raw samples for visualization (convert to lists for JSON serialization)
-        'samples': {
-            'lef': lef_samples.tolist(),
-            'lm': lm_samples.tolist(),
-            'annual_loss': annual_loss.tolist()
         }
     }
     
