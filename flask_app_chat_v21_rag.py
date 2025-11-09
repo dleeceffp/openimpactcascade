@@ -475,8 +475,16 @@ Be concise, practical, and supportive."""
         prompt_parts.append(f"\nIndustry: {context['industry']}")
     if context.get('region'):
         prompt_parts.append(f"Region: {context['region']}")
-    if context.get('current_question'):
-        prompt_parts.append(f"Current question context: {context['current_question']}")
+    
+    # Add current question context (sent from frontend)
+    if context.get('question_text'):
+        prompt_parts.append(f"\nCurrent Question: {context['question_text']}")
+    if context.get('question_type'):
+        prompt_parts.append(f"Question Type: {context['question_type']}")
+    if context.get('fair_component'):
+        prompt_parts.append(f"FAIR Component: {context['fair_component']}")
+    if context.get('help_text'):
+        prompt_parts.append(f"Help Text: {context['help_text']}")
     
     user_prompt = "\n".join(prompt_parts)
     
