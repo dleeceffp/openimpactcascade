@@ -1,0 +1,19 @@
+# --- Web Framework ---
+Flask>=3.0.0,<4
+gunicorn>=21.2.0,<22
+
+# --- Anthropic SDK (messages API used in your code) ---
+anthropic>=0.39.0,<0.50
+httpx>=0.25.0,<1.0           # Anthropic transports via httpx
+
+# --- GCP Vertex AI (RAG) ---
+google-cloud-aiplatform>=1.70.0,<1.80
+google-auth>=2.25.0,<3.0     # Let aiplatform resolve a compatible minor
+
+# --- Scientific Computing (Windows/macOS/Linux wheels available for py3.10) ---
+numpy>=1.26.2,<2.0
+scipy>=1.11.4,<1.13
+
+# --- Utilities ---
+python-dotenv>=1.0.0,<2.0
+typing-extensions>=4.8.0,<5.0

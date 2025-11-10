@@ -23,14 +23,19 @@ from datetime import datetime
 
 # GCP Vertex AI imports
 try:
-    from vertexai import rag
     import vertexai
+    try:
+        # Try new import path (v1.50+)
+        from vertexai import rag
+    except ImportError:
+        # Fall back to preview path (v1.38-1.49)
+        from vertexai.preview import rag
     from google.auth import default as google_auth_default
     from google.oauth2 import service_account
     VERTEX_AI_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     VERTEX_AI_AVAILABLE = False
-    logging.warning("Vertex AI libraries not installed. RAG features will be disabled.")
+    logging.warning(f"Vertex AI libraries not installed. RAG features will be disabled. Error: {e}")
 
 logger = logging.getLogger(__name__)
 # Set to INFO level for debugging

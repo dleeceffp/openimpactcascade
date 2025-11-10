@@ -25,7 +25,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 
 # Version identifier
 VERSION = "v2-rag-enhanced"
-PORT = 8081
+PORT = 8080
 # Right after line 27 in flask_app_chat_v2_rag.py
 logger.info(f"========== STARTING {VERSION} on PORT {PORT} ==========")
 
