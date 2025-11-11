@@ -1,6 +1,20 @@
 # OpenImpactCascade - AI-Powered Risk Assessment Platform
 
-AI-powered risk assessment questionnaire generator with FAIR methodology, MITRE ATT&CK integration, and comprehensive safety safeguards.
+**Version:** v2-rag-enhanced  
+**Port:** 8080  
+**Python:** 3.8 - 3.11 (3.11 recommended)
+
+AI-powered risk assessment questionnaire generator with FAIR methodology, MITRE ATT&CK integration, GCP Vertex AI RAG, and comprehensive safety safeguards.
+
+---
+
+## 🔧 Technology Stack
+
+- **Backend:** Flask 3.0+, Python 3.11
+- **AI/ML:** Anthropic Claude Sonnet 4 (via API)
+- **RAG:** GCP Vertex AI RAG Engine
+- **Simulation:** NumPy, SciPy (Monte Carlo with lognormal distributions)
+- **Deployment:** Gunicorn, Docker, GCP Cloud Run
 
 ---
 
@@ -58,25 +72,28 @@ OpenImpactCascade is a Flask-based web application that generates custom cyberse
 ## 📁 Project Structure
 
 ```
-OpenImpactCascade/
-├── flask_app_chat.py              # Main Flask application with chat
-├── ai_question_generator.py       # AI questionnaire generator (CLI version)
-├── simulation.py                  # Monte Carlo simulation engine
-├── user_tracking.py               # User tracking & API safeguards
-├── investigate_abuse.py           # Abuse investigation utility
+app/
+├── flask_app_chat_v21_rag_enhanced.py  # Main Flask application (v2-rag-enhanced)
+├── ai_question_generator_with_rag_rationale.py  # AI generator with RAG + rationale
+├── simulation_enhanced.py              # Enhanced Monte Carlo with lognormal distributions
+├── user_tracking.py                    # User tracking & API safeguards
+├── vertex_rag_complete.py              # GCP Vertex AI RAG engine integration
 ├── templates/
-│   ├── home.html                  # Landing page
-│   ├── generate.html              # Question generation form
-│   ├── questionnaire_chat.html    # Interactive questionnaire with chat
-│   ├── results.html               # Analysis results
-│   └── error.html                 # Error page
-├── generated/                     # Generated questionnaires saved here
+│   ├── home.html                       # Landing page
+│   ├── generate.html                   # Standard questionnaire form
+│   ├── generate_custom.html            # Custom scenario generator
+│   ├── questionnaire_chat_rationale.html  # Interactive questionnaire with chat
+│   ├── results.html                    # Analysis results with chat sidebar
+│   ├── error.html                      # Error page
+│   ├── about_fair.html                 # FAIR methodology documentation
+│   ├── about_mitre.html                # MITRE ATT&CK integration info
+│   └── about_probability_weighting.html # Probability weighting explanation
+├── static/                             # Static assets (CSS, JS, images)
+├── generated/                          # Generated questionnaires saved here
 ├── logs/
-│   └── api_calls/                 # API call logs (JSONL format)
-├── requirements.txt               # Python dependencies
-├── README.md                      # This file
-├── SAFEGUARDS_README.md          # Detailed safeguards documentation
-└── flask_readme.md                # Additional Flask documentation
+│   └── api_calls/                      # API call logs (JSONL format)
+├── requirements.txt                    # Python dependencies
+└── README.md                           # This file
 ```
 
 ---
@@ -91,48 +108,91 @@ pip install -r requirements.txt
 
 **requirements.txt:**
 ```
-flask>=3.0.0
-anthropic>=0.18.0
-numpy>=1.24.0
-scipy>=1.11.0
-python-dotenv>=1.0.0
+# Web Framework
+Flask>=3.0.0,<4.0
+gunicorn>=21.2.0,<22.0
+
+# AI/ML
+anthropic>=0.39.0,<0.50
+httpx>=0.25.0,<1.0
+
+# GCP Vertex AI (RAG)
+google-cloud-aiplatform>=1.70.0,<1.80
+google-auth>=2.25.0,<3.0
+
+# Scientific Computing
+numpy>=1.26.2,<2.0
+scipy>=1.11.4,<1.13
+
+# Utilities
+python-dotenv>=1.0.0,<2.0
+typing-extensions>=4.8.0,<5.0
 ```
 
-### 2. Set Up API Key
+**Python Version:** 3.8 - 3.11 (3.11 recommended)
 
-Get your API key from https://console.anthropic.com
+### 2. Set Up Environment Variables
+
+**Required:**
+- `ANTHROPIC_API_KEY` - Get from https://console.anthropic.com
+- `SECRET_KEY` - Flask session secret (generate with `python -c "import secrets; print(secrets.token_hex(32))"`)
+
+**GCP Vertex AI (for RAG features):**
+- `GOOGLE_APPLICATION_CREDENTIALS` - Path to service account JSON key
+- `GOOGLE_CLOUD_PROJECT` - Your GCP project ID
+- `GCP_LOCATION` - GCP region (default: us-central1)
+- `RAG_CORPUS_NAME` - Full RAG corpus resource name
 
 ```bash
-# Option 1: Environment variable
-export ANTHROPIC_API_KEY='your-api-key-here'
+# Option 1: Environment variables
+export ANTHROPIC_API_KEY='sk-ant-xxxxx'
+export SECRET_KEY='your-secure-secret-key'
+export GOOGLE_APPLICATION_CREDENTIALS='/path/to/service-account-key.json'
+export GOOGLE_CLOUD_PROJECT='your-project-id'
+export RAG_CORPUS_NAME='projects/PROJECT_ID/locations/LOCATION/ragCorpora/CORPUS_ID'
 
 # Option 2: .env file
-echo "ANTHROPIC_API_KEY=your-api-key-here" > .env
-echo "SECRET_KEY=your-secret-key-here" >> .env
+cat > .env << EOF
+ANTHROPIC_API_KEY=sk-ant-xxxxx
+SECRET_KEY=your-secure-secret-key
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
+GOOGLE_CLOUD_PROJECT=your-project-id
+RAG_CORPUS_NAME=projects/PROJECT_ID/locations/LOCATION/ragCorpora/CORPUS_ID
+EOF
 ```
 
 ### 3. Create Directories
 
 ```bash
-mkdir -p templates generated logs/api_calls
+mkdir -p generated logs/api_calls static
 ```
 
 ### 4. Run the Application
 
 **Development:**
 ```bash
-export FLASK_ENV=development
-python flask_app_chat.py
+python flask_app_chat_v21_rag_enhanced.py
 ```
 
-**Production:**
+**Production (with Gunicorn):**
 ```bash
-export FLASK_ENV=production
-export SECRET_KEY='your-secure-secret-key'
-gunicorn -w 4 -b 0.0.0.0:8080 flask_app_chat:app
+gunicorn -w 4 -b 0.0.0.0:8080 --timeout 300 flask_app_chat_v21_rag_enhanced:app
+```
+
+**Docker:**
+```bash
+docker build -t openimpactcascade:latest .
+docker run -p 8080:8080 \
+  -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  -e SECRET_KEY=$SECRET_KEY \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/app/service-account-key.json \
+  -v $(pwd)/service-account-key.json:/app/service-account-key.json \
+  openimpactcascade:latest
 ```
 
 Access at: **http://localhost:8080**
+
+**Default Port:** 8080 (configurable via `PORT` environment variable)
 
 ---
 

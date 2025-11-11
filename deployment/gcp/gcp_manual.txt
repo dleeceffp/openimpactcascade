@@ -30,7 +30,9 @@ gcloud secrets add-iam-policy-binding ANTHROPIC_API_KEY \
   --member="serviceAccount:${SERVICE_ACCOUNT}" \
   --role="roles/secretmanager.secretAccessor"
 
-
+gcloud secrets add-iam-policy-binding SECRET_KEY \
+    --member="serviceAccount:${SERVICE_ACCOUNT}" \
+    --role="roles/secretmanager.secretAccessor"
 
 
 # Deploy with service account

@@ -33,3 +33,28 @@ docker run -p 8080:8080 \
 # Test in browser
 open http://localhost:8080
 
+
+
+
+
+
+# Create service account
+export PROJECT_ID="oicsbx"
+export SERVICE_NAME="dev-oicv21-cr-sa"
+export SERVICE_ACCOUNT="dev-oicv21-cr-sa@$PROJECT_ID.iam.gserviceaccount.com"
+
+
+gcloud run deploy  oicv21test0 \
+    --project oicsbx \
+    --image gcr.io/oicsbx/oicv21test0:v1 \
+    --platform managed \
+    --region us-central1 \
+    --allow-unauthenticated \
+    --service-account dev-oicv21-cr-sa@oicsbx.iam.gserviceaccount.com \
+    --memory 2Gi \
+    --cpu 2 \
+    --timeout 300 \
+    --max-instances 3 \
+    --min-instances 1 \
+    --set-env-vars "PORT=8080,GOOGLE_CLOUD_PROJECT=oicsbx" \
+    --set-secrets "ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,SECRET_KEY=SECRET_KEY:latest"
