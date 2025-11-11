@@ -10,7 +10,7 @@ import json
 import anthropic
 from typing import Dict, List, Optional
 from user_tracking import get_tracker, create_api_metadata
-from vertex_rag_complete import get_rag_engine
+from vertex_rag_v211 import get_rag_engine
 
 
 class AIQuestionGeneratorWithRAGAndRationale:

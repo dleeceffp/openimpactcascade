@@ -13,7 +13,7 @@ import logging
 from datetime import datetime
 from typing import Dict
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, send_file
-from ai_question_generator_with_rag_rationale import AIQuestionGeneratorWithRAGAndRationale
+from ai_question_generator_v211 import AIQuestionGeneratorWithRAGAndRationale
 from user_tracking import get_tracker, create_api_metadata
 
 # Setup logging
@@ -427,7 +427,7 @@ def chat():
 def generate_chat_response(user_message: str, context: Dict, user_id: str) -> str:
     """Generate chat response using Claude with RAG grounding."""
     import anthropic
-    from vertex_rag_complete import get_rag_engine
+    from vertex_rag_v211 import get_rag_engine
     
     client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
     
@@ -568,7 +568,7 @@ def analyze():
     """Process the questionnaire responses and run Monte Carlo analysis."""
     try:
         # Import ENHANCED simulation module
-        from simulation_enhanced import run_monte_carlo
+        from simulation_v211 import run_monte_carlo
         
         # Get form data with better error handling
         try:
@@ -692,7 +692,7 @@ def analyze():
 def recalculate():
     """Recalculate simulation with adjusted parameters using enhanced distributions."""
     try:
-        from simulation_enhanced import run_monte_carlo
+        from simulation_v211 import run_monte_carlo
         
         data = request.get_json()
         
@@ -801,7 +801,7 @@ def download():
 @app.route('/health')
 def health():
     """Health check endpoint."""
-    from vertex_rag_complete import get_rag_engine
+    from vertex_rag_v211 import get_rag_engine
     
     rag_engine = get_rag_engine(enable_fallback=True)
     
