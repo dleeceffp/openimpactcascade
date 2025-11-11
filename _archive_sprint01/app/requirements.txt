@@ -1,0 +1,26 @@
+# OpenImpactCascade - AI-Powered Risk Assessment Platform
+# Python Dependencies for Production Deployment
+
+# --- Web Framework ---
+Flask>=3.0.0,<4.0
+gunicorn>=21.2.0,<22.0
+
+# --- AI/ML ---
+anthropic>=0.39.0,<0.50
+httpx>=0.25.0,<1.0           # Required by Anthropic SDK for HTTP transport
+
+# --- GCP Vertex AI (RAG) ---
+google-cloud-aiplatform>=1.70.0,<1.80
+google-auth>=2.25.0,<3.0
+
+# --- Scientific Computing ---
+numpy>=1.26.2,<2.0
+scipy>=1.11.4,<1.13
+
+# --- Utilities ---
+python-dotenv>=1.0.0,<2.0
+typing-extensions>=4.8.0,<5.0
+
+# --- Python Version ---
+# Requires: Python 3.8 - 3.11 (3.11 recommended for production)
+# Note: Python 3.12 may have compatibility issues with some dependencies
