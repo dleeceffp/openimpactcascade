@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About MITRE ATT&CK - OpenImpactCascade</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f7fafc;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px 12px 0 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: white;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header .subtitle {
+            color: white;
+            font-size: 1.2em;
+            opacity: 0.95;
+        }
+        
+        .content {
+            background: white;
+            padding: 40px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 0 0 12px 12px;
+        }
+        
+        .content h2 {
+            color: #667eea;
+            font-size: 1.8em;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        .content h3 {
+            color: #4a5568;
+            font-size: 1.3em;
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+        
+        .content p {
+            color: #4a5568;
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+        
+        .content ul, .content ol {
+            margin-left: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .content li {
+            color: #4a5568;
+            line-height: 1.8;
+            margin-bottom: 10px;
+        }
+        
+        .highlight-box {
+            background: #eef2ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        
+        .highlight-box h3 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        
+        .example-box {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        
+        .example-box h4 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+        
+        .technique-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        
+        .cta-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-top: 40px;
+            text-align: center;
+        }
+        
+        .cta-section h2 {
+            color: white;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        
+        .cta-section p {
+            color: white;
+            opacity: 0.95;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .external-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .external-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="{{ url_for('home') }}" class="back-link">← Back to Home</a>
+        
+        <div class="header">
+            <h1>🛡️ MITRE ATT&CK Framework</h1>
+            <p class="subtitle">Understanding Real-World Adversary Tactics, Techniques, and Procedures</p>
+        </div>
+        
+        <div class="content">
+            <h2>What is MITRE ATT&CK?</h2>
+            <p>
+                <strong>MITRE ATT&CK</strong> (Adversarial Tactics, Techniques, and Common Knowledge) is a globally accessible knowledge base of adversary tactics and techniques based on real-world observations. It serves as a foundation for developing threat models and methodologies in the cybersecurity community.
+            </p>
+            
+            <p>
+                Created and maintained by <a href="https://attack.mitre.org/" target="_blank" class="external-link">MITRE Corporation</a>, ATT&CK provides a comprehensive matrix of how threat actors operate throughout the attack lifecycle—from initial access to data exfiltration and impact.
+            </p>
+            
+            <div class="highlight-box">
+                <h3>Why MITRE ATT&CK Matters for Risk Assessment</h3>
+                <p>
+                    When assessing cyber risk, it's not enough to think in abstract terms like "data breach" or "ransomware." MITRE ATT&CK helps you understand the <strong>specific techniques</strong> adversaries use, enabling more accurate threat modeling and control evaluation.
+                </p>
+            </div>
+            
+            <h2>The ATT&CK Matrix Structure</h2>
+            <p>
+                The framework is organized into <strong>14 tactics</strong> representing the adversary's technical goals during an attack:
+            </p>
+            
+            <ol>
+                <li><strong>Reconnaissance</strong> - Gathering information to plan future operations</li>
+                <li><strong>Resource Development</strong> - Establishing resources to support operations</li>
+                <li><strong>Initial Access</strong> - Getting into your network</li>
+                <li><strong>Execution</strong> - Running malicious code</li>
+                <li><strong>Persistence</strong> - Maintaining foothold</li>
+                <li><strong>Privilege Escalation</strong> - Gaining higher-level permissions</li>
+                <li><strong>Defense Evasion</strong> - Avoiding detection</li>
+                <li><strong>Credential Access</strong> - Stealing account credentials</li>
+                <li><strong>Discovery</strong> - Figuring out your environment</li>
+                <li><strong>Lateral Movement</strong> - Moving through your network</li>
+                <li><strong>Collection</strong> - Gathering data of interest</li>
+                <li><strong>Command and Control</strong> - Communicating with compromised systems</li>
+                <li><strong>Exfiltration</strong> - Stealing data</li>
+                <li><strong>Impact</strong> - Disrupting availability or integrity</li>
+            </ol>
+            
+            <p>
+                Each tactic contains multiple <strong>techniques</strong> (and sub-techniques) that describe specific methods adversaries use to achieve that tactical goal.
+            </p>
+            
+            <div class="example-box">
+                <h4>Example: Ransomware Attack Chain</h4>
+                <p>A typical ransomware attack might use these techniques:</p>
+                <ul>
+                    <li><span class="technique-badge">T1566.001</span> <strong>Phishing: Spearphishing Attachment</strong> - Initial Access</li>
+                    <li><span class="technique-badge">T1204.002</span> <strong>User Execution: Malicious File</strong> - Execution</li>
+                    <li><span class="technique-badge">T1078</span> <strong>Valid Accounts</strong> - Persistence & Privilege Escalation</li>
+                    <li><span class="technique-badge">T1486</span> <strong>Data Encrypted for Impact</strong> - Impact</li>
+                </ul>
+            </div>
+            
+            <h2>How OpenImpactCascade Uses MITRE ATT&CK</h2>
+            
+            <h3>1. Threat Intelligence Grounding</h3>
+            <p>
+                Our AI questionnaire generator references MITRE ATT&CK techniques when identifying relevant threats for your industry and region. This ensures that threat scenarios are based on <strong>documented, real-world attack patterns</strong> rather than hypothetical risks.
+            </p>
+            
+            <h3>2. Technique-Specific Risk Scenarios</h3>
+            <p>
+                Each threat scenario in your questionnaire includes specific ATT&CK technique IDs, helping you understand:
+            </p>
+            <ul>
+                <li>What adversaries actually do in attacks</li>
+                <li>Which controls would detect or prevent each technique</li>
+                <li>How different techniques chain together in attack sequences</li>
+            </ul>
+            
+            <h3>3. Control Effectiveness Mapping</h3>
+            <p>
+                When evaluating your security controls, we map them to the ATT&CK techniques they're designed to mitigate. This helps you identify coverage gaps and prioritize investments based on the most relevant threats to your organization.
+            </p>
+            
+            <div class="highlight-box">
+                <h3>Industry-Specific Threat Intelligence</h3>
+                <p>
+                    MITRE maintains industry-specific threat profiles showing which techniques are most commonly used against healthcare, finance, manufacturing, and other sectors. Our platform leverages this intelligence to tailor questionnaires to your specific threat landscape.
+                </p>
+            </div>
+            
+            <h2>ATT&CK in Practice: A Healthcare Example</h2>
+            <p>
+                Healthcare organizations face unique threats. According to MITRE ATT&CK data and CISA advisories, common attack patterns include:
+            </p>
+            
+            <div class="example-box">
+                <h4>Scenario: Ransomware Targeting Electronic Health Records</h4>
+                <p><strong>Attack Chain:</strong></p>
+                <ol>
+                    <li><span class="technique-badge">T1566.001</span> Phishing email with malicious attachment sent to staff</li>
+                    <li><span class="technique-badge">T1204.002</span> User opens attachment, executing malware</li>
+                    <li><span class="technique-badge">T1078</span> Malware uses stolen credentials to access EHR system</li>
+                    <li><span class="technique-badge">T1021.001</span> Lateral movement via Remote Desktop Protocol</li>
+                    <li><span class="technique-badge">T1486</span> Encryption of patient data and backups</li>
+                    <li><span class="technique-badge">T1657</span> Financial theft via ransom payment</li>
+                </ol>
+                
+                <p><strong>Relevant Controls:</strong></p>
+                <ul>
+                    <li>Email security (blocks T1566.001)</li>
+                    <li>Endpoint detection and response (detects T1204.002, T1486)</li>
+                    <li>Multi-factor authentication (mitigates T1078)</li>
+                    <li>Network segmentation (limits T1021.001)</li>
+                    <li>Offline backups (reduces impact of T1486)</li>
+                </ul>
+            </div>
+            
+            <h2>Learning More About MITRE ATT&CK</h2>
+            <p>
+                To dive deeper into the framework:
+            </p>
+            <ul>
+                <li><a href="https://attack.mitre.org/" target="_blank" class="external-link">Official MITRE ATT&CK Website</a> - Browse the full matrix</li>
+                <li><a href="https://attack.mitre.org/matrices/enterprise/" target="_blank" class="external-link">Enterprise ATT&CK Matrix</a> - Most relevant for organizational risk assessment</li>
+                <li><a href="https://attack.mitre.org/resources/getting-started/" target="_blank" class="external-link">Getting Started Guide</a> - Learn how to use ATT&CK effectively</li>
+                <li><a href="https://attack.mitre.org/groups/" target="_blank" class="external-link">Threat Actor Groups</a> - See which groups target your industry</li>
+            </ul>
+            
+            <div class="cta-section">
+                <h2>Ready to Build Your Risk Assessment?</h2>
+                <p>
+                    Our AI-powered platform automatically identifies the most relevant MITRE ATT&CK techniques for your industry and region, creating a tailored questionnaire grounded in real-world threat intelligence.
+                </p>
+                <a href="{{ url_for('generate') }}" class="btn">Generate AI Questionnaire →</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,97 @@
+# Example Terraform variables file
+# Copy this to terraform.tfvars and fill in your values
+# DO NOT COMMIT terraform.tfvars to version control
+#
+# Choose ONE configuration below based on your code stream
+
+#==============================================================================
+# PRODUCTION PAID - Revenue-generating production workload
+#==============================================================================
+# project_id          = "oic-prd-paid"
+# environment         = "prd"
+# code_stream         = "prd-paid"
+# subscription_tier   = "paid"
+# 
+# service_account_name = "oic-rarag"
+# bucket_suffix        = "rarag-kb"
+# rag_corpus_name      = "oic-prd-paid-rarag-kb"
+# 
+# # FinOps Tags
+# cost_center         = "revenue"
+# budget_category     = "high"
+# team                = "platform"
+# owner               = "platform-team@example.com"
+# data_residency      = "canada"
+# compliance          = "pipeda"
+# 
+# # Optional overrides
+# region              = "northamerica-northeast1"
+
+#==============================================================================
+# PRODUCTION FREE - Production workload on free tier
+#==============================================================================
+# project_id          = "oic-prd-free"
+# environment         = "prd"
+# code_stream         = "prd-free"
+# subscription_tier   = "free"
+# 
+# service_account_name = "oic-rarag"
+# bucket_suffix        = "rarag-kb"
+# rag_corpus_name      = "oic-prd-free-rarag-kb"
+# 
+# # FinOps Tags
+# cost_center         = "revenue"
+# budget_category     = "medium"
+# team                = "platform"
+# owner               = "platform-team@example.com"
+# data_residency      = "canada"
+# compliance          = "pipeda"
+# 
+# # Optional overrides
+# region              = "northamerica-northeast1"
+
+#==============================================================================
+# DEVELOPMENT FREE - Development and testing environment
+#==============================================================================
+project_id          = "oic-dev-free"
+environment         = "dev"
+code_stream         = "dev-free"
+subscription_tier   = "free"
+
+service_account_name = "oic-rarag"
+bucket_suffix        = "rarag-kb"
+rag_corpus_name      = "oic-dev-free-rarag-kb"
+
+# FinOps Tags
+cost_center         = "development"
+budget_category     = "low"
+team                = "platform"
+owner               = "platform-team@example.com"
+data_residency      = "canada"
+compliance          = "pipeda"
+
+# Optional overrides
+region              = "northamerica-northeast1"
+
+#==============================================================================
+# TESTING FREE - QA and integration testing environment
+#==============================================================================
+# project_id          = "oic-tst-free"
+# environment         = "tst"
+# code_stream         = "tst-free"
+# subscription_tier   = "free"
+# 
+# service_account_name = "oic-rarag"
+# bucket_suffix        = "rarag-kb"
+# rag_corpus_name      = "oic-tst-free-rarag-kb"
+# 
+# # FinOps Tags
+# cost_center         = "qa"
+# budget_category     = "low"
+# team                = "platform"
+# owner               = "platform-team@example.com"
+# data_residency      = "canada"
+# compliance          = "pipeda"
+# 
+# # Optional overrides
+# region              = "northamerica-northeast1"
