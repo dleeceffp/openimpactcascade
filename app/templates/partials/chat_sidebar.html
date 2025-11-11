@@ -38,7 +38,7 @@
         {% if chat_config.quick_help_buttons %}
         <div class="quick-help">
             {% for button in chat_config.quick_help_buttons %}
-            <button class="quick-help-btn" onclick="sendQuickHelp('{{ button.question | safe }}')">
+            <button class="quick-help-btn" onclick='sendQuickHelp("{{ button.question }}")'>
                 {{ button.text }}
             </button>
             {% endfor %}
