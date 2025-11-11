@@ -902,6 +902,18 @@
         console.log('Initializing questionnaire with start question:', currentQuestionId);
         console.log('Total questions:', Object.keys(questions.questions).length);
         renderQuestion(currentQuestionId);
+        
+        // Sync local chatHistory to centralized ChatHistory before page unload
+        window.addEventListener('beforeunload', function() {
+            if (chatHistory.length > 0) {
+                const context = {
+                    page: 'questionnaire',
+                    industry: '{{ params.industry }}',
+                    region: '{{ params.region }}'
+                };
+                ChatHistory.importFromLocal(chatHistory, context);
+            }
+        });
     </script>
 </body>
 </html>

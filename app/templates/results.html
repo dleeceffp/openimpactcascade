@@ -924,6 +924,21 @@
                 alert('Failed to save chat. Please try again.');
             }
         }
+        
+        // Sync local chatHistory to centralized ChatHistory before page unload
+        window.addEventListener('beforeunload', function() {
+            if (chatHistory.length > 0) {
+                const context = {
+                    page: 'results',
+                    industry: '{{ generation_params.industry if generation_params else "" }}',
+                    region: '{{ generation_params.region if generation_params else "" }}',
+                    risk_scenario: '{{ generation_params.risk_scenario if generation_params else "" }}',
+                    expected_loss: {{ results.mean }},
+                    p90_loss: {{ results.p90 }}
+                };
+                ChatHistory.importFromLocal(chatHistory, context);
+            }
+        });
     </script>
 </body>
 </html>

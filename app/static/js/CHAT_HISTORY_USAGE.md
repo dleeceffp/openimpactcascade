@@ -21,6 +21,15 @@ All three pages are integrated with ChatHistory:
 2. **`questionnaire_chat_rationale.html`** - Questionnaire assistance
 3. **`results.html`** - Risk reduction recommendations
 
+### How It Works
+
+Each page maintains a local `chatHistory` array for immediate use, and syncs to the centralized `ChatHistory` in two ways:
+
+1. **Real-time**: Each new message is added immediately via `ChatHistory.add()`
+2. **Batch sync**: On page unload, any remaining local history is imported via `ChatHistory.importFromLocal()`
+
+This ensures all conversations are captured, even if the user navigates away quickly.
+
 ## API Reference
 
 ### Adding to History
@@ -47,6 +56,32 @@ ChatHistory.add(
         p90_loss: 450000
     }
 );
+```
+
+### Importing Local History
+
+If you have a local `chatHistory` array that needs to be synced:
+
+```javascript
+ChatHistory.importFromLocal(localHistoryArray, context);
+```
+
+**Parameters:**
+- `localHistoryArray` (array): Array of `{user, assistant}` objects
+- `context` (object): Context to apply to all imported entries
+
+**Example:**
+```javascript
+// Import on page unload
+window.addEventListener('beforeunload', function() {
+    if (chatHistory.length > 0) {
+        ChatHistory.importFromLocal(chatHistory, {
+            page: 'results',
+            industry: 'Financial Services',
+            expected_loss: 125000
+        });
+    }
+});
 ```
 
 ### Retrieving History

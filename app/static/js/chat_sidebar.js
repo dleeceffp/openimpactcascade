@@ -456,6 +456,26 @@ const ChatHistory = {
         this.history = [];
         sessionStorage.removeItem(this.storageKey);
         console.log('[ChatHistory] Cleared');
+    },
+    
+    /**
+     * Import existing chat messages from a page's local chatHistory array
+     * Call this on page load to capture pre-existing conversations
+     * @param {Array} localHistory - Array of {user, assistant} objects
+     * @param {Object} context - Page context to apply to all entries
+     */
+    importFromLocal: function(localHistory, context = {}) {
+        if (!Array.isArray(localHistory) || localHistory.length === 0) {
+            return;
+        }
+        
+        localHistory.forEach(exchange => {
+            if (exchange.user && exchange.assistant) {
+                this.add(exchange.user, exchange.assistant, context);
+            }
+        });
+        
+        console.log('[ChatHistory] Imported', localHistory.length, 'entries from local history');
     }
 };
 
