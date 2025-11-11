@@ -840,12 +840,22 @@
                 if (data.status === 'success') {
                     addChatMessage('assistant', data.response);
                     chatHistory.push({user: message, assistant: data.response});
+                    
+                    // Add to centralized chat history
+                    ChatHistory.add(message, data.response, {
+                        page: 'questionnaire',
+                        question_id: currentQuestionId,
+                        question_text: currentQuestion.text,
+                        question_type: currentQuestion.type,
+                        industry: '{{ params.industry }}',
+                        region: '{{ params.region }}'
+                    });
                 } else {
-                    addChatMessage('assistant', '⚠️ Sorry, I encountered an error. Please try again.');
+                    addChatMessage('assistant', '\u26a0\ufe0f Sorry, I encountered an error. Please try again.');
                 }
             } catch (error) {
                 console.error('Chat error:', error);
-                addChatMessage('assistant', '⚠️ Connection error. Please check your internet connection.');
+                addChatMessage('assistant', '\u26a0\ufe0f Connection error. Please check your internet connection.');
             } finally {
                 document.getElementById('thinkingIndicator').classList.remove('active');
                 document.getElementById('chatSendBtn').disabled = false;

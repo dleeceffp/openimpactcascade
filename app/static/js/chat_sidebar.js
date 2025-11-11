@@ -125,9 +125,9 @@ const ChatSidebar = {
             if (data.status === 'success') {
                 this.addMessageToChat('assistant', data.response);
                 
-                // Call onMessageReceived callback
+                // Call onMessageReceived callback with both user message and response
                 if (this.config.onMessageReceived) {
-                    this.config.onMessageReceived(data.response);
+                    this.config.onMessageReceived(message, data.response);
                 }
             } else {
                 throw new Error(data.error || 'Unknown error');
@@ -282,6 +282,254 @@ function toggleChat() {
 
 function addMessageToChat(role, content) {
     ChatSidebar.addMessageToChat(role, content);
+}
+
+// ========== SESSION-BASED CHAT HISTORY MANAGER ==========
+
+/**
+ * ChatHistory - Centralized session-based chat history manager
+ * Tracks all chat interactions across pages during the user's session
+ * Uses sessionStorage for persistence (no database required for MVP)
+ */
+const ChatHistory = {
+    history: [],
+    maxEntries: 100, // Prevent memory issues
+    storageKey: 'oic_complete_chat_history',
+    
+    /**
+     * Initialize and load existing history from sessionStorage
+     */
+    init: function() {
+        this.load();
+        console.log('[ChatHistory] Initialized with', this.history.length, 'entries');
+    },
+    
+    /**
+     * Add a chat exchange to the history
+     * @param {string} userMessage - User's message
+     * @param {string} assistantResponse - AI assistant's response
+     * @param {Object} context - Page context (page, question, assessment data, etc.)
+     */
+    add: function(userMessage, assistantResponse, context = {}) {
+        const entry = {
+            timestamp: new Date().toISOString(),
+            user: userMessage,
+            assistant: assistantResponse,
+            context: {
+                page: context.page || window.location.pathname,
+                ...context
+            }
+        };
+        
+        this.history.push(entry);
+        
+        // Trim if exceeds max entries
+        if (this.history.length > this.maxEntries) {
+            this.history.shift();
+        }
+        
+        // Persist to sessionStorage
+        this.save();
+        
+        console.log('[ChatHistory] Added entry. Total:', this.history.length);
+    },
+    
+    /**
+     * Save history to sessionStorage
+     */
+    save: function() {
+        try {
+            sessionStorage.setItem(this.storageKey, JSON.stringify(this.history));
+        } catch (e) {
+            console.warn('[ChatHistory] Failed to save:', e);
+        }
+    },
+    
+    /**
+     * Load history from sessionStorage
+     */
+    load: function() {
+        try {
+            const saved = sessionStorage.getItem(this.storageKey);
+            if (saved) {
+                this.history = JSON.parse(saved);
+            }
+        } catch (e) {
+            console.warn('[ChatHistory] Failed to load:', e);
+            this.history = [];
+        }
+    },
+    
+    /**
+     * Get all history entries
+     * @returns {Array} Complete chat history
+     */
+    getAll: function() {
+        return this.history;
+    },
+    
+    /**
+     * Get history filtered by page
+     * @param {string} page - Page identifier or path
+     * @returns {Array} Filtered chat history
+     */
+    getByPage: function(page) {
+        return this.history.filter(entry => entry.context.page === page);
+    },
+    
+    /**
+     * Get summary statistics
+     * @returns {Object} Statistics about chat history
+     */
+    getStats: function() {
+        const pages = {};
+        this.history.forEach(entry => {
+            const page = entry.context.page;
+            pages[page] = (pages[page] || 0) + 1;
+        });
+        
+        return {
+            totalExchanges: this.history.length,
+            pageBreakdown: pages,
+            firstInteraction: this.history.length > 0 ? this.history[0].timestamp : null,
+            lastInteraction: this.history.length > 0 ? this.history[this.history.length - 1].timestamp : null
+        };
+    },
+    
+    /**
+     * Export history as formatted text
+     * @param {boolean} includeContext - Include context data in export
+     * @returns {string} Formatted text export
+     */
+    exportAsText: function(includeContext = true) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        const stats = this.getStats();
+        
+        let content = `OpenImpactCascade - Complete Chat History\n`;
+        content += `Generated: ${new Date().toLocaleString()}\n`;
+        content += `Total Exchanges: ${stats.totalExchanges}\n`;
+        content += `Session Duration: ${stats.firstInteraction ? new Date(stats.firstInteraction).toLocaleString() : 'N/A'} to ${stats.lastInteraction ? new Date(stats.lastInteraction).toLocaleString() : 'N/A'}\n`;
+        content += `\nPage Breakdown:\n`;
+        Object.entries(stats.pageBreakdown).forEach(([page, count]) => {
+            content += `  - ${page}: ${count} exchanges\n`;
+        });
+        content += `\n${'='.repeat(80)}\n\n`;
+        
+        this.history.forEach((entry, index) => {
+            content += `[${index + 1}] ${new Date(entry.timestamp).toLocaleString()}\n`;
+            content += `Page: ${entry.context.page}\n`;
+            
+            if (includeContext && Object.keys(entry.context).length > 1) {
+                content += `Context:\n`;
+                Object.entries(entry.context).forEach(([key, value]) => {
+                    if (key !== 'page') {
+                        content += `  ${key}: ${JSON.stringify(value)}\n`;
+                    }
+                });
+            }
+            
+            content += `\nYOU:\n${entry.user}\n\n`;
+            content += `ASSISTANT:\n${entry.assistant}\n\n`;
+            content += `${'-'.repeat(80)}\n\n`;
+        });
+        
+        return content;
+    },
+    
+    /**
+     * Export history as JSON
+     * @returns {string} JSON string of complete history
+     */
+    exportAsJSON: function() {
+        return JSON.stringify({
+            exported: new Date().toISOString(),
+            version: 'v2-rag-enhanced',
+            statistics: this.getStats(),
+            history: this.history
+        }, null, 2);
+    },
+    
+    /**
+     * Clear all history
+     */
+    clear: function() {
+        this.history = [];
+        sessionStorage.removeItem(this.storageKey);
+        console.log('[ChatHistory] Cleared');
+    }
+};
+
+// Initialize ChatHistory on load
+ChatHistory.init();
+
+// ========== GLOBAL EXPORT FUNCTIONS ==========
+
+/**
+ * Export complete chat history as text file
+ */
+function exportCompleteHistory() {
+    if (ChatHistory.getAll().length === 0) {
+        alert('No chat history to export. Start a conversation first!');
+        return;
+    }
+    
+    const content = ChatHistory.exportAsText(true);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `oic-complete-chat-history-${timestamp}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    console.log('[ChatHistory] Exported as text');
+}
+
+/**
+ * Export complete chat history as JSON file
+ */
+function exportHistoryAsJSON() {
+    if (ChatHistory.getAll().length === 0) {
+        alert('No chat history to export. Start a conversation first!');
+        return;
+    }
+    
+    const content = ChatHistory.exportAsJSON();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    
+    const blob = new Blob([content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `oic-chat-history-${timestamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    console.log('[ChatHistory] Exported as JSON');
+}
+
+/**
+ * Get chat history statistics
+ * @returns {Object} Statistics object
+ */
+function getChatStats() {
+    return ChatHistory.getStats();
+}
+
+/**
+ * Clear complete chat history
+ */
+function clearChatHistory() {
+    if (confirm('Are you sure you want to clear all chat history? This cannot be undone.')) {
+        ChatHistory.clear();
+        alert('Chat history cleared!');
+    }
 }
 
 // Auto-initialize on DOMContentLoaded if not already initialized

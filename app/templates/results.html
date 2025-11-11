@@ -764,6 +764,9 @@
                 if (data.status === 'success') {
                     addChatMessage('assistant', data.response);
                     chatHistory.push({user: message, assistant: data.response});
+                    
+                    // Add to centralized chat history
+                    ChatHistory.add(message, data.response, context);
                 } else {
                     addChatMessage('assistant', 'I apologize, but I encountered an error. Please try again.');
                 }
