@@ -6,12 +6,14 @@ The `ChatHistory` module provides session-based chat history tracking across all
 
 ## Features
 
-✅ **Session Persistence** - History survives page navigation  
-✅ **Automatic Tracking** - Integrated with all three chat pages  
+✅ **Session Persistence** - History survives page navigation and form submissions  
+✅ **Automatic Tracking** - Real-time capture on all three chat pages  
 ✅ **Context-Rich** - Captures page, question, and assessment context  
 ✅ **Multiple Export Formats** - Text and JSON exports  
 ✅ **Statistics** - Summary stats about chat interactions  
 ✅ **Memory Safe** - Limits to 100 entries to prevent issues  
+✅ **Auto-Clear** - Automatically resets when starting new assessment  
+✅ **Duplicate Prevention** - Smart detection prevents double-counting  
 
 ## Integration Status
 
@@ -23,12 +25,23 @@ All three pages are integrated with ChatHistory:
 
 ### How It Works
 
-Each page maintains a local `chatHistory` array for immediate use, and syncs to the centralized `ChatHistory` in two ways:
+**Real-Time Tracking:**
+- Each chat message is immediately added to centralized `ChatHistory` via `ChatHistory.add()`
+- History is saved to `sessionStorage` after each message
+- Survives page navigation, form submissions, and browser refreshes (within same tab)
 
-1. **Real-time**: Each new message is added immediately via `ChatHistory.add()`
-2. **Batch sync**: On page unload, any remaining local history is imported via `ChatHistory.importFromLocal()`
+**Duplicate Prevention:**
+- `importFromLocal()` checks for existing messages before importing
+- Prevents double-counting when syncing local arrays
 
-This ensures all conversations are captured, even if the user navigates away quickly.
+**Automatic Session Management:**
+- History automatically cleared when user visits home page
+- Each new assessment starts with clean slate
+- History persists throughout entire assessment flow
+
+**Debug Logging:**
+- Console shows history size and page breakdown after each message
+- Easy to verify history is being captured correctly
 
 ## API Reference
 
@@ -286,18 +299,41 @@ Works in all modern browsers that support:
 
 ## Troubleshooting
 
-### History Not Persisting
+### Verify History is Working
 
-Check browser console for errors:
+**1. Check console logs:**
+```
+[ChatHistory] Initialized with X entries
+[ChatHistory] Added entry. Total: X | Page: questionnaire
+[ChatHistory] Current breakdown: {questionnaire: 2, results: 1}
+```
+
+**2. View complete history:**
 ```javascript
-// Test storage availability
-try {
-    sessionStorage.setItem('test', 'test');
-    sessionStorage.removeItem('test');
-    console.log('sessionStorage available');
-} catch (e) {
-    console.error('sessionStorage not available:', e);
-}
+viewChatHistory();
+```
+
+**3. Check sessionStorage directly:**
+```javascript
+JSON.parse(sessionStorage.getItem('oic_complete_chat_history'));
+```
+
+### History Not Persisting Across Pages
+
+**Possible causes:**
+
+1. **Browser privacy mode** - Some browsers block sessionStorage in private/incognito mode
+2. **Browser extensions** - Ad blockers or privacy extensions may interfere
+3. **Cross-origin issues** - Ensure all pages are on same domain/port
+
+**Test:**
+```javascript
+// On questionnaire page
+ChatHistory.add("test", "test response", {page: "test"});
+console.log(ChatHistory.getAll().length); // Should show 1
+
+// Navigate to results page
+console.log(ChatHistory.getAll().length); // Should still show 1
 ```
 
 ### Storage Quota Exceeded
@@ -310,6 +346,18 @@ ChatHistory.clear();
 Or reduce max entries in `chat_sidebar.js`:
 ```javascript
 maxEntries: 50  // Reduce from 100
+```
+
+### Export Shows Wrong Data
+
+Ensure you're using the centralized export:
+```javascript
+exportCompleteHistory();  // ✅ Correct - exports all pages
+```
+
+Not the local page export:
+```javascript
+exportChat();  // ⚠️ This now calls exportCompleteHistory() automatically
 ```
 
 ## Support
