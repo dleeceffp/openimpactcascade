@@ -469,13 +469,24 @@ const ChatHistory = {
             return;
         }
         
+        let importedCount = 0;
         localHistory.forEach(exchange => {
             if (exchange.user && exchange.assistant) {
-                this.add(exchange.user, exchange.assistant, context);
+                // Check if this exchange already exists (avoid duplicates)
+                const isDuplicate = this.history.some(entry => 
+                    entry.user === exchange.user && 
+                    entry.assistant === exchange.assistant &&
+                    entry.context.page === (context.page || window.location.pathname)
+                );
+                
+                if (!isDuplicate) {
+                    this.add(exchange.user, exchange.assistant, context);
+                    importedCount++;
+                }
             }
         });
         
-        console.log('[ChatHistory] Imported', localHistory.length, 'entries from local history');
+        console.log('[ChatHistory] Imported', importedCount, 'new entries from local history (', localHistory.length - importedCount, 'duplicates skipped)');
     }
 };
 
@@ -488,10 +499,16 @@ ChatHistory.init();
  * Export complete chat history as text file
  */
 function exportCompleteHistory() {
-    if (ChatHistory.getAll().length === 0) {
+    const allHistory = ChatHistory.getAll();
+    
+    if (allHistory.length === 0) {
         alert('No chat history to export. Start a conversation first!');
         return;
     }
+    
+    // Debug: Log what we're about to export
+    console.log('[ChatHistory] Exporting', allHistory.length, 'entries');
+    console.log('[ChatHistory] Page breakdown:', ChatHistory.getStats().pageBreakdown);
     
     const content = ChatHistory.exportAsText(true);
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
@@ -507,6 +524,10 @@ function exportCompleteHistory() {
     URL.revokeObjectURL(url);
     
     console.log('[ChatHistory] Exported as text');
+    
+    // Show confirmation with stats
+    const stats = ChatHistory.getStats();
+    alert(`Exported ${stats.totalExchanges} chat exchanges!\n\nPage breakdown:\n${Object.entries(stats.pageBreakdown).map(([page, count]) => `  ${page}: ${count}`).join('\n')}`);
 }
 
 /**
@@ -550,6 +571,31 @@ function clearChatHistory() {
         ChatHistory.clear();
         alert('Chat history cleared!');
     }
+}
+
+/**
+ * Debug: View complete chat history in console
+ */
+function viewChatHistory() {
+    const history = ChatHistory.getAll();
+    const stats = ChatHistory.getStats();
+    
+    console.log('=== COMPLETE CHAT HISTORY ===');
+    console.log('Total Exchanges:', stats.totalExchanges);
+    console.log('Page Breakdown:', stats.pageBreakdown);
+    console.log('First Interaction:', stats.firstInteraction);
+    console.log('Last Interaction:', stats.lastInteraction);
+    console.log('\n=== ALL ENTRIES ===');
+    
+    history.forEach((entry, index) => {
+        console.log(`\n[${index + 1}] ${entry.timestamp}`);
+        console.log(`Page: ${entry.context.page}`);
+        console.log(`User: ${entry.user}`);
+        console.log(`Assistant: ${entry.assistant.substring(0, 100)}${entry.assistant.length > 100 ? '...' : ''}`);
+    });
+    
+    console.log('\n=== END OF HISTORY ===');
+    return history;
 }
 
 // Auto-initialize on DOMContentLoaded if not already initialized

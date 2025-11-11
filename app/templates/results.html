@@ -809,59 +809,17 @@
         });
         
         // Export chat as downloadable text file
+        // Now uses centralized ChatHistory for complete session export
         function exportChat() {
-            if (chatHistory.length === 0) {
-                alert('No chat history to export. Start a conversation first!');
-                return;
-            }
+            // Use the global centralized export function
+            exportCompleteHistory();
             
-            // Build export content
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-            const context = {
-                industry: '{{ generation_params.industry if generation_params else "" }}',
-                region: '{{ generation_params.region if generation_params else "" }}',
-                risk_scenario: '{{ generation_params.risk_scenario if generation_params else "" }}',
-                expected_loss: {{ results.mean }},
-                p90_loss: {{ results.p90 }}
-            };
-            
-            let content = `Risk Reduction Chat Export\n`;
-            content += `Generated: ${new Date().toLocaleString()}\n`;
-            content += `\n${'='.repeat(60)}\n`;
-            content += `ASSESSMENT CONTEXT\n`;
-            content += `${'='.repeat(60)}\n`;
-            content += `Industry: ${context.industry}\n`;
-            content += `Region: ${context.region}\n`;
-            content += `Risk Scenario: ${context.risk_scenario}\n`;
-            content += `Expected Annual Loss: $${context.expected_loss.toLocaleString()}\n`;
-            content += `90th Percentile Loss: $${context.p90_loss.toLocaleString()}\n`;
-            content += `\n${'='.repeat(60)}\n`;
-            content += `CONVERSATION\n`;
-            content += `${'='.repeat(60)}\n\n`;
-            
-            chatHistory.forEach((exchange, index) => {
-                content += `[${index + 1}] YOU:\n${exchange.user}\n\n`;
-                content += `[${index + 1}] ASSISTANT:\n${exchange.assistant}\n\n`;
-                content += `${'-'.repeat(60)}\n\n`;
-            });
-            
-            // Create download
-            const blob = new Blob([content], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `risk-reduction-chat-${timestamp}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            // Show success message
+            // Show success message in chat
             const successMsg = document.createElement('div');
             successMsg.className = 'chat-message assistant';
             successMsg.innerHTML = `
                 <div class="message-label">System</div>
-                <div class="message-bubble">✅ Chat exported successfully! Check your downloads folder.</div>
+                <div class="message-bubble">✅ Complete chat history exported! Check your downloads folder.</div>
             `;
             document.getElementById('chatMessages').appendChild(successMsg);
             setTimeout(() => successMsg.remove(), 3000);
