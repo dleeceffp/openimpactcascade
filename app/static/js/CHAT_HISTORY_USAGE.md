@@ -114,16 +114,18 @@ const stats = ChatHistory.getStats();
 ### Exporting History
 
 ```javascript
-// Export as formatted text file
+// Export as formatted text file (client-side download)
 exportCompleteHistory();
 
-// Export as JSON file
+// Export as JSON file (client-side download)
 exportHistoryAsJSON();
 
 // Get stats programmatically
 const stats = getChatStats();
 console.log(`Total exchanges: ${stats.totalExchanges}`);
 ```
+
+**Note:** All exports are client-side downloads. There is no server-side storage of chat history.
 
 ### Clearing History
 
@@ -285,9 +287,10 @@ Works in all modern browsers that support:
 ## Privacy & Security
 
 ✅ **Session-Only** - Data cleared when tab closes  
-✅ **Client-Side** - No automatic server transmission  
+✅ **Client-Side Only** - No server storage or transmission  
 ✅ **User Control** - Export/clear functions available  
 ✅ **No PII** - Only chat content and context stored  
+✅ **Local Downloads** - Exports saved to user's device only  
 
 ## Future Enhancements (Post-MVP)
 
