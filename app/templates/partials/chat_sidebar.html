@@ -1,22 +1,22 @@
-<!-- 
+{# 
     Reusable Chat Sidebar Component
     
     Usage:
-    {% include 'partials/chat_sidebar.html' with context %}
+    include 'partials/chat_sidebar.html'
     
     Required variables:
     - chat_config: dict with 'welcome_message', 'quick_help_buttons', 'page_context'
     
     Example:
-    {% set chat_config = {
+    set chat_config = {
         'welcome_message': 'Hi! How can I help?',
         'quick_help_buttons': [
             {'text': 'Help Me', 'question': 'What should I do?'},
             {'text': 'Explain', 'question': 'Explain this to me'}
         ],
         'page_context': 'questionnaire'
-    } %}
--->
+    }
+#}
 
 <!-- Chat Sidebar -->
 <div class="chat-sidebar" id="chatSidebar">
