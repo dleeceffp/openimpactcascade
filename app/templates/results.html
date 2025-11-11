@@ -704,6 +704,12 @@
         // ========== CHAT FUNCTIONS ==========
         let chatHistory = [];
         
+        // Debug: Check what ChatHistory has on page load
+        console.log('[Results Page] ChatHistory on load:', ChatHistory.getAll().length, 'entries');
+        if (ChatHistory.getAll().length > 0) {
+            console.log('[Results Page] Breakdown:', ChatHistory.getStats().pageBreakdown);
+        }
+        
         // Initialize chat sidebar (using global function from chat_sidebar.js)
         // Override sendMessage and addChatMessage for results page specific behavior
         

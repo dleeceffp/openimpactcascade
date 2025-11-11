@@ -302,6 +302,15 @@ const ChatHistory = {
     init: function() {
         this.load();
         console.log('[ChatHistory] Initialized with', this.history.length, 'entries');
+        
+        // Debug: Show what was loaded
+        if (this.history.length > 0) {
+            const pageBreakdown = {};
+            this.history.forEach(e => {
+                pageBreakdown[e.context.page] = (pageBreakdown[e.context.page] || 0) + 1;
+            });
+            console.log('[ChatHistory] Loaded breakdown:', pageBreakdown);
+        }
     },
     
     /**
@@ -323,15 +332,20 @@ const ChatHistory = {
         
         this.history.push(entry);
         
-        // Trim if exceeds max entries
+        // Limit history size
         if (this.history.length > this.maxEntries) {
-            this.history.shift();
+            this.history.shift(); // Remove oldest
         }
         
-        // Persist to sessionStorage
         this.save();
+        console.log('[ChatHistory] Added entry. Total:', this.history.length, '| Page:', entry.context.page);
         
-        console.log('[ChatHistory] Added entry. Total:', this.history.length);
+        // Debug: Show page breakdown
+        const pageBreakdown = {};
+        this.history.forEach(e => {
+            pageBreakdown[e.context.page] = (pageBreakdown[e.context.page] || 0) + 1;
+        });
+        console.log('[ChatHistory] Current breakdown:', pageBreakdown);
     },
     
     /**
