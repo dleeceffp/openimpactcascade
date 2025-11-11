@@ -459,6 +459,32 @@ const ChatHistory = {
     },
     
     /**
+     * Check if this is a new session (e.g., user returned to home page)
+     * Can be used to automatically clear history on session start
+     */
+    isNewSession: function() {
+        // Check if there's a session marker
+        const sessionMarker = sessionStorage.getItem('oic_session_active');
+        return !sessionMarker;
+    },
+    
+    /**
+     * Mark session as active (call when user starts an assessment)
+     */
+    markSessionActive: function() {
+        sessionStorage.setItem('oic_session_active', 'true');
+        console.log('[ChatHistory] Session marked as active');
+    },
+    
+    /**
+     * Clear session marker (call when user returns to home)
+     */
+    clearSessionMarker: function() {
+        sessionStorage.removeItem('oic_session_active');
+        console.log('[ChatHistory] Session marker cleared');
+    },
+    
+    /**
      * Import existing chat messages from a page's local chatHistory array
      * Call this on page load to capture pre-existing conversations
      * @param {Array} localHistory - Array of {user, assistant} objects

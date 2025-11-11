@@ -206,5 +206,18 @@
             {% endif %}
         </div>
     </div>
+    
+    <script>
+        // Clear chat history when starting a new session from home page
+        // This ensures each assessment starts with a clean slate
+        if (sessionStorage.getItem('oic_complete_chat_history')) {
+            console.log('[Home] Clearing previous chat history for new session');
+            sessionStorage.removeItem('oic_complete_chat_history');
+        }
+        
+        // Also clear session marker so next assessment starts fresh
+        sessionStorage.removeItem('oic_session_active');
+        console.log('[Home] Ready for new assessment session');
+    </script>
 </body>
 </html>

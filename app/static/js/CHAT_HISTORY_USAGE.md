@@ -240,6 +240,28 @@ const history = ChatHistory.exportAsJSON();
 - **Max Entries**: 100 (oldest entries removed first)
 - **Estimated Size**: ~50-100KB for typical session
 
+### Session Management
+
+**Automatic Clearing:**
+- History is automatically cleared when the user visits the home page
+- This ensures each new assessment starts with a clean slate
+- The home page clears both `oic_complete_chat_history` and `oic_session_active`
+
+**Manual Clearing:**
+```javascript
+// Clear history manually
+clearChatHistory();
+
+// Or programmatically
+ChatHistory.clear();
+```
+
+**Session Flow:**
+1. User visits home page → History cleared
+2. User starts assessment → History begins tracking
+3. User navigates through pages → History accumulates
+4. User returns to home → History cleared for next session
+
 ## Browser Compatibility
 
 Works in all modern browsers that support:
