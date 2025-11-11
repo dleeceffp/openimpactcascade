@@ -1,23 +1,54 @@
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+*.py[cod]
+*$py.class
 *.so
-*.egg
+.Python
+env/
+venv/
+ENV/
 *.egg-info/
-dist/
-build/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
 .git/
 .gitignore
-*.md
-documentation/
-_sbx_/
-infra/
-maintenance/
-generated/*
-logs/*
+.gitattributes
+
+# Archives
+_archive_sprint0/
+_archive_sprint01/
+
+# Documentation (optional - comment out if you want docs in container)
+# docs/
+# *.md
+
+# Deployment files
+deployment/
+tools/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
 *.log
+logs/
+
+# Environment
 .env
-.venv
-venv/
+.env.local
+*.pem
+*.key
+
+# Generated files
+generated/
+*.pyc
