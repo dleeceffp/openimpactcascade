@@ -8,15 +8,16 @@ mkdir -p templates logs generated
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+
 export ANTHROPIC_API_KEY="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"
 export SECRET_KEY="test-key-42"
-export GOOGLE_CLOUD_PROJECT=your-project-id
+export GOOGLE_CLOUD_PROJECT=oicsbx
 export GCS_BUCKET_NAME=dev-oicv21-appdata
 export VERTEX_RAG_CORPUS=dev-oic-rakb-rag
 export VERTEX_AI_LOCATION=us-central1
-
 export GOOGLE_APPLICATION_CREDENTIALS="/home/oic/v21/keys/oicsbx-17abe84914dd.json"
-export GOOGLE_CLOUD_PROJECT=oicsbx
+
+
 
 # Build the Docker image
 docker build -t openimpactcascade:local .

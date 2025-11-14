@@ -745,6 +745,15 @@
                 document.getElementById('risk_scenario').value = narrative.substring(0, 200);
             }
             
+            // CRITICAL: Explicitly save ChatHistory before form submission
+            // This ensures chat data persists across the page navigation
+            try {
+                ChatHistory.save();
+                console.log('[Custom Scenario] ChatHistory saved before form submission:', ChatHistory.getAll().length, 'entries');
+            } catch (error) {
+                console.error('[Custom Scenario] Failed to save ChatHistory:', error);
+            }
+            
             // Show loading indicator
             document.getElementById('generateForm').style.display = 'none';
             document.getElementById('loading').classList.add('active');

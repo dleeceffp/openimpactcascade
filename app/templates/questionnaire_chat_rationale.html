@@ -699,26 +699,34 @@
             const missingFields = [];
             
             for (const field of requiredFields) {
-                if (pertValues[field] === null || isNaN(pertValues[field])) {
-                    missingFields.push(field);
+                if (!pertValues[field]) {
+                    missingFields.push(field.toUpperCase().replace('_', ' '));
                 }
             }
             
             if (missingFields.length > 0) {
-                alert('Missing required values: ' + missingFields.join(', '));
-                console.error('Missing PERT values:', pertValues);
+                alert(`Please answer all questions before submitting.\n\nMissing values for: ${missingFields.join(', ')}`);
                 return false;
             }
             
-            // Validate ranges
-            if (!(pertValues.lef_min <= pertValues.lef_mle && pertValues.lef_mle <= pertValues.lef_max)) {
-                alert('Loss Event Frequency values must satisfy: min ≤ most likely ≤ max');
+            // Validate PERT ordering (min <= mle <= max)
+            if (pertValues.lef_min > pertValues.lef_mle || pertValues.lef_mle > pertValues.lef_max) {
+                alert('Loss Event Frequency values must be in order: Minimum ≤ Most Likely ≤ Maximum');
                 return false;
             }
             
-            if (!(pertValues.lm_min <= pertValues.lm_mle && pertValues.lm_mle <= pertValues.lm_max)) {
-                alert('Loss Magnitude values must satisfy: min ≤ most likely ≤ max');
+            if (pertValues.lm_min > pertValues.lm_mle || pertValues.lm_mle > pertValues.lm_max) {
+                alert('Loss Magnitude values must be in order: Minimum ≤ Most Likely ≤ Maximum');
                 return false;
+            }
+            
+            // CRITICAL: Explicitly save ChatHistory before form submission
+            // This ensures all questionnaire chat data persists across the page navigation
+            try {
+                ChatHistory.save();
+                console.log('[Questionnaire] ChatHistory saved before form submission:', ChatHistory.getAll().length, 'entries');
+            } catch (error) {
+                console.error('[Questionnaire] Failed to save ChatHistory:', error);
             }
             
             // Set hidden form values
