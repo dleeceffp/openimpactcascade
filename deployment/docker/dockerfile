@@ -20,8 +20,8 @@ COPY app/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy Python application files
-COPY app/flask_oic_v211.py /app/
-COPY app/ai_question_generator_v211.py /app/
+COPY app/flask_oic_v215.py /app/
+COPY app/ai_question_generator_v214.py /app/
 COPY app/simulation_v211.py /app/
 COPY app/vertex_rag_v211.py /app/
 COPY app/user_tracking.py /app/
