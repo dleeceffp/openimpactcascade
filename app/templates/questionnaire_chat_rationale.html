@@ -651,15 +651,17 @@
             // Add selected class to clicked choice
             element.classList.add('selected');
             
-            // Capture the very first multiple-choice question and option the user selects
+            // Capture the very first multiple-choice selection for reporting
+            // Use choice-title as the main label and choice-description as the supporting text
             if (!firstQuestionCaptured) {
                 const currentQuestion = questions.questions[currentQuestionId];
                 if (currentQuestion && currentQuestion.type === 'multiple_choice') {
-                    firstQuestionText = currentQuestion.text || '';
                     const titleEl = element.querySelector('.choice-title');
-                    firstChoiceText = titleEl ? titleEl.textContent.trim() : '';
+                    const descEl = element.querySelector('.choice-description');
+                    firstQuestionText = titleEl ? titleEl.textContent.trim() : '';
+                    firstChoiceText = descEl ? descEl.textContent.trim() : '';
                     firstQuestionCaptured = true;
-                    console.log('[Questionnaire] Captured first question for reporting:', firstQuestionText, '=>', firstChoiceText);
+                    console.log('[Questionnaire] Captured first selection for reporting:', firstQuestionText, '=>', firstChoiceText);
                 }
             }
             
