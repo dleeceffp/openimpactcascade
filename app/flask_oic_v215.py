@@ -659,6 +659,9 @@ def analyze():
             lm_min = request.form.get('lm_min')
             lm_mle = request.form.get('lm_mle')
             lm_max = request.form.get('lm_max')
+            # Optional context captured from the questionnaire UI: the first question answered and first option selected
+            first_question_text = request.form.get('first_question_text', '').strip()
+            first_choice_text = request.form.get('first_choice_text', '').strip()
             
             # Check for missing values
             if not all([lef_min, lef_mle, lef_max, lm_min, lm_mle, lm_max]):
@@ -758,7 +761,9 @@ def analyze():
             original_inputs=original_inputs,
             n_simulations=n_simulations,
             mitre_references=mitre_references,
-            generation_params=session.get('generation_params')
+            generation_params=session.get('generation_params'),
+            first_question_text=first_question_text,
+            first_choice_text=first_choice_text
         )
         
     except (ValueError, TypeError) as e:

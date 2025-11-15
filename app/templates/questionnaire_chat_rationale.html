@@ -435,6 +435,9 @@
                         <input type="hidden" name="lm_min" id="lm_min">
                         <input type="hidden" name="lm_mle" id="lm_mle">
                         <input type="hidden" name="lm_max" id="lm_max">
+                        <!-- Capture the first question the user answers and their first selected option for reporting on the results page -->
+                        <input type="hidden" name="first_question_text" id="first_question_text">
+                        <input type="hidden" name="first_choice_text" id="first_choice_text">
                     </form>
                 </div>
             </div>
@@ -505,6 +508,10 @@
             lm_mle: null,
             lm_max: null
         };
+        // Track the first multiple-choice question the user answers and their first selected option
+        let firstQuestionCaptured = false;
+        let firstQuestionText = '';
+        let firstChoiceText = '';
         let chatHistory = [];
         
         // ========== QUESTIONNAIRE FUNCTIONS ==========
@@ -644,6 +651,18 @@
             // Add selected class to clicked choice
             element.classList.add('selected');
             
+            // Capture the very first multiple-choice question and option the user selects
+            if (!firstQuestionCaptured) {
+                const currentQuestion = questions.questions[currentQuestionId];
+                if (currentQuestion && currentQuestion.type === 'multiple_choice') {
+                    firstQuestionText = currentQuestion.text || '';
+                    const titleEl = element.querySelector('.choice-title');
+                    firstChoiceText = titleEl ? titleEl.textContent.trim() : '';
+                    firstQuestionCaptured = true;
+                    console.log('[Questionnaire] Captured first question for reporting:', firstQuestionText, '=>', firstChoiceText);
+                }
+            }
+            
             // Get next question ID and navigate
             const nextQuestionId = element.dataset.next;
             if (nextQuestionId) {
@@ -741,6 +760,9 @@
             document.getElementById('lm_min').value = pertValues.lm_min;
             document.getElementById('lm_mle').value = pertValues.lm_mle;
             document.getElementById('lm_max').value = pertValues.lm_max;
+            // Also submit the first question context (if captured) so it can be shown on the results page
+            document.getElementById('first_question_text').value = firstQuestionText || '';
+            document.getElementById('first_choice_text').value = firstChoiceText || '';
             
             console.log('Submitting with values:', pertValues);
             

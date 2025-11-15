@@ -322,6 +322,12 @@
                 {% if generation_params.scenario_description %}
                 <li><strong>Description:</strong> {{ generation_params.scenario_description }}</li>
                 {% endif %}
+                {% if first_question_text %}
+                <li><strong>First Questionnaire Question:</strong> {{ first_question_text }}</li>
+                {% endif %}
+                {% if first_choice_text %}
+                <li><strong>First Selected Option:</strong> {{ first_choice_text }}</li>
+                {% endif %}
             </ul>
         </div>
         {% endif %}
