@@ -24,7 +24,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 
 # Version identifier
-VERSION = "v215-rag-websearch
+VERSION = "v215-rag-websearch"
 PORT = 8080
 # Right after line 27 in flask_app_chat_v2_rag.py
 logger.info(f"========== STARTING {VERSION} on PORT {PORT} ==========")
