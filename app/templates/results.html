@@ -305,10 +305,7 @@
 
         {% if generation_params %}
         <div class="card" style="margin-top: 20px;">
-            <h2>📌 Assessment Context</h2>
-            <p class="explanation" style="margin-top: 10px;">
-                This section summarizes the original assessment question and context so this page can be used as a standalone report.
-            </p>
+            <h3>📌 Assessment Context</h3>
             <ul style="margin-top: 10px; margin-left: 20px; color: #4a5568; line-height: 1.6;">
                 {% if generation_params.industry %}
                 <li><strong>Industry:</strong> {{ generation_params.industry }}</li>
@@ -323,10 +320,10 @@
                 <li><strong>Description:</strong> {{ generation_params.scenario_description }}</li>
                 {% endif %}
                 {% if first_question_text %}
-                <li><strong>First Questionnaire Question:</strong> {{ first_question_text }}</li>
+                <li><strong>Risk Scenario Considered:</strong> {{ first_question_text }}</li>
                 {% endif %}
                 {% if first_choice_text %}
-                <li><strong>First Selected Option:</strong> {{ first_choice_text }}</li>
+                <li><strong>Scenario Details:</strong> {{ first_choice_text }}</li>
                 {% endif %}
             </ul>
         </div>
