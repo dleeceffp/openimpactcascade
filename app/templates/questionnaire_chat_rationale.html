@@ -620,10 +620,13 @@
             html += `
                 <div class="button-group">
                     ${questionHistory.length > 0 ? '<button type="button" class="btn btn-secondary" onclick="goBack()">← Back</button>' : ''}
-                    ${allPertValuesSet() ? '<button type="button" class="btn btn-success" onclick="submitForm()">Submit Assessment ✓</button>' : ''}
+                    ${question.type === 'pert_estimate' && question.next_question_id ? 
+                        `<button type="button" class="btn btn-primary" onclick="goNext('${question.next_question_id}')">Continue →</button>` : ''}
+                    ${question.type === 'pert_estimate' && !question.next_question_id ? 
+                        '<button type="button" class="btn btn-success" onclick="submitForm()">Submit Assessment ✓</button>' : ''}
                 </div>
                 <div style="margin-top: 10px; text-align: right; font-size: 0.85em; color: #718096;">
-                    <a href="${window.location.origin + '/generate-custom'}" style="color: #667eea; text-decoration: none;">
+                    <a href="/generate-custom" style="color: #667eea; text-decoration: none;">
                         Not the right questions? Switch to custom assessment →
                     </a>
                 </div>
@@ -655,16 +658,6 @@
         function updatePertValue(key, value) {
             pertValues[key] = parseFloat(value);
             console.log('Updated PERT value:', key, '=', value);
-        }
-        
-        function allPertValuesSet() {
-            const requiredFields = ['lef_min', 'lef_mle', 'lef_max', 'lm_min', 'lm_mle', 'lm_max'];
-            for (const field of requiredFields) {
-                if (!pertValues[field]) {
-                    return false;
-                }
-            }
-            return true;
         }
         
         function goNext(nextQuestionId) {
