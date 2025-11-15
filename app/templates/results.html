@@ -287,6 +287,35 @@
         
         .reduction-value { font-size: 1.6em; font-weight: 700; color: #38b2ac; margin-bottom: 5px; }
         .reduction-change { font-size: 0.9em; font-weight: 600; color: #38a169; }
+
+        /* Free-text note areas for reporting */
+        .results-notes-title {
+            font-weight: 600;
+            margin: 20px 0 8px 0;
+            color: #2d3748;
+        }
+
+        .results-notes-textarea {
+            width: 100%;
+            min-height: 90px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e0;
+            font-family: inherit;
+            font-size: 0.95em;
+            line-height: 1.5;
+            resize: vertical;
+            background: #fdfdfd;
+        }
+
+        @media print {
+            .btn { display: none; }
+            .chat-sidebar { display: none; }
+            .results-notes-textarea {
+                border: 1px solid #a0aec0;
+                background: white;
+            }
+        }
     </style>
 </head>
 <body>
@@ -294,11 +323,14 @@
     <div class="main-content">
     <div class="container">
         <div class="header">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px;">
                 <h1 style="margin: 0;">🎯 Your Risk Analysis Results</h1>
-                <a href="{{ url_for('home') }}" class="btn btn-primary" style="text-decoration: none;">
-                    🏠 New Assessment
-                </a>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn btn-secondary" onclick="printReport()">🖨️ Print Report (PDF)</button>
+                    <a href="{{ url_for('home') }}" class="btn btn-primary" style="text-decoration: none;">
+                        🏠 New Assessment
+                    </a>
+                </div>
             </div>
             <p>Interactive risk modeling with control effectiveness simulation</p>
         </div>
@@ -397,6 +429,15 @@
                             <div class="reduction-change" id="p90Change">-</div>
                         </div>
                     </div>
+
+                    <div>
+                        <div class="results-notes-title">Risk Reduction Details</div>
+                        <textarea 
+                            id="riskReductionDetails"
+                            class="results-notes-textarea"
+                            placeholder="Summarize the key risk reduction insights from the sliders above, including which controls were modeled and any supporting commentary..."
+                        ></textarea>
+                    </div>
                 </div>
             </div>
         </div>
@@ -435,6 +476,15 @@
                     <li>Incident response plan for <strong>90th percentile magnitude</strong></li>
                     <li>Risk reserve for <strong>95th percentile annual loss</strong></li>
                 </ul>
+            </div>
+
+            <div style="margin-top: 25px;">
+                <div class="results-notes-title">Assessment assumptions and considerations</div>
+                <textarea
+                    id="assessmentAssumptions"
+                    class="results-notes-textarea"
+                    placeholder="Document key assumptions, scoping decisions, and considerations that informed this assessment so the report can be interpreted correctly later..."
+                ></textarea>
             </div>
         </div>
     </div>
@@ -520,6 +570,11 @@
     
     <script src="{{ url_for('static', filename='js/chat_sidebar.js') }}"></script>
     <script>
+        // Trigger browser print dialog so user can save as PDF
+        function printReport() {
+            window.print();
+        }
+
         // Get simulation data from Flask
         const originalLef = {{ results.samples.lef | tojson }};
         const originalLm = {{ results.samples.lm | tojson }};

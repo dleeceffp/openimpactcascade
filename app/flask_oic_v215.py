@@ -905,10 +905,10 @@ if __name__ == '__main__':
     print("="*60)
     print(f"Starting Flask App - {VERSION}")
     print("="*60)
-    print(f"Approach: RAG + LLM with Enhanced Distributions")
+    print(f"Approach: RAG + LLM with Enhanced Distributions, gaps filled with websearch")
     print(f"Port: {PORT}")
-    print(f"Code Generator ID: v2-rag-enhanced")
-    print(f"User ID Format: eval-v2-rag-enhanced-XXXXXXXXXXXX")
+    print(f"AI Question Generator ID: v214")
+    print(f"User ID Format: eval-v2-rag-websearch-enhanced-XXXXXXXXXXXX")
     print("="*60)
     app.run(debug=True, host='0.0.0.0', port=PORT)
 
