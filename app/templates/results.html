@@ -308,10 +308,23 @@
             background: #fdfdfd;
         }
 
+        .results-notes-preview {
+            margin-top: 8px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            font-size: 0.95em;
+            line-height: 1.6;
+            color: #2d3748;
+            white-space: pre-wrap;
+        }
+
         @media print {
             .btn { display: none; }
             .chat-sidebar { display: none; }
-            .results-notes-textarea {
+            .results-notes-textarea { display: none; }
+            .results-notes-preview {
                 border: 1px solid #a0aec0;
                 background: white;
             }
@@ -437,6 +450,7 @@
                             class="results-notes-textarea"
                             placeholder="Summarize the key risk reduction insights from the sliders above, including which controls were modeled and any supporting commentary..."
                         ></textarea>
+                        <div id="riskReductionDetailsPreview" class="results-notes-preview"></div>
                     </div>
                 </div>
             </div>
@@ -485,6 +499,7 @@
                     class="results-notes-textarea"
                     placeholder="Document key assumptions, scoping decisions, and considerations that informed this assessment so the report can be interpreted correctly later..."
                 ></textarea>
+                <div id="assessmentAssumptionsPreview" class="results-notes-preview"></div>
             </div>
         </div>
     </div>
@@ -574,6 +589,32 @@
         function printReport() {
             window.print();
         }
+
+        // Mirror textarea content into preview blocks for readable, printable notes
+        function syncNotesPreview(textareaId, previewId) {
+            const textarea = document.getElementById(textareaId);
+            const preview = document.getElementById(previewId);
+            if (!textarea || !preview) return;
+
+            const update = () => {
+                const value = textarea.value || '';
+                // Preserve line breaks using <br>, but keep content plain-text
+                preview.innerHTML = value
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\n/g, '<br>');
+            };
+
+            // Initial sync and on every input
+            update();
+            textarea.addEventListener('input', update);
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            syncNotesPreview('riskReductionDetails', 'riskReductionDetailsPreview');
+            syncNotesPreview('assessmentAssumptions', 'assessmentAssumptionsPreview');
+        });
 
         // Get simulation data from Flask
         const originalLef = {{ results.samples.lef | tojson }};
