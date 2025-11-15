@@ -328,6 +328,13 @@
                 border: 1px solid #a0aec0;
                 background: white;
             }
+
+            /* Scale down overall content so charts and cards fit on printed pages */
+            .page-wrapper {
+                transform: scale(0.6);
+                transform-origin: top left;
+                width: 166%; /* 1 / 0.6 to keep scaled content within page width */
+            }
         }
     </style>
 </head>
