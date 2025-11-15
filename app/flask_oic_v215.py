@@ -24,8 +24,8 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 
 # Version identifier
-VERSION = "v2-rag-enhanced"
-PORT = 8085
+VERSION = "v215-rag-websearch
+PORT = 8080
 # Right after line 27 in flask_app_chat_v2_rag.py
 logger.info(f"========== STARTING {VERSION} on PORT {PORT} ==========")
 
@@ -99,7 +99,7 @@ def generate():
                    (f" (org size: {org_size})" if org_size else ""))
         
         # Get tracker with version-specific code generator ID
-        tracker = get_tracker(session_based=True, code_generator="v2-rag-enhanced")
+        tracker = get_tracker(session_based=True, code_generator="v215-rag-websearchenhanced")
         user_id = tracker.get_user_id()
         
         logger.info(f"[{VERSION}] User ID: {user_id}")
@@ -175,7 +175,7 @@ def generate_custom():
         logger.info(f"[{VERSION}] Generating custom scenario questionnaire for {industry} in {region}: {risk_scenario}")
         
         # Get tracker with version-specific code generator ID
-        tracker = get_tracker(session_based=True, code_generator="v2-rag-enhanced")
+        tracker = get_tracker(session_based=True, code_generator="v215-rag-websearch-enhanced")
         user_id = tracker.get_user_id()
         
         logger.info(f"[{VERSION}] User ID: {user_id}")
@@ -247,7 +247,7 @@ def refine_scenario():
         logger.info(f"[{VERSION}] Refining scenario for {industry} in {region}")
         
         # Get tracker
-        tracker = get_tracker(session_based=True, code_generator="v2-rag")
+        tracker = get_tracker(session_based=True, code_generator="v215-rag-websearch-enhanced")
         user_id = tracker.get_user_id()
 
         # Prepare RAG and intelligent web search context using v214 generator logic
@@ -452,7 +452,7 @@ def chat():
             return jsonify({'error': 'Message is required'}), 400
         
         # Get tracker with version-specific code generator ID
-        tracker = get_tracker(session_based=True, code_generator="v2-rag-enhanced")
+        tracker = get_tracker(session_based=True, code_generator="v215-rag-websearch-enhanced")
         user_id = tracker.get_user_id()
         
         logger.info(f"[{VERSION}] Chat request from {user_id}: {user_message[:50]}...")
@@ -609,7 +609,7 @@ Be concise, practical, and supportive."""
     )
     
     # Log the API call
-    tracker = get_tracker(session_based=True, code_generator="v2-rag")
+    tracker = get_tracker(session_based=True, code_generator="v215-rag-websearch-enhanced")
     tracker.log_api_call(
         user_id=original_user_id,
         hashed_user_id=api_metadata['user_id'],
@@ -832,7 +832,7 @@ def chat_results():
             return jsonify({'error': 'Message is required'}), 400
         
         # Get tracker with version-specific code generator ID
-        tracker = get_tracker(session_based=True, code_generator="v2-rag-enhanced")
+        tracker = get_tracker(session_based=True, code_generator="v215-rag-websearch-enhanced")
         user_id = tracker.get_user_id()
         
         logger.info(f"[{VERSION}] Results chat request from {user_id}: {user_message[:50]}...")
