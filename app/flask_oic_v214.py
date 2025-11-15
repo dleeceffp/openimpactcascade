@@ -406,7 +406,7 @@ def chat():
         return jsonify({'error': str(e)}), 500
 
 def generate_chat_response(user_message: str, context: Dict, user_id: str) -> str:
-    """Generate chat response using Claude with RAG grounding."""
+    """Generate chat response using Claude with RAG grounding, optionally supplemented by web search when RAG has gaps."""
     import anthropic
     from vertex_rag_v211 import get_rag_engine
     
@@ -429,6 +429,36 @@ def generate_chat_response(user_message: str, context: Dict, user_id: str) -> st
         except Exception as e:
             logger.warning(f"[{VERSION}] RAG retrieval failed: {e}")
     
+    # Analyze RAG coverage and only perform web search when there are meaningful gaps
+    web_context = ""
+    if ai_generator is not None and getattr(ai_generator, 'enable_web_search', False):
+        try:
+            industry_for_search = context.get('industry', 'General')
+            region_for_search = context.get('region', 'Global')
+            rag_analysis = ai_generator._analyze_rag_content(rag_contexts, industry_for_search, region_for_search)
+
+            has_content = rag_analysis.get('has_content', False)
+            has_current_year = rag_analysis.get('has_current_year_data', False)
+            has_regional = rag_analysis.get('has_regional_data', False)
+            has_breach_stats = rag_analysis.get('has_breach_statistics', False)
+
+            needs_web_search = (not has_content) or (not has_current_year) or (not has_regional) or (not has_breach_stats)
+
+            if needs_web_search:
+                logger.info(f"[{VERSION}] RAG gaps detected for chat (current_year={has_current_year}, regional={has_regional}, breach_stats={has_breach_stats}); performing targeted web search")
+                web_context, _ = ai_generator._perform_intelligent_web_search(
+                    industry=industry_for_search,
+                    region=region_for_search,
+                    rag_analysis=rag_analysis,
+                    user_id=user_id
+                )
+                if web_context:
+                    logger.info(f"[{VERSION}] Web search context added to chat prompt")
+            else:
+                logger.info(f"[{VERSION}] RAG coverage sufficient for chat; skipping web search")
+        except Exception as e:
+            logger.warning(f"[{VERSION}] Web search for chat failed: {e}")
+    
     # Build system prompt with RAG grounding
     system_prompt = """You are a cybersecurity risk assessment coach helping users complete FAIR-based risk assessments.
 
@@ -442,7 +472,7 @@ When grounding context is provided, prioritize it as authoritative but supplemen
 
 Be concise, practical, and supportive."""
     
-    # Build user prompt with RAG context
+    # Build user prompt with RAG context (and optional web search context)
     prompt_parts = []
     
     # Add RAG grounding context if available
@@ -450,6 +480,11 @@ Be concise, practical, and supportive."""
         formatted_context = rag_engine.format_context_for_prompt(rag_contexts, max_length=3000)
         prompt_parts.append(formatted_context)
         prompt_parts.append("\n---\n")
+
+    # Add web search context only when gaps were detected and search succeeded
+    if web_context:
+        prompt_parts.append(web_context)
+        prompt_parts.append("\n---\nThese recent web search results fill gaps in the RAG corpus (e.g., current-year, regional, or breach-statistics data). Use them together with the RAG context above when coaching the user.\n---\n")
     
     prompt_parts.append(f"User question: {user_message}")
     
