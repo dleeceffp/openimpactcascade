@@ -1,0 +1,66 @@
+{# 
+    Reusable Chat Sidebar Component
+    
+    Usage:
+    include 'partials/chat_sidebar.html'
+    
+    Required variables:
+    - chat_config: dict with 'welcome_message', 'quick_help_buttons', 'page_context'
+    
+    Example:
+    set chat_config = {
+        'welcome_message': 'Hi! How can I help?',
+        'quick_help_buttons': [
+            {'text': 'Help Me', 'question': 'What should I do?'},
+            {'text': 'Explain', 'question': 'Explain this to me'}
+        ],
+        'page_context': 'questionnaire'
+    }
+#}
+
+<!-- Chat Sidebar -->
+<div class="chat-sidebar" id="chatSidebar">
+    <div class="chat-header">
+        <h3>💬 AI Assistant</h3>
+        <button class="chat-close-btn" id="chatCloseBtn" onclick="toggleChat()" aria-label="Close chat">✕</button>
+    </div>
+    
+    <div class="chat-messages" id="chatMessages">
+        <div class="chat-message assistant">
+            <div class="message-label">AI Assistant</div>
+            <div class="message-bubble">
+                {{ chat_config.welcome_message | safe }}
+            </div>
+        </div>
+    </div>
+    
+    <div class="chat-input-container">
+        {% if chat_config.quick_help_buttons %}
+        <div class="quick-help">
+            {% for button in chat_config.quick_help_buttons %}
+            <button class="quick-help-btn" onclick='sendQuickHelp("{{ button.question }}")'>
+                {{ button.text }}
+            </button>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <div class="chat-input-wrapper">
+            <textarea 
+                id="chatInput" 
+                class="chat-input" 
+                placeholder="Ask me anything..."
+                rows="2"
+                aria-label="Chat message input"
+            ></textarea>
+            <button id="chatSendBtn" class="chat-send-btn" onclick="sendChatMessage()" aria-label="Send message">
+                Send
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile Chat Toggle Button -->
+<button class="mobile-chat-toggle" id="mobileChatToggle" onclick="toggleChat()" aria-label="Toggle chat">
+    💬
+</button>

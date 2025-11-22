@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Custom Risk Scenario - OpenImpactCascade</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat_sidebar.css') }}">
     <style>
         * {
             margin: 0;
@@ -367,11 +368,6 @@
             margin: 0 auto 15px;
         }
         
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
         .loading-steps {
             text-align: left;
             margin-top: 15px;
@@ -388,143 +384,9 @@
             font-weight: 600;
         }
         
-        /* Chat Sidebar Styles */
-        .chat-sidebar {
-            width: 400px;
-            background: white;
-            display: flex;
-            flex-direction: column;
-            box-shadow: -2px 0 10px rgba(0,0,0,0.05);
-        }
-        
-        .chat-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .chat-header h3 {
-            font-size: 1.1em;
-            flex: 1;
-        }
-        
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            background: #f7fafc;
-        }
-        
-        .chat-message {
-            margin-bottom: 15px;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .chat-message.assistant {
-            align-items: flex-start;
-        }
-        
-        .chat-message.user {
-            align-items: flex-end;
-        }
-        
-        .message-bubble {
-            max-width: 85%;
-            padding: 12px 16px;
-            border-radius: 12px;
-            line-height: 1.5;
-            font-size: 0.9em;
-        }
-        
-        .chat-message.assistant .message-bubble {
-            background: white;
-            border: 1px solid #e2e8f0;
-            color: #2d3748;
-        }
-        
-        .chat-message.user .message-bubble {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .message-label {
-            font-size: 0.75em;
-            color: #718096;
-            margin-bottom: 5px;
-            padding: 0 5px;
-        }
-        
-        .chat-input-container {
-            border-top: 1px solid #e2e8f0;
-            padding: 15px;
-            background: white;
-        }
-        
-        .chat-input-wrapper {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .chat-input {
-            flex: 1;
-            padding: 12px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 0.9em;
-            resize: none;
-            font-family: inherit;
-        }
-        
-        .chat-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .chat-send-btn {
-            padding: 12px 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: transform 0.2s;
-        }
-        
-        .chat-send-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-        }
-        
-        .chat-send-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-        
-        .quick-help {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        
-        .quick-help-btn {
-            padding: 6px 12px;
-            background: #eef2ff;
-            color: #667eea;
-            border: 1px solid #c7d2fe;
-            border-radius: 6px;
-            font-size: 0.85em;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .quick-help-btn:hover {
-            background: #ddd6fe;
-            border-color: #a78bfa;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -693,130 +555,38 @@
         </div>
     </div>
     
-    <!-- Chat Sidebar -->
-    <div class="chat-sidebar" id="chatSidebar">
-        <div class="chat-header">
-            <h3>💬 AI Assistant</h3>
-        </div>
-        
-        <div class="chat-messages" id="chatMessages">
-            <div class="chat-message assistant">
-                <div class="message-label">AI Assistant</div>
-                <div class="message-bubble">
-                    👋 Hi! I'm here to help you define your custom risk scenario. I can help you:
-                    <ul style="margin: 10px 0 0 20px; font-size: 0.95em;">
-                        <li>Clarify your risk concerns</li>
-                        <li>Identify relevant threat actors</li>
-                        <li>Understand FAIR methodology</li>
-                        <li>Refine your scenario description</li>
-                    </ul>
-                    Feel free to ask any questions!
-                </div>
-            </div>
-        </div>
-        
-        <div class="chat-input-container">
-            <div class="quick-help">
-                <button class="quick-help-btn" onclick="sendQuickHelp('What makes a good risk scenario?')">
-                    📝 Good Scenario Tips
-                </button>
-                <button class="quick-help-btn" onclick="sendQuickHelp('How should I describe my concern?')">
-                    💡 Describe Concern
-                </button>
-                <button class="quick-help-btn" onclick="sendQuickHelp('What is FAIR methodology?')">
-                    📊 About FAIR
-                </button>
-            </div>
-            <div class="chat-input-wrapper">
-                <textarea 
-                    id="chatInput" 
-                    class="chat-input" 
-                    placeholder="Ask me anything about defining your risk scenario..."
-                    rows="2"
-                ></textarea>
-                <button id="chatSendBtn" class="chat-send-btn" onclick="sendChatMessage()">Send</button>
-            </div>
-        </div>
-    </div>
+    {% set chat_config = {
+        "welcome_message": "👋 Hi! I am here to help you define your custom risk scenario. I can help you:<ul style=\"margin: 10px 0 0 20px; font-size: 0.95em;\"><li>Clarify your risk concerns</li><li>Identify relevant threat actors</li><li>Understand FAIR methodology</li><li>Refine your scenario description</li></ul>Feel free to ask any questions!",
+        "quick_help_buttons": [
+            {"text": "📝 Good Scenario Tips", "question": "What makes a good risk scenario?"},
+            {"text": "💡 Describe Concern", "question": "How should I describe my concern?"},
+            {"text": "📊 About FAIR", "question": "What is FAIR methodology?"}
+        ],
+        "page_context": "custom_scenario_generation"
+    } %}
+    {% include 'partials/chat_sidebar.html' %}
     </div>
     
+    <script src="{{ url_for('static', filename='js/chat_sidebar.js') }}"></script>
     <script>
-        // Chat functionality
-        async function sendChatMessage() {
-            const input = document.getElementById('chatInput');
-            const message = input.value.trim();
-            
-            if (!message) return;
-            
-            // Add user message to chat
-            addMessageToChat('user', message);
-            input.value = '';
-            
-            // Disable send button
-            const sendBtn = document.getElementById('chatSendBtn');
-            sendBtn.disabled = true;
-            sendBtn.textContent = '...';
-            
-            try {
-                // Get context
-                const context = {
-                    industry: document.getElementById('industry').value,
-                    region: document.getElementById('region').value,
-                    page: 'custom_scenario_generation'
+        // Initialize chat sidebar with custom configuration
+        initChatSidebar({
+            apiEndpoint: '/api/chat',
+            pageContext: 'custom_scenario_generation',
+            getContextData: function() {
+                return {
+                    page: 'custom_scenario_generation',
+                    industry: document.getElementById('industry')?.value || '',
+                    region: document.getElementById('region')?.value || ''
                 };
-                
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        message: message,
-                        context: context
-                    })
+            },
+            onMessageReceived: function(userMessage, assistantResponse) {
+                // Add to centralized chat history
+                ChatHistory.add(userMessage, assistantResponse, {
+                    page: 'custom_scenario_generation',
+                    industry: document.getElementById('industry')?.value || '',
+                    region: document.getElementById('region')?.value || ''
                 });
-                
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    addMessageToChat('assistant', data.response);
-                } else {
-                    addMessageToChat('assistant', 'Sorry, I encountered an error. Please try again.');
-                }
-            } catch (error) {
-                console.error('Chat error:', error);
-                addMessageToChat('assistant', 'Sorry, I encountered an error. Please try again.');
-            } finally {
-                sendBtn.disabled = false;
-                sendBtn.textContent = 'Send';
-            }
-        }
-        
-        function addMessageToChat(role, content) {
-            const messagesDiv = document.getElementById('chatMessages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `chat-message ${role}`;
-            
-            const label = role === 'user' ? 'You' : 'AI Assistant';
-            messageDiv.innerHTML = `
-                <div class="message-label">${label}</div>
-                <div class="message-bubble">${content}</div>
-            `;
-            
-            messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-        
-        function sendQuickHelp(question) {
-            document.getElementById('chatInput').value = question;
-            sendChatMessage();
-        }
-        
-        // Allow Enter to send (Shift+Enter for new line)
-        document.getElementById('chatInput').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendChatMessage();
             }
         });
         
@@ -973,6 +743,15 @@
                 }
                 // Auto-populate risk_scenario with narrative if not refined
                 document.getElementById('risk_scenario').value = narrative.substring(0, 200);
+            }
+            
+            // CRITICAL: Explicitly save ChatHistory before form submission
+            // This ensures chat data persists across the page navigation
+            try {
+                ChatHistory.save();
+                console.log('[Custom Scenario] ChatHistory saved before form submission:', ChatHistory.getAll().length, 'entries');
+            } catch (error) {
+                console.error('[Custom Scenario] Failed to save ChatHistory:', error);
             }
             
             // Show loading indicator

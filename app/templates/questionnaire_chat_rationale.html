@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Risk Assessment Questionnaire - OpenImpactCascade</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat_sidebar.css') }}">
     <style>
         * {
             margin: 0;
@@ -31,43 +32,7 @@
             overflow-y: auto;
         }
         
-        .chat-sidebar {
-            width: 400px;
-            background: white;
-            border-left: 1px solid #e2e8f0;
-            display: flex;
-            flex-direction: column;
-            box-shadow: -2px 0 10px rgba(0,0,0,0.05);
-        }
-        
-        .chat-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .chat-header h3 {
-            font-size: 1.1em;
-            flex: 1;
-        }
-        
-        .toggle-chat {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9em;
-        }
-        
-        .toggle-chat:hover {
-            background: rgba(255,255,255,0.3);
-        }
-        
+        /* Questionnaire-specific chat styles */
         .chat-context {
             background: #eef2ff;
             padding: 15px;
@@ -89,104 +54,11 @@
             line-height: 1.4;
         }
         
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            background: #f7fafc;
-        }
-        
-        .chat-message {
-            margin-bottom: 15px;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .chat-message.assistant {
-            align-items: flex-start;
-        }
-        
-        .chat-message.user {
-            align-items: flex-end;
-        }
-        
-        .message-bubble {
-            max-width: 85%;
-            padding: 12px 16px;
-            border-radius: 12px;
-            line-height: 1.5;
-            font-size: 0.9em;
-        }
-        
-        .chat-message.assistant .message-bubble {
-            background: white;
-            border: 1px solid #e2e8f0;
-            color: #2d3748;
-        }
-        
-        .chat-message.user .message-bubble {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .message-label {
-            font-size: 0.75em;
-            color: #718096;
-            margin-bottom: 5px;
-            padding: 0 5px;
-        }
-        
-        .chat-input-container {
-            border-top: 1px solid #e2e8f0;
-            padding: 15px;
-            background: white;
-        }
-        
-        .chat-input-wrapper {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .chat-input {
-            flex: 1;
-            padding: 12px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 0.9em;
-            resize: none;
-            font-family: inherit;
-        }
-        
-        .chat-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .chat-send-btn {
-            padding: 12px 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: transform 0.2s;
-        }
-        
-        .chat-send-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-        }
-        
-        .chat-send-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
         .quick-help-buttons {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin-top: 10px;
+            margin-bottom: 10px;
         }
         
         .quick-help-btn {
@@ -563,16 +435,19 @@
                         <input type="hidden" name="lm_min" id="lm_min">
                         <input type="hidden" name="lm_mle" id="lm_mle">
                         <input type="hidden" name="lm_max" id="lm_max">
+                        <!-- Capture the first question the user answers and their first selected option for reporting on the results page -->
+                        <input type="hidden" name="first_question_text" id="first_question_text">
+                        <input type="hidden" name="first_choice_text" id="first_choice_text">
                     </form>
                 </div>
             </div>
         </div>
         
-        <!-- Chat Sidebar -->
+        <!-- Chat Sidebar with dynamic context -->
         <div class="chat-sidebar" id="chatSidebar">
             <div class="chat-header">
                 <h3>💬 AI Assistant</h3>
-                <button class="toggle-chat" onclick="toggleChat()">Hide</button>
+                <button class="chat-close-btn" onclick="toggleChat()" aria-label="Close chat">✕</button>
             </div>
             
             <div class="chat-context">
@@ -582,7 +457,7 @@
             
             <div class="chat-messages" id="chatMessages">
                 <div class="chat-message assistant">
-                    <div class="message-label">Assistant</div>
+                    <div class="message-label">AI Assistant</div>
                     <div class="message-bubble">
                         👋 Hi! I'm here to help you with your risk assessment. Ask me anything about:
                         <ul style="margin-top: 10px; padding-left: 20px;">
@@ -593,30 +468,31 @@
                         </ul>
                     </div>
                 </div>
-                
-                <div id="thinkingIndicator" class="thinking-indicator">
-                    <div class="typing-dots">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-                    <span>Thinking...</span>
+            </div>
+            
+            <div class="thinking-indicator" id="thinkingIndicator">
+                <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
                 </div>
+                <span>Thinking...</span>
             </div>
             
             <div class="chat-input-container">
                 <div id="quickHelpButtons" class="quick-help-buttons"></div>
                 <div class="chat-input-wrapper">
-                    <textarea id="chatInput" class="chat-input" rows="2" placeholder="Ask me anything..."></textarea>
-                    <button id="sendBtn" class="chat-send-btn" onclick="sendMessage()">Send</button>
+                    <textarea id="chatInput" class="chat-input" rows="2" placeholder="Ask me anything..." aria-label="Chat message input"></textarea>
+                    <button id="chatSendBtn" class="chat-send-btn" onclick="sendMessage()" aria-label="Send message">Send</button>
                 </div>
             </div>
         </div>
     </div>
     
     <!-- Mobile chat toggle button -->
-    <button class="mobile-chat-toggle" onclick="toggleChat()">💬</button>
+    <button class="mobile-chat-toggle" id="mobileChatToggle" onclick="toggleChat()" aria-label="Toggle chat">💬</button>
     
+    <script src="{{ url_for('static', filename='js/chat_sidebar.js') }}"></script>
     <script>
         // Questionnaire data from Flask
         const questions = {{ questions | tojson }};
@@ -632,6 +508,10 @@
             lm_mle: null,
             lm_max: null
         };
+        // Track the first multiple-choice question the user answers and their first selected option
+        let firstQuestionCaptured = false;
+        let firstQuestionText = '';
+        let firstChoiceText = '';
         let chatHistory = [];
         
         // ========== QUESTIONNAIRE FUNCTIONS ==========
@@ -747,10 +627,15 @@
             html += `
                 <div class="button-group">
                     ${questionHistory.length > 0 ? '<button type="button" class="btn btn-secondary" onclick="goBack()">← Back</button>' : ''}
-                    ${question.next_question_id ? 
-                        `<button type="button" class="btn btn-primary" onclick="goNext('${question.next_question_id}')">Continue →</button>` :
-                        '<button type="button" class="btn btn-success" onclick="submitForm()">Submit Assessment ✓</button>'
-                    }
+                    ${question.type === 'pert_estimate' && question.next_question_id ? 
+                        `<button type="button" class="btn btn-primary" onclick="goNext('${question.next_question_id}')">Continue →</button>` : ''}
+                    ${question.type === 'pert_estimate' && !question.next_question_id ? 
+                        '<button type="button" class="btn btn-success" onclick="submitForm()">Submit Assessment ✓</button>' : ''}
+                </div>
+                <div style="margin-top: 10px; text-align: right; font-size: 0.85em; color: #718096;">
+                    <a href="/generate-custom" style="color: #667eea; text-decoration: none;">
+                        If these questions do not fit the assessment context, Switch to custom assessment →
+                    </a>
                 </div>
             `;
             
@@ -765,6 +650,20 @@
             
             // Add selected class to clicked choice
             element.classList.add('selected');
+            
+            // Capture the very first multiple-choice selection for reporting
+            // Use choice-title as the main label and choice-description as the supporting text
+            if (!firstQuestionCaptured) {
+                const currentQuestion = questions.questions[currentQuestionId];
+                if (currentQuestion && currentQuestion.type === 'multiple_choice') {
+                    const titleEl = element.querySelector('.choice-title');
+                    const descEl = element.querySelector('.choice-description');
+                    firstQuestionText = titleEl ? titleEl.textContent.trim() : '';
+                    firstChoiceText = descEl ? descEl.textContent.trim() : '';
+                    firstQuestionCaptured = true;
+                    console.log('[Questionnaire] Captured first selection for reporting:', firstQuestionText, '=>', firstChoiceText);
+                }
+            }
             
             // Get next question ID and navigate
             const nextQuestionId = element.dataset.next;
@@ -826,26 +725,34 @@
             const missingFields = [];
             
             for (const field of requiredFields) {
-                if (pertValues[field] === null || isNaN(pertValues[field])) {
-                    missingFields.push(field);
+                if (!pertValues[field]) {
+                    missingFields.push(field.toUpperCase().replace('_', ' '));
                 }
             }
             
             if (missingFields.length > 0) {
-                alert('Missing required values: ' + missingFields.join(', '));
-                console.error('Missing PERT values:', pertValues);
+                alert(`Please answer all questions before submitting.\n\nMissing values for: ${missingFields.join(', ')}`);
                 return false;
             }
             
-            // Validate ranges
-            if (!(pertValues.lef_min <= pertValues.lef_mle && pertValues.lef_mle <= pertValues.lef_max)) {
-                alert('Loss Event Frequency values must satisfy: min ≤ most likely ≤ max');
+            // Validate PERT ordering (min <= mle <= max)
+            if (pertValues.lef_min > pertValues.lef_mle || pertValues.lef_mle > pertValues.lef_max) {
+                alert('Loss Event Frequency values must be in order: Minimum ≤ Most Likely ≤ Maximum');
                 return false;
             }
             
-            if (!(pertValues.lm_min <= pertValues.lm_mle && pertValues.lm_mle <= pertValues.lm_max)) {
-                alert('Loss Magnitude values must satisfy: min ≤ most likely ≤ max');
+            if (pertValues.lm_min > pertValues.lm_mle || pertValues.lm_mle > pertValues.lm_max) {
+                alert('Loss Magnitude values must be in order: Minimum ≤ Most Likely ≤ Maximum');
                 return false;
+            }
+            
+            // CRITICAL: Explicitly save ChatHistory before form submission
+            // This ensures all questionnaire chat data persists across the page navigation
+            try {
+                ChatHistory.save();
+                console.log('[Questionnaire] ChatHistory saved before form submission:', ChatHistory.getAll().length, 'entries');
+            } catch (error) {
+                console.error('[Questionnaire] Failed to save ChatHistory:', error);
             }
             
             // Set hidden form values
@@ -855,6 +762,9 @@
             document.getElementById('lm_min').value = pertValues.lm_min;
             document.getElementById('lm_mle').value = pertValues.lm_mle;
             document.getElementById('lm_max').value = pertValues.lm_max;
+            // Also submit the first question context (if captured) so it can be shown on the results page
+            document.getElementById('first_question_text').value = firstQuestionText || '';
+            document.getElementById('first_choice_text').value = firstChoiceText || '';
             
             console.log('Submitting with values:', pertValues);
             
@@ -936,7 +846,7 @@
             
             // Show thinking indicator
             document.getElementById('thinkingIndicator').classList.add('active');
-            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('chatSendBtn').disabled = true;
             
             // Get current question context
             const currentQuestion = questions.questions[currentQuestionId];
@@ -967,15 +877,25 @@
                 if (data.status === 'success') {
                     addChatMessage('assistant', data.response);
                     chatHistory.push({user: message, assistant: data.response});
+                    
+                    // Add to centralized chat history
+                    ChatHistory.add(message, data.response, {
+                        page: 'questionnaire',
+                        question_id: currentQuestionId,
+                        question_text: currentQuestion.text,
+                        question_type: currentQuestion.type,
+                        industry: '{{ params.industry }}',
+                        region: '{{ params.region }}'
+                    });
                 } else {
-                    addChatMessage('assistant', '⚠️ Sorry, I encountered an error. Please try again.');
+                    addChatMessage('assistant', '\u26a0\ufe0f Sorry, I encountered an error. Please try again.');
                 }
             } catch (error) {
                 console.error('Chat error:', error);
-                addChatMessage('assistant', '⚠️ Connection error. Please check your internet connection.');
+                addChatMessage('assistant', '\u26a0\ufe0f Connection error. Please check your internet connection.');
             } finally {
                 document.getElementById('thinkingIndicator').classList.remove('active');
-                document.getElementById('sendBtn').disabled = false;
+                document.getElementById('chatSendBtn').disabled = false;
             }
         }
         
@@ -990,7 +910,7 @@
             messageDiv.className = `chat-message ${role}`;
             
             messageDiv.innerHTML = `
-                <div class="message-label">${role === 'user' ? 'You' : 'Assistant'}</div>
+                <div class="message-label">${role === 'user' ? 'You' : 'AI Assistant'}</div>
                 <div class="message-bubble">${text}</div>
             `;
             
@@ -999,8 +919,7 @@
         }
         
         function toggleChat() {
-            const sidebar = document.getElementById('chatSidebar');
-            sidebar.classList.toggle('open');
+            ChatSidebar.toggleChat();
         }
         
         // Handle Enter key in chat input
@@ -1020,6 +939,18 @@
         console.log('Initializing questionnaire with start question:', currentQuestionId);
         console.log('Total questions:', Object.keys(questions.questions).length);
         renderQuestion(currentQuestionId);
+        
+        // Sync local chatHistory to centralized ChatHistory before page unload
+        window.addEventListener('beforeunload', function() {
+            if (chatHistory.length > 0) {
+                const context = {
+                    page: 'questionnaire',
+                    industry: '{{ params.industry }}',
+                    region: '{{ params.region }}'
+                };
+                ChatHistory.importFromLocal(chatHistory, context);
+            }
+        });
     </script>
 </body>
 </html>

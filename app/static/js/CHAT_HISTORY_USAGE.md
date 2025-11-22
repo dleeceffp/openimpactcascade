@@ -1,0 +1,378 @@
+# Chat History Manager - Usage Guide
+
+## Overview
+
+The `ChatHistory` module provides session-based chat history tracking across all pages in the OpenImpactCascade application. It uses `sessionStorage` for persistence during the user's session without requiring a database.
+
+## Features
+
+✅ **Session Persistence** - History survives page navigation and form submissions  
+✅ **Automatic Tracking** - Real-time capture on all three chat pages  
+✅ **Context-Rich** - Captures page, question, and assessment context  
+✅ **Multiple Export Formats** - Text and JSON exports  
+✅ **Statistics** - Summary stats about chat interactions  
+✅ **Memory Safe** - Limits to 100 entries to prevent issues  
+✅ **Auto-Clear** - Automatically resets when starting new assessment  
+✅ **Duplicate Prevention** - Smart detection prevents double-counting  
+
+## Integration Status
+
+All three pages are integrated with ChatHistory:
+
+1. **`generate_custom.html`** - Custom scenario generation
+2. **`questionnaire_chat_rationale.html`** - Questionnaire assistance
+3. **`results.html`** - Risk reduction recommendations
+
+### How It Works
+
+**Real-Time Tracking:**
+- Each chat message is immediately added to centralized `ChatHistory` via `ChatHistory.add()`
+- History is saved to `sessionStorage` after each message
+- Survives page navigation, form submissions, and browser refreshes (within same tab)
+
+**Duplicate Prevention:**
+- `importFromLocal()` checks for existing messages before importing
+- Prevents double-counting when syncing local arrays
+
+**Automatic Session Management:**
+- History automatically cleared when user visits home page
+- Each new assessment starts with clean slate
+- History persists throughout entire assessment flow
+
+**Debug Logging:**
+- Console shows history size and page breakdown after each message
+- Easy to verify history is being captured correctly
+
+## API Reference
+
+### Adding to History
+
+```javascript
+ChatHistory.add(userMessage, assistantResponse, context);
+```
+
+**Parameters:**
+- `userMessage` (string): The user's question/message
+- `assistantResponse` (string): The AI assistant's response
+- `context` (object): Page-specific context data
+
+**Example:**
+```javascript
+ChatHistory.add(
+    "How can I reduce likelihood?",
+    "You can reduce likelihood by implementing preventive controls...",
+    {
+        page: 'results',
+        industry: 'Financial Services',
+        region: 'North America',
+        expected_loss: 125000,
+        p90_loss: 450000
+    }
+);
+```
+
+### Importing Local History
+
+If you have a local `chatHistory` array that needs to be synced:
+
+```javascript
+ChatHistory.importFromLocal(localHistoryArray, context);
+```
+
+**Parameters:**
+- `localHistoryArray` (array): Array of `{user, assistant}` objects
+- `context` (object): Context to apply to all imported entries
+
+**Example:**
+```javascript
+// Import on page unload
+window.addEventListener('beforeunload', function() {
+    if (chatHistory.length > 0) {
+        ChatHistory.importFromLocal(chatHistory, {
+            page: 'results',
+            industry: 'Financial Services',
+            expected_loss: 125000
+        });
+    }
+});
+```
+
+### Retrieving History
+
+```javascript
+// Get all history
+const allHistory = ChatHistory.getAll();
+
+// Get history for specific page
+const resultsHistory = ChatHistory.getByPage('results');
+
+// Get statistics
+const stats = ChatHistory.getStats();
+// Returns: { totalExchanges, pageBreakdown, firstInteraction, lastInteraction }
+```
+
+### Exporting History
+
+```javascript
+// Export as formatted text file (client-side download)
+exportCompleteHistory();
+
+// Export as JSON file (client-side download)
+exportHistoryAsJSON();
+
+// Get stats programmatically
+const stats = getChatStats();
+console.log(`Total exchanges: ${stats.totalExchanges}`);
+```
+
+**Note:** All exports are client-side downloads. There is no server-side storage of chat history.
+
+### Clearing History
+
+```javascript
+// Clear all history (with confirmation)
+clearChatHistory();
+
+// Clear programmatically
+ChatHistory.clear();
+```
+
+## Export Format Examples
+
+### Text Export
+
+```
+OpenImpactCascade - Complete Chat History
+Generated: 11/11/2025, 12:00:00 PM
+Total Exchanges: 15
+Session Duration: 11/11/2025, 11:30:00 AM to 11/11/2025, 12:00:00 PM
+
+Page Breakdown:
+  - custom_scenario_generation: 3 exchanges
+  - questionnaire: 8 exchanges
+  - results: 4 exchanges
+
+================================================================================
+
+[1] 11/11/2025, 11:30:15 AM
+Page: custom_scenario_generation
+Context:
+  industry: "Financial Services"
+  region: "North America"
+
+YOU:
+What makes a good risk scenario?
+
+ASSISTANT:
+A good risk scenario should be specific, measurable, and focused on a single threat...
+
+--------------------------------------------------------------------------------
+```
+
+### JSON Export
+
+```json
+{
+  "exported": "2025-11-11T19:00:00.000Z",
+  "version": "v2-rag-enhanced",
+  "statistics": {
+    "totalExchanges": 15,
+    "pageBreakdown": {
+      "custom_scenario_generation": 3,
+      "questionnaire": 8,
+      "results": 4
+    },
+    "firstInteraction": "2025-11-11T18:30:00.000Z",
+    "lastInteraction": "2025-11-11T19:00:00.000Z"
+  },
+  "history": [
+    {
+      "timestamp": "2025-11-11T18:30:15.000Z",
+      "user": "What makes a good risk scenario?",
+      "assistant": "A good risk scenario should be specific...",
+      "context": {
+        "page": "custom_scenario_generation",
+        "industry": "Financial Services",
+        "region": "North America"
+      }
+    }
+  ]
+}
+```
+
+## Use Cases
+
+### 1. Session Report Generation
+
+Export complete chat history at the end of an assessment session:
+
+```javascript
+// Add export button to results page
+<button onclick="exportCompleteHistory()">
+    📋 Export Complete Session Report
+</button>
+```
+
+### 2. Analytics & Insights
+
+Analyze user behavior and common questions:
+
+```javascript
+const stats = getChatStats();
+console.log('Most active page:', 
+    Object.entries(stats.pageBreakdown)
+        .sort((a, b) => b[1] - a[1])[0][0]
+);
+```
+
+### 3. Quality Assurance
+
+Review chat interactions for quality:
+
+```javascript
+const allChats = ChatHistory.getAll();
+allChats.forEach(chat => {
+    if (chat.assistant.includes('error')) {
+        console.warn('Error response detected:', chat);
+    }
+});
+```
+
+### 4. User Support
+
+Export chat history for support tickets:
+
+```javascript
+// User reports an issue
+const history = ChatHistory.exportAsJSON();
+// Send to support team with issue report
+```
+
+## Storage Details
+
+- **Storage Type**: `sessionStorage` (cleared when browser tab closes)
+- **Storage Key**: `oic_complete_chat_history`
+- **Max Entries**: 100 (oldest entries removed first)
+- **Estimated Size**: ~50-100KB for typical session
+
+### Session Management
+
+**Automatic Clearing:**
+- History is automatically cleared when the user visits the home page
+- This ensures each new assessment starts with a clean slate
+- The home page clears both `oic_complete_chat_history` and `oic_session_active`
+
+**Manual Clearing:**
+```javascript
+// Clear history manually
+clearChatHistory();
+
+// Or programmatically
+ChatHistory.clear();
+```
+
+**Session Flow:**
+1. User visits home page → History cleared
+2. User starts assessment → History begins tracking
+3. User navigates through pages → History accumulates
+4. User returns to home → History cleared for next session
+
+## Browser Compatibility
+
+Works in all modern browsers that support:
+- `sessionStorage` API
+- ES6 JavaScript features
+- Blob API for file downloads
+
+## Privacy & Security
+
+✅ **Session-Only** - Data cleared when tab closes  
+✅ **Client-Side Only** - No server storage or transmission  
+✅ **User Control** - Export/clear functions available  
+✅ **No PII** - Only chat content and context stored  
+✅ **Local Downloads** - Exports saved to user's device only  
+
+## Future Enhancements (Post-MVP)
+
+- Server-side persistence option
+- Database integration for long-term storage
+- Multi-session history tracking
+- Advanced analytics dashboard
+- Chat history search functionality
+
+## Troubleshooting
+
+### Verify History is Working
+
+**1. Check console logs:**
+```
+[ChatHistory] Initialized with X entries
+[ChatHistory] Added entry. Total: X | Page: questionnaire
+[ChatHistory] Current breakdown: {questionnaire: 2, results: 1}
+```
+
+**2. View complete history:**
+```javascript
+viewChatHistory();
+```
+
+**3. Check sessionStorage directly:**
+```javascript
+JSON.parse(sessionStorage.getItem('oic_complete_chat_history'));
+```
+
+### History Not Persisting Across Pages
+
+**Possible causes:**
+
+1. **Browser privacy mode** - Some browsers block sessionStorage in private/incognito mode
+2. **Browser extensions** - Ad blockers or privacy extensions may interfere
+3. **Cross-origin issues** - Ensure all pages are on same domain/port
+
+**Test:**
+```javascript
+// On questionnaire page
+ChatHistory.add("test", "test response", {page: "test"});
+console.log(ChatHistory.getAll().length); // Should show 1
+
+// Navigate to results page
+console.log(ChatHistory.getAll().length); // Should still show 1
+```
+
+### Storage Quota Exceeded
+
+Clear old history:
+```javascript
+ChatHistory.clear();
+```
+
+Or reduce max entries in `chat_sidebar.js`:
+```javascript
+maxEntries: 50  // Reduce from 100
+```
+
+### Export Shows Wrong Data
+
+Ensure you're using the centralized export:
+```javascript
+exportCompleteHistory();  // ✅ Correct - exports all pages
+```
+
+Not the local page export:
+```javascript
+exportChat();  // ⚠️ This now calls exportCompleteHistory() automatically
+```
+
+## Support
+
+For issues or questions about ChatHistory:
+1. Check browser console for error messages
+2. Verify `chat_sidebar.js` is loaded
+3. Ensure `sessionStorage` is enabled in browser
+4. Review this documentation
+
+---
+
+**Version**: v2-rag-enhanced  
+**Last Updated**: November 2025  
+**Module**: `chat_sidebar.js`

@@ -56,17 +56,23 @@ We've implemented a comprehensive safeguards system that:
    - Logs API calls to daily JSONL files
    - Provides search utilities for abuse investigation
 
-2. **`ai_question_generator.py`** - Updated to include user tracking
+2. **`ai_question_generator_with_rag_rationale.py`** - AI generator with RAG + rationale
    - Accepts optional `user_id` parameter
    - Passes hashed `user_id` in API metadata
    - Logs all questionnaire generation calls
+   - Includes code generator identifier for A/B testing
 
-3. **`flask_app_chat.py`** - Updated to include user tracking
+3. **`flask_app_chat_v21_rag_enhanced.py`** - Main Flask app (v2-rag-enhanced)
    - Generates session-based user IDs for evaluation
    - Passes hashed `user_id` in API metadata
-   - Logs all chat assist calls
+   - Logs all chat assist and results page chat calls
+   - Uses code generator ID: "v2-rag-enhanced"
 
-4. **`investigate_abuse.py`** - Abuse investigation utility
+4. **`vertex_rag_complete.py`** - GCP Vertex AI RAG integration
+   - Provides grounding context for questionnaires and chat
+   - No direct user tracking (handled by calling modules)
+
+5. **Abuse Investigation** - Available in tools directory
    - Searches logs by user ID or hashed ID
    - Displays API call history
    - Provides action recommendations
@@ -131,15 +137,17 @@ The system is currently in **evaluation mode** with session-based random user ID
 ### Example Session
 
 ```python
-# Application starts
-Session User ID: eval-user-a1b2c3d4e5f6
+# Application starts (v2-rag-enhanced)
+Session User ID: eval-v2-rag-enhanced-a1b2c3d4e5f6
 Hashed User ID: 7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d2c...
+Code Generator: v2-rag-enhanced
 
 # User generates questionnaire
-[2025-10-25 13:45:23] API call logged
-  User: eval-user-a1b2c3d4e5f6
+[2025-11-11 13:45:23] API call logged
+  User: eval-v2-rag-enhanced-a1b2c3d4e5f6
   Type: questionnaire_generation
   Request ID: req_xyz789
+  Code Generator: v2-rag-enhanced
 ```
 
 ---
@@ -151,15 +159,15 @@ When you're ready to integrate with your registration system:
 ### 1. Update Flask App
 
 ```python
-# In flask_app_chat.py, replace session-based tracking:
+# In flask_app_chat_v21_rag_enhanced.py, replace session-based tracking:
 
 # OLD (evaluation mode):
-tracker = get_tracker(session_based=True)
+tracker = get_tracker(session_based=True, code_generator="v2-rag-enhanced")
 user_id = tracker.get_user_id()
 
 # NEW (production mode):
 from flask_login import current_user  # or your auth system
-tracker = get_tracker(session_based=False)
+tracker = get_tracker(session_based=False, code_generator="v2-rag-enhanced")
 user_id = tracker.get_user_id(provided_user_id=current_user.id)
 ```
 
@@ -168,6 +176,11 @@ user_id = tracker.get_user_id(provided_user_id=current_user.id)
 Use stable, unique identifiers from your registration system:
 - ✅ Good: `user-12345`, `uuid-abc-def-123`, `email-hash-xyz`
 - ❌ Bad: Email addresses, names, or other PII
+
+**Code Generator ID**: Keep the code generator parameter for version tracking:
+- Current: `"v2-rag-enhanced"`
+- Format: `eval-{code_generator}-{random_hex}`
+- Purpose: Distinguish between different implementations in logs
 
 ### 3. Free Tier Users
 
@@ -317,11 +330,16 @@ python investigate_abuse.py --user-id eval-user-{your-id} --stats
 ### 3. Test in Flask App
 
 ```bash
-# Start the app
-python flask_app_chat.py
+# Start the app (v2-rag-enhanced on port 8080)
+python flask_app_chat_v21_rag_enhanced.py
 
 # Generate a questionnaire
+# Use the chat assistant
 # Check logs in ./logs/api_calls/
+
+# View logs
+ls -lh logs/api_calls/
+cat logs/api_calls/$(date +%Y-%m-%d)_api_calls.jsonl | jq .
 ```
 
 ---
@@ -410,9 +428,11 @@ python flask_app_chat.py
 
 ### Internal Resources
 
-- `user_tracking.py` - Core tracking module
-- `investigate_abuse.py` - Abuse investigation tool
-- `./logs/api_calls/` - Log directory
+- `user_tracking.py` - Core tracking module with code generator support
+- `../tools/investigate_abuse.py` - Abuse investigation tool (in tools directory)
+- `./logs/api_calls/` - Log directory (JSONL format)
+- `flask_app_chat_v21_rag_enhanced.py` - Main application with tracking
+- `ai_question_generator_with_rag_rationale.py` - AI generator with tracking
 
 ---
 
@@ -466,6 +486,7 @@ For questions about this implementation:
 
 ---
 
-**Last Updated**: October 2025  
-**Version**: 1.1.0  
-**Status**: Production Ready (Evaluation Mode)
+**Last Updated**: November 2025  
+**Version**: 2.0.0 (v2-rag-enhanced)  
+**Status**: Production Ready (Evaluation Mode)  
+**Code Generator**: v2-rag-enhanced

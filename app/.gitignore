@@ -1,0 +1,27 @@
+# GCP Service Account Keys
+service-account-key.json
+*.json
+
+# Environment Files
+.env.gcp
+.env.*
+
+# Terraform State
+terraform.tfstate
+terraform.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+
+# Backup Files
+*.bak
+*.backup
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
+*.swo
