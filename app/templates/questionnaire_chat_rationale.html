@@ -518,6 +518,25 @@
         let firstChoiceText = '';
         let chatHistory = [];
         
+        // ========== CONTEXT TRACKING ==========
+        
+        // Send context updates to backend for assessment tracking
+        async function updateBackendContext(action, data) {
+            try {
+                await fetch('/context/update', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        action: action,
+                        ...data
+                    })
+                });
+                console.log('Context updated:', action, data);
+            } catch (error) {
+                console.error('Context update failed:', error);
+            }
+        }
+        
         // ========== QUESTIONNAIRE FUNCTIONS ==========
         
         function renderQuestion(questionId) {
@@ -537,6 +556,13 @@
             
             // Update chat context
             updateChatContext();
+            
+            // Update backend context with current question
+            updateBackendContext('set_current_question', {
+                question_id: questionId,
+                question_text: question.text,
+                question_type: question.type
+            });
             
             // Build question HTML
             let html = '';
@@ -750,6 +776,25 @@
                 console.log('Captured vulnerability:', vulnerability);
             }
             
+            // Record answer to backend context
+            const currentQuestion = questions.questions[currentQuestionId];
+            if (currentQuestion) {
+                const titleEl = element.querySelector('.choice-title');
+                const descEl = element.querySelector('.choice-description');
+                
+                const answerData = {
+                    choice_text: titleEl ? titleEl.textContent.trim() : '',
+                    choice_description: descEl ? descEl.textContent.trim() : '',
+                    vulnerability: element.dataset.vulnerability || null
+                };
+                
+                updateBackendContext('answer_question', {
+                    question_id: currentQuestionId,
+                    question_text: currentQuestion.text,
+                    answer: answerData
+                });
+            }
+            
             // Get next question ID and navigate
             const nextQuestionId = element.dataset.next;
             if (nextQuestionId) {
@@ -764,6 +809,23 @@
         function updatePertValue(key, value) {
             pertValues[key] = parseFloat(value);
             console.log('Updated PERT value:', key, '=', value);
+            
+            // Determine component (tef, lef, or lm)
+            let component = 'lef';  // default
+            if (key.startsWith('tef_')) component = 'tef';
+            else if (key.startsWith('lm_')) component = 'lm';
+            
+            // Extract min/mle/max
+            const parts = key.split('_');
+            const suffix = parts[parts.length - 1]; // 'min', 'mle', or 'max'
+            
+            // Update backend context
+            const updateData = {
+                component: component
+            };
+            updateData[suffix] = parseFloat(value);
+            
+            updateBackendContext('update_fair', updateData);
         }
         
         function goNext(nextQuestionId) {
