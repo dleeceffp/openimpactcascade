@@ -706,7 +706,6 @@
             html += `
                 <div class="button-group">
                     ${questionHistory.length > 0 ? '<button type="button" class="btn btn-secondary" onclick="goBack()">← Back</button>' : ''}
-                    ${questionHistory.length > 0 ? '<button type="button" class="btn btn-secondary" onclick="goBack()">← Back</button>' : ''}
                     ${(question.type === 'pert_estimate' || question.type === 'calculated_display') && question.next_question_id ? 
                         `<button type="button" class="btn btn-primary" onclick="goNext('${question.next_question_id}')">Continue →</button>` : ''}
                     ${(question.type === 'pert_estimate' || question.type === 'calculated_display') && !question.next_question_id ? 

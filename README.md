@@ -1,10 +1,10 @@
 # OpenImpactCascade - AI-Powered Risk Assessment Platform
 
-**Version:** v2-rag-enhanced  
+**Version:** v2.2.1 (LEF Decomposition with TEF × Vulnerability)  
 **Port:** 8080  
 **Python:** 3.8 - 3.11 (3.11 recommended)
 
-AI-powered risk assessment questionnaire generator with FAIR methodology, MITRE ATT&CK integration, GCP Vertex AI RAG, and comprehensive safety safeguards.
+AI-powered risk assessment questionnaire generator with enhanced FAIR methodology (TEF/LEF decomposition), MITRE ATT&CK integration, GCP Vertex AI RAG, intelligent web search, and comprehensive safety safeguards.
 
 ---
 
@@ -39,13 +39,16 @@ OpenImpactCascade is a Flask-based web application that generates custom cyberse
 - Source verification before citation
 - Transparent about data limitations
 
-### 📊 FAIR Risk Analysis
-- Loss Event Frequency (LEF) estimation
-- Loss Magnitude (LM) estimation
-- Three-point PERT estimates (min, most likely, max)
-- Monte Carlo simulation (10,000+ iterations)
-- Risk distribution visualization
-- Percentile-based risk reporting
+### 📊 Enhanced FAIR Risk Analysis
+- **TEF × Vulnerability Decomposition**: Separates attack attempts from success probability
+- **Threat Event Frequency (TEF)**: How often attackers attempt attacks
+- **Vulnerability Assessment**: Control effectiveness mapped to attack success rates
+- **Loss Event Frequency (LEF)**: Auto-calculated from TEF × Vulnerability
+- **Loss Magnitude (LM)**: Financial impact per successful breach
+- **Three-point PERT estimates** (min, most likely, max) for all components
+- **Monte Carlo simulation** (10,000+ iterations) with PERT and lognormal distributions
+- **Risk distribution visualization** with percentile reporting
+- **Control ROI Analysis**: See how security investments reduce risk
 
 ### 💬 Interactive Chat Assistant
 - Context-aware help for each question
@@ -73,11 +76,11 @@ OpenImpactCascade is a Flask-based web application that generates custom cyberse
 
 ```
 app/
-├── flask_app_chat_v21_rag_enhanced.py  # Main Flask application (v2-rag-enhanced)
-├── ai_question_generator_with_rag_rationale.py  # AI generator with RAG + rationale
-├── simulation_enhanced.py              # Enhanced Monte Carlo with lognormal distributions
+├── flask_oic_v215.py                   # Main Flask application with LEF decomposition
+├── ai_question_generator_v221.py       # AI generator with RAG, web search, and TEF/Vulnerability
+├── simulation_v211.py                  # Monte Carlo simulation with PERT and lognormal distributions
 ├── user_tracking.py                    # User tracking & API safeguards
-├── vertex_rag_complete.py              # GCP Vertex AI RAG engine integration
+├── vertex_rag_v211.py                  # GCP Vertex AI RAG engine integration
 ├── templates/
 │   ├── home.html                       # Landing page
 │   ├── generate.html                   # Standard questionnaire form
@@ -171,12 +174,12 @@ mkdir -p generated logs/api_calls static
 
 **Development:**
 ```bash
-python flask_app_chat_v21_rag_enhanced.py
+python flask_oic_v215.py
 ```
 
 **Production (with Gunicorn):**
 ```bash
-gunicorn -w 4 -b 0.0.0.0:8080 --timeout 300 flask_app_chat_v21_rag_enhanced:app
+gunicorn -w 4 -b 0.0.0.0:8080 --timeout 300 flask_oic_v215:app
 ```
 
 **Docker:**
@@ -245,6 +248,85 @@ AI: Yes! Reputation costs for healthcare breaches typically include...
 You: "How does MFA reduce my risk?"
 AI: Multi-factor authentication reduces likelihood by preventing...
 ```
+
+---
+
+## 📐 FAIR Methodology: TEF × Vulnerability Approach
+
+### Understanding the LEF Decomposition
+
+This platform implements the **Open FAIR standard** for risk quantification by decomposing Loss Event Frequency (LEF) into its fundamental components:
+
+```
+LEF = TEF × Vulnerability
+```
+
+**Where:**
+- **TEF (Threat Event Frequency)**: How often threat actors **attempt** attacks (events/year)
+- **Vulnerability**: Probability that an attack attempt **succeeds** and causes loss (0.0 to 1.0)
+- **LEF (Loss Event Frequency)**: How often attacks **successfully cause loss** (events/year)
+
+### Why This Matters
+
+**The Problem:** Most users struggle to differentiate between "how often we're attacked" vs "how often attacks succeed." This is the **most-missed question on the FAIR certification exam**.
+
+**The Solution:** Separate questions for:
+1. **Threat frequency** (attempts) - Based on threat intelligence
+2. **Control effectiveness** (vulnerability) - Based on your security posture
+3. **Loss frequency** (successes) - Auto-calculated from TEF × Vulnerability
+
+### Real-World Example
+
+**Scenario:** Ransomware targeting healthcare organization
+
+**Step 1 - Threat Event Frequency:**
+```
+"How often do ransomware groups attempt attacks?"
+→ Answer: 6 attempts per year (based on CISA data)
+```
+
+**Step 2 - Control Effectiveness:**
+```
+"What ransomware defenses do you have?"
+→ Answer: EDR + training + tested backups = 15% vulnerability
+   (Meaning: 15% of attacks succeed, 85% are blocked)
+```
+
+**Step 3 - Calculated Loss Event Frequency:**
+```
+LEF = 6 attempts/year × 0.15 vulnerability = 0.9 successful breaches/year
+Interpretation: ~1 successful breach every 13 months
+```
+
+### Control Effectiveness Mapping
+
+| Control Maturity | Vulnerability | Attack Success Rate |
+|-----------------|---------------|---------------------|
+| **Minimal** (Basic AV only) | 70% | 7 out of 10 attacks succeed |
+| **Basic** (AV + email filtering) | 40% | 4 out of 10 attacks succeed |
+| **Intermediate** (EDR + training + backups) | 15% | 1.5 out of 10 attacks succeed |
+| **Advanced** (EDR + SIEM + MFA + immutable backups) | 5% | 0.5 out of 10 attacks succeed |
+
+### Benefits
+
+**For Users:**
+- ✅ Clearer mental model (separate "attempts" from "successes")
+- ✅ Better control assessment (see direct impact of security investments)
+- ✅ More accurate estimates (easier to think about components separately)
+- ✅ Learn proper FAIR methodology
+
+**For Risk Analysis:**
+- ✅ Higher fidelity risk quantification
+- ✅ Independent sensitivity analysis (vary TEF or Vulnerability separately)
+- ✅ Control ROI calculations (show how investments reduce LEF)
+- ✅ Full audit trail for risk estimates
+
+### Documentation
+
+For complete implementation details, see:
+- **[FAIR_LEF_DECOMPOSITION_PROPOSAL.md](documentation/FAIR_LEF_DECOMPOSITION_PROPOSAL.md)** - Full methodology
+- **[about_fair.html](app/templates/about_fair.html)** - User-facing FAIR explanation
+- **FAIR Institute:** https://www.fairinstitute.org/blog/fair-terminology-101-risk-threat-event-frequency-and-vulnerability
 
 ---
 
@@ -473,7 +555,7 @@ COPY . .
 # Create directories
 RUN mkdir -p generated logs/api_calls
 
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8080", "flask_app_chat:app"]
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8080", "flask_oic_v215:app"]
 ```
 
 **Build and run:**
@@ -520,20 +602,23 @@ gcloud run deploy openimpactcascade \
 
 ```bash
 # Test questionnaire generation
-python ai_question_generator.py
+python ai_question_generator_v221.py
+
+# Test simulation
+python simulation_v211.py
 
 # Test user tracking
 python user_tracking.py
 
-# Test abuse investigation
-python investigate_abuse.py --user-id eval-user-test
+# Test RAG integration
+python vertex_rag_v211.py
 ```
 
 ### Integration Testing
 
 ```bash
 # Start the app
-python flask_app_chat.py
+python flask_oic_v215.py
 
 # In another terminal:
 # Test health endpoint
@@ -670,7 +755,7 @@ chmod 755 ./logs/api_calls
 4. Install dependencies: `pip install -r requirements.txt`
 5. Set up API key: `export ANTHROPIC_API_KEY='your-key'`
 6. Run tests: `python -m pytest tests/`
-7. Start app: `python flask_app_chat.py`
+7. Start app: `python flask_oic_v215.py`
 
 ### Code Style
 
@@ -729,7 +814,7 @@ For questions about:
 
 ```bash
 # Start application
-python flask_app_chat.py
+python flask_oic_v215.py
 
 # Check health
 curl http://localhost:8080/health
@@ -751,12 +836,14 @@ pip freeze > requirements.txt
 
 | File | Purpose |
 |------|---------|
-| `flask_app_chat.py` | Main application |
-| `ai_question_generator.py` | AI question generation |
-| `simulation.py` | Monte Carlo simulation |
-| `user_tracking.py` | User tracking & safeguards |
-| `templates/questionnaire_chat.html` | Main UI |
-| `SAFEGUARDS_README.md` | Abuse prevention docs |
+| `flask_oic_v215.py` | Main Flask application with LEF decomposition |
+| `ai_question_generator_v221.py` | AI question generation with TEF/Vulnerability |
+| `simulation_v211.py` | Monte Carlo simulation with PERT/lognormal |
+| `vertex_rag_v211.py` | GCP Vertex AI RAG integration |
+| `user_tracking.py` | User tracking & API safeguards |
+| `templates/questionnaire_chat_rationale.html` | Interactive UI with rationale display |
+| `documentation/FAIR_LEF_DECOMPOSITION_PROPOSAL.md` | TEF × Vulnerability methodology |
+| `SAFEGUARDS_README.md` | Abuse prevention documentation |
 
 ### Important URLs
 
@@ -791,8 +878,10 @@ Before deploying to production:
 
 ---
 
-**Version**: 1.0.0  
-**Last Updated**: October 2025  
-**Status**: Production Ready (Evaluation Mode)
+**Version**: 2.2.1 (LEF Decomposition)  
+**Last Updated**: January 2025  
+**Status**: Production Ready (Evaluation Mode)  
+**Key Enhancement**: TEF × Vulnerability decomposition for improved FAIR risk analysis
 
-For detailed safeguards implementation, see **[SAFEGUARDS_README.md](SAFEGUARDS_README.md)**
+For detailed safeguards implementation, see **[SAFEGUARDS_README.md](SAFEGUARDS_README.md)**  
+For LEF decomposition methodology, see **[FAIR_LEF_DECOMPOSITION_PROPOSAL.md](documentation/FAIR_LEF_DECOMPOSITION_PROPOSAL.md)**
