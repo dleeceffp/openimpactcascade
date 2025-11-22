@@ -1,7 +1,7 @@
 """
 Enhanced AI Question Generator with RAG-Informed Intelligent Web Search.
 
-Version 2.1.4 - Analyzes RAG content to identify gaps, then performs targeted
+Version 2.2.1 - Analyzes RAG content to identify gaps, then performs targeted
 web searches only for missing information. Avoids duplication.
 
 This is a DROP-IN REPLACEMENT for v213 with identical interface.
@@ -21,7 +21,7 @@ class AIQuestionGeneratorWithRAGAndRationale:
     """
     AI Question Generator with RAG grounding, intelligent web search, and rationales.
     
-    Key Enhancements in v214:
+    Key Enhancements in v221:
     - RAG-informed search queries (analyzes what RAG has, searches for gaps)
     - Reduced query count (2-4 instead of always 5)
     - Avoids duplicating information RAG already contains
@@ -754,99 +754,121 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
 6. Include PERT estimates for Loss Event Frequency and Loss Magnitude
 7. Reference specific MITRE ATT&CK techniques
 
-**CRITICAL: You MUST use this exact JSON structure:**
-
-```json
-{{
-    "version": "1.0",
-    "metadata": {{
-        "industry": "{industry}",
-        "region": "{region}",
-        "approach": "industry-region-threat-tree",
-        "framework": "FAIR + MITRE ATT&CK",
-        "generation_date": "{datetime.now().strftime('%Y-%m-%d')}",
-        "threat_research_sources": [
-            "List ALL sources you searched and referenced"
-        ]
-    }},
-    "start_question_id": "threat_selection",
-    "questions": {{
-        "threat_selection": {{
-            "id": "threat_selection",
-            "text": "Based on current threat intelligence for {industry} organizations in {region}, which risk scenario do you want to analyze?",
-            "type": "multiple_choice",
-            "help_text": "These threats are based on recent advisories and documented incidents",
-            "choices": [
-                {{
-                    "id": "threat_ransomware",
-                    "text": "Ransomware Attack Targeting Patient Data",
-                    "description": "Ransomware attack via phishing email encrypting EHR systems and demanding ransom. Common attack chain: Initial access via phishing (T1566.001), credential access (T1078), data encryption (T1486).",
-                    "mitre_techniques": ["T1566.001", "T1078", "T1486"],
-                    "rationale_summary": "MUST include 100-150 token rationale citing specific sources from provided context with dates, advisory IDs, and quantitative data.",
-                    "next_question_id": "threat_ransomware_assets"
-                }}
+    **CRITICAL: You MUST use this exact JSON structure:**
+    
+    ```json
+    {{
+        "version": "1.0",
+        "metadata": {{
+            "industry": "{industry}",
+            "region": "{region}",
+            "approach": "industry-region-threat-tree",
+            "framework": "FAIR + MITRE ATT&CK",
+            "generation_date": "{datetime.now().strftime('%Y-%m-%d')}",
+            "threat_research_sources": [
+                "List ALL sources you searched and referenced"
             ]
         }},
-        "threat_ransomware_assets": {{
-            "id": "threat_ransomware_assets",
-            "text": "What critical assets would be impacted by a ransomware attack?",
-            "type": "multiple_choice",
-            "choices": [
-                {{
-                    "id": "asset_ehr",
-                    "text": "Electronic Health Records (EHR) system",
-                    "next_question_id": "threat_ransomware_controls"
-                }}
-            ]
-        }},
-        "threat_ransomware_controls": {{
-            "id": "threat_ransomware_controls",
-            "text": "What security controls do you have in place against ransomware?",
-            "type": "multiple_choice",
-            "choices": [
-                {{
-                    "id": "controls_basic",
-                    "text": "Basic antivirus and email filtering only",
-                    "risk_multiplier": 2.0,
-                    "next_question_id": "threat_ransomware_frequency"
+        "start_question_id": "threat_selection",
+        "questions": {{
+            "threat_selection": {{
+                "id": "threat_selection",
+                "text": "Based on current threat intelligence for {industry} organizations in {region}, which risk scenario do you want to analyze?",
+                "type": "multiple_choice",
+                "help_text": "These threats are based on recent advisories and documented incidents",
+                "choices": [
+                    {{
+                        "id": "threat_ransomware",
+                        "text": "Ransomware Attack Targeting Patient Data",
+                        "description": "Ransomware attack via phishing email encrypting EHR systems and demanding ransom. Common attack chain: Initial access via phishing (T1566.001), credential access (T1078), data encryption (T1486).",
+                        "mitre_techniques": ["T1566.001", "T1078", "T1486"],
+                        "rationale_summary": "MUST include 100-150 token rationale citing specific sources from provided context with dates, advisory IDs, and quantitative data.",
+                        "next_question_id": "threat_ransomware_assets"
+                    }}
+                ]
+            }},
+            "threat_ransomware_assets": {{
+                "id": "threat_ransomware_assets",
+                "text": "What critical assets would be impacted by a ransomware attack?",
+                "type": "multiple_choice",
+                "choices": [
+                    {{
+                        "id": "asset_ehr",
+                        "text": "Electronic Health Records (EHR) system",
+                        "next_question_id": "threat_ransomware_controls"
+                    }}
+                ]
+            }},
+            "threat_ransomware_controls": {{
+                "id": "threat_ransomware_controls",
+                "text": "What is your organization's ability to resist ransomware attacks?",
+                "type": "multiple_choice",
+                "help_text": "Select the option that best describes your defensive controls. This determines what percentage of attack attempts successfully cause a loss event.",
+                "fair_component": "Vulnerability",
+                "choices": [
+                    {{
+                        "id": "controls_basic",
+                        "text": "Basic - Antivirus + some email security",
+                        "description": "Antivirus, email filtering, but no EDR or backup verification",
+                        "vulnerability": 0.40,
+                        "vulnerability_display": "40% of attacks succeed (moderate resistance)",
+                        "next_question_id": "threat_ransomware_tef"
+                    }},
+                    {{
+                        "id": "controls_intermediate",
+                        "text": "Intermediate - EDR + email security + some training",
+                        "description": "EDR/XDR, advanced email security, quarterly security training, tested backups",
+                        "vulnerability": 0.15,
+                        "vulnerability_display": "15% of attacks succeed (good resistance)",
+                        "next_question_id": "threat_ransomware_tef"
+                    }}
+                ]
+            }},
+            "threat_ransomware_tef": {{
+                "id": "threat_ransomware_tef",
+                "text": "How often do threat actors ATTEMPT ransomware attacks against organizations like yours?",
+                "type": "pert_estimate",
+                "estimate_type": "threat_event_frequency",
+                "help_text": "This is the frequency of ATTEMPTS, not successful breaches. Based on your threat intelligence, how often do attackers try to compromise you?",
+                "fair_component": "TEF",
+                "guidance": {{
+                    "minimum": "Best case - rare targeting (e.g., 0.5 = once every 2 years)",
+                    "most_likely": "Realistic estimate based on industry data (e.g., 4 = 4 attempts/year)",
+                    "maximum": "Worst case - heavy targeting (e.g., 12 = monthly attempts)"
                 }},
-                {{
-                    "id": "controls_advanced",
-                    "text": "EDR, backup, email security, security awareness training",
-                    "risk_multiplier": 0.5,
-                    "next_question_id": "threat_ransomware_frequency"
-                }}
-            ]
-        }},
-        "threat_ransomware_frequency": {{
-            "id": "threat_ransomware_frequency",
-            "text": "How often do you estimate this ransomware threat could occur?",
-            "type": "pert_estimate",
-            "estimate_type": "frequency_per_year",
-            "help_text": "Provide three-point estimate based on industry data",
-            "guidance": {{
-                "minimum": "Best case (e.g., 0.1 = once every 10 years)",
-                "most_likely": "Most realistic estimate (e.g., 2 = twice per year)",
-                "maximum": "Worst case (e.g., 5 = five times per year)"
+                "next_question_id": "threat_ransomware_lef_result"
             }},
-            "next_question_id": "threat_ransomware_magnitude"
-        }},
-        "threat_ransomware_magnitude": {{
-            "id": "threat_ransomware_magnitude",
-            "text": "What would be the financial impact per ransomware incident?",
-            "type": "pert_estimate",
-            "estimate_type": "loss_magnitude_usd",
-            "help_text": "Estimate in USD including ransom, recovery, and downtime costs",
-            "guidance": {{
-                "minimum": "Best case (e.g., 50000 = $50K)",
-                "most_likely": "Most realistic estimate (e.g., 250000 = $250K)",
-                "maximum": "Worst case (e.g., 1000000 = $1M)"
+            "threat_ransomware_lef_result": {{
+                "id": "threat_ransomware_lef_result",
+                "text": "Based on your inputs, here is the calculated Loss Event Frequency:",
+                "type": "calculated_display",
+                "calculation": "LEF = TEF * Vulnerability",
+                "display_format": {{
+                    "tef": "{{tef_mle}} attack attempts per year",
+                    "vulnerability": "{{vulnerability}}% success rate",
+                    "lef": "{{lef_mle}} successful breaches per year",
+                    "interpretation": "On average, 1 successful breach every {{1/lef_mle}} years"
+                }},
+                "editable": true,
+                "help_text": "This is automatically calculated from your threat frequency and control effectiveness. You can adjust if you have better data.",
+                "next_question_id": "threat_ransomware_magnitude"
             }},
-            "next_question_id": null
+            "threat_ransomware_magnitude": {{
+                "id": "threat_ransomware_magnitude",
+                "text": "What would be the financial impact per ransomware incident?",
+                "type": "pert_estimate",
+                "estimate_type": "loss_magnitude_usd",
+                "help_text": "Estimate in USD including ransom, recovery, and downtime costs",
+                "guidance": {{
+                    "minimum": "Best case (e.g., 50000 = $50K)",
+                    "most_likely": "Most realistic estimate (e.g., 250000 = $250K)",
+                    "maximum": "Worst case (e.g., 1000000 = $1M)"
+                }},
+                "next_question_id": null
+            }}
         }}
     }}
-}}
-```
+    ```
 
 **CRITICAL REQUIREMENTS:**
 1. **rationale_summary is MANDATORY** for each threat choice
