@@ -316,6 +316,24 @@ months. This aligns with the backup strategy we discussed..."
 
 ---
 
-**Status**: Backend ✅ Complete | Frontend 🔄 Pending
+## 🐛 Bug Fixes
+
+### Fixed: None Formatting Error in Chat (Line 835-855)
+**Issue**: Chat threw `TypeError` if user asked questions before completing all FAIR estimates:
+```
+TypeError: unsupported format string passed to NoneType.__format__
+```
+
+**Fix**: Added proper None checks before formatting FAIR estimates:
+- Only includes TEF if all values (min, mle, max) are not None
+- Only includes Vulnerability if value is not None
+- Only includes LEF if all values are not None
+- Only includes LM if all values are not None
+
+**Result**: Chat can now be used at ANY point during questionnaire, even before all estimates are entered.
+
+---
+
+**Status**: Backend ✅ Complete | Frontend ✅ Complete | Bug Fixes ✅ Applied
 **Version**: v221-context-aware
 **Date**: January 2025

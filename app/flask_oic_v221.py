@@ -832,16 +832,27 @@ Be concise, practical, and supportive."""
         if assessment_summary.get('control_level'):
             prompt_parts.append(f"Control Maturity: {assessment_summary['control_level']}")
         
-        # FAIR estimates captured
+        # FAIR estimates captured (only show if all values present)
         fair = assessment_summary['fair_estimates']
-        if fair.get('tef', {}).get('mle'):
-            prompt_parts.append(f"\nThreat Event Frequency: {fair['tef']['min']}-{fair['tef']['mle']}-{fair['tef']['max']} attempts/year")
-        if fair.get('vulnerability'):
+        
+        # TEF estimates
+        tef = fair.get('tef', {})
+        if tef.get('min') is not None and tef.get('mle') is not None and tef.get('max') is not None:
+            prompt_parts.append(f"\nThreat Event Frequency: {tef['min']}-{tef['mle']}-{tef['max']} attempts/year")
+        
+        # Vulnerability
+        if fair.get('vulnerability') is not None:
             prompt_parts.append(f"Vulnerability: {fair['vulnerability']*100:.0f}% (attack success rate)")
-        if fair.get('lef', {}).get('mle'):
-            prompt_parts.append(f"Loss Event Frequency: {fair['lef']['min']}-{fair['lef']['mle']}-{fair['lef']['max']} events/year")
-        if fair.get('lm', {}).get('mle'):
-            prompt_parts.append(f"Loss Magnitude: ${fair['lm']['min']:,.0f}-${fair['lm']['mle']:,.0f}-${fair['lm']['max']:,.0f}")
+        
+        # LEF estimates
+        lef = fair.get('lef', {})
+        if lef.get('min') is not None and lef.get('mle') is not None and lef.get('max') is not None:
+            prompt_parts.append(f"Loss Event Frequency: {lef['min']}-{lef['mle']}-{lef['max']} events/year")
+        
+        # LM estimates
+        lm = fair.get('lm', {})
+        if lm.get('min') is not None and lm.get('mle') is not None and lm.get('max') is not None:
+            prompt_parts.append(f"Loss Magnitude: ${lm['min']:,.0f}-${lm['mle']:,.0f}-${lm['max']:,.0f}")
         
         # Recent question path
         if assessment_summary.get('recent_answers'):
