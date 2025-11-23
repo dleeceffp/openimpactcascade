@@ -512,6 +512,8 @@
             tef_max: null
         };
         let vulnerability = null;
+        let baseVulnerability = null; // Store original before adjustment
+        let layeredControlsApplied = false;
         // Track the first multiple-choice question the user answers and their first selected option
         let firstQuestionCaptured = false;
         let firstQuestionText = '';
@@ -773,7 +775,12 @@
             // Capture vulnerability if present
             if (element.dataset.vulnerability) {
                 vulnerability = parseFloat(element.dataset.vulnerability);
+                baseVulnerability = vulnerability; // Store original
+                layeredControlsApplied = false; // Reset on new selection
                 console.log('Captured vulnerability:', vulnerability);
+                
+                // Show layered controls toggle
+                showLayeredControlsToggle(element);
             }
             
             // Record answer to backend context
@@ -804,6 +811,118 @@
                     renderQuestion(currentQuestionId);
                 }, 300);
             }
+        }
+        
+        function showLayeredControlsToggle(selectedElement) {
+            // Remove any existing toggle
+            const existingToggle = document.getElementById('layeredControlsToggle');
+            if (existingToggle) {
+                existingToggle.remove();
+            }
+            
+            const toggleHtml = `
+                <div id="layeredControlsToggle" style="
+                    margin-top: 20px; 
+                    padding: 20px; 
+                    background: #f7fafc; 
+                    border: 2px dashed #cbd5e0; 
+                    border-radius: 8px;
+                    animation: fadeIn 0.3s ease;
+                ">
+                    <label style="display: flex; align-items: start; cursor: pointer;">
+                        <input type="checkbox" id="layeredControlsCheckbox" 
+                               onchange="applyLayeredControlsAdjustment(this.checked)"
+                               style="margin-right: 12px; margin-top: 4px; width: 18px; height: 18px; cursor: pointer;">
+                        <div style="flex: 1;">
+                            <strong style="font-size: 1.05em;">Secondary/layered controls in place?</strong>
+                            <div style="font-size: 0.9em; color: #718096; margin-top: 5px; line-height: 1.5;">
+                                Examples: Network segmentation, offline backups, EDR/XDR, SIEM, incident response plan, security awareness training
+                            </div>
+                            <div style="
+                                margin-top: 12px; 
+                                padding: 12px; 
+                                background: #edf2f7; 
+                                border-radius: 6px;
+                                font-size: 0.85em;
+                                line-height: 1.6;
+                            ">
+                                <div style="margin-bottom: 8px;">
+                                    ✓ Reduces vulnerability by <strong style="color: #667eea;">25%</strong> (simplified single-factor model)
+                                </div>
+                                <div style="color: #e53e3e; display: flex; align-items: start; gap: 6px;">
+                                    <span style="font-weight: bold; flex-shrink: 0;">⚠</span>
+                                    <div>
+                                        <em>Note: This is a basic adjustment. For precise multi-layer control 
+                                        effectiveness and attack path analysis, consider 
+                                        <strong>Cascade Risk Modeling™</strong></em>
+                                        <a href="mailto:sales@openimpactcascade.com?subject=Cascade%20Risk%20Modeling%20Inquiry" 
+                                           style="color: #667eea; margin-left: 8px; text-decoration: none; font-weight: 600;"
+                                           onclick="event.stopPropagation();">
+                                            Contact Sales →
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    
+                    <div id="adjustedVulnDisplay" style="
+                        margin-top: 15px; 
+                        padding: 12px; 
+                        background: white; 
+                        border-left: 4px solid #667eea;
+                        border-radius: 4px;
+                        display: none;
+                    ">
+                        <strong style="color: #2d3748;">Adjusted Vulnerability:</strong> 
+                        <span id="adjustedVulnValue" style="font-size: 1.2em; color: #667eea; font-weight: bold;"></span>
+                    </div>
+                </div>
+            `;
+            
+            // Insert after the selected choice card
+            selectedElement.insertAdjacentHTML('afterend', toggleHtml);
+        }
+        
+        function applyLayeredControlsAdjustment(isChecked) {
+            const ADJUSTMENT_FACTOR = 0.75; // 25% reduction
+            
+            if (isChecked) {
+                // Apply adjustment
+                vulnerability = baseVulnerability * ADJUSTMENT_FACTOR;
+                layeredControlsApplied = true;
+                
+                // Show adjusted value
+                const displayDiv = document.getElementById('adjustedVulnDisplay');
+                const valueSpan = document.getElementById('adjustedVulnValue');
+                
+                if (displayDiv && valueSpan) {
+                    displayDiv.style.display = 'block';
+                    valueSpan.textContent = 
+                        `${(vulnerability * 100).toFixed(0)}% (reduced from ${(baseVulnerability * 100).toFixed(0)}%)`;
+                }
+                
+                console.log(`Layered controls applied: ${(baseVulnerability * 100).toFixed(0)}% → ${(vulnerability * 100).toFixed(0)}%`);
+            } else {
+                // Revert to base
+                vulnerability = baseVulnerability;
+                layeredControlsApplied = false;
+                
+                const displayDiv = document.getElementById('adjustedVulnDisplay');
+                if (displayDiv) {
+                    displayDiv.style.display = 'none';
+                }
+                
+                console.log(`Layered controls removed: reverted to ${(baseVulnerability * 100).toFixed(0)}%`);
+            }
+            
+            // Update backend context with adjustment details
+            updateBackendContext('layered_controls_adjustment', {
+                applied: isChecked,
+                base_vulnerability: baseVulnerability,
+                adjusted_vulnerability: vulnerability,
+                adjustment_factor: isChecked ? ADJUSTMENT_FACTOR : 1.0
+            });
         }
         
         function updatePertValue(key, value) {
