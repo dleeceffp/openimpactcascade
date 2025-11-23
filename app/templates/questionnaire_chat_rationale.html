@@ -811,14 +811,25 @@
                 });
             }
             
-            // Get next question ID and navigate
+            // Get next question ID - but delay navigation if layered controls toggle is shown
             const nextQuestionId = element.dataset.next;
             if (nextQuestionId) {
-                setTimeout(() => {
-                    questionHistory.push(currentQuestionId);
-                    currentQuestionId = nextQuestionId;
-                    renderQuestion(currentQuestionId);
-                }, 300);
+                // Check if we showed the layered controls toggle
+                const hasVulnerability = element.dataset.vulnerability && element.dataset.vulnerability !== '';
+                
+                if (hasVulnerability) {
+                    // Don't auto-navigate - user needs to interact with toggle first
+                    // Store next question ID for the Continue button
+                    element.dataset.pendingNext = nextQuestionId;
+                    console.log('Auto-navigation paused - waiting for layered controls decision');
+                } else {
+                    // No toggle shown - proceed normally
+                    setTimeout(() => {
+                        questionHistory.push(currentQuestionId);
+                        currentQuestionId = nextQuestionId;
+                        renderQuestion(currentQuestionId);
+                    }, 300);
+                }
             }
         }
         
@@ -886,11 +897,46 @@
                         <strong style="color: #2d3748;">Adjusted Vulnerability:</strong> 
                         <span id="adjustedVulnValue" style="font-size: 1.2em; color: #667eea; font-weight: bold;"></span>
                     </div>
+                    
+                    <button id="continueBtn" onclick="proceedToNextQuestion()" style="
+                        margin-top: 20px;
+                        padding: 12px 24px;
+                        background: #667eea;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 1.05em;
+                        font-weight: 600;
+                        cursor: pointer;
+                        width: 100%;
+                        transition: all 0.3s ease;
+                    " onmouseover="this.style.background='#5568d3'" onmouseout="this.style.background='#667eea'">
+                        Continue to Next Question →
+                    </button>
                 </div>
             `;
             
             // Insert after the selected choice card
             selectedElement.insertAdjacentHTML('afterend', toggleHtml);
+        }
+        
+        function proceedToNextQuestion() {
+            // Get the selected choice element to retrieve the pending next question ID
+            const selectedChoice = document.querySelector('.choice-card.selected');
+            if (!selectedChoice) {
+                console.error('No selected choice found');
+                return;
+            }
+            
+            const nextQuestionId = selectedChoice.dataset.pendingNext || selectedChoice.dataset.next;
+            if (nextQuestionId) {
+                console.log('Proceeding to next question:', nextQuestionId);
+                questionHistory.push(currentQuestionId);
+                currentQuestionId = nextQuestionId;
+                renderQuestion(currentQuestionId);
+            } else {
+                console.error('No next question ID found');
+            }
         }
         
         function applyLayeredControlsAdjustment(isChecked) {
