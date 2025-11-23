@@ -16,6 +16,7 @@ from typing import Dict, Optional, List, Any
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, send_file
 from ai_question_generator_v221 import AIQuestionGeneratorWithRAGAndRationale
 from user_tracking import get_tracker, create_api_metadata
+from context_storage import get_context_storage
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -32,6 +33,9 @@ logger.info(f"========== STARTING {VERSION} on PORT {PORT} ==========")
 
 # Create required directories
 os.makedirs('./generated', exist_ok=True)
+
+# Initialize context storage (SQLite-based)
+context_storage = get_context_storage()
 
 
 # ========== ASSESSMENT CONTEXT CLASS ==========
@@ -252,9 +256,18 @@ def generate():
     # POST - generate the questionnaire
     try:
         # Clear any existing assessment context (starting new assessment)
-        if 'assessment_context' in session:
-            logger.info(f"[{VERSION}] Clearing previous assessment context")
-            session.pop('assessment_context', None)
+        old_session_id = session.get('context_session_id')
+        if old_session_id:
+            logger.info(f"[{VERSION}] Clearing previous assessment context: {old_session_id}")
+            context_storage.delete(old_session_id)
+        
+        # Generate new session ID
+        new_session_id = str(uuid.uuid4())
+        session['context_session_id'] = new_session_id
+        logger.info(f"[{VERSION}] Created new context session: {new_session_id}")
+        
+        # Cleanup old sessions (older than 24 hours)
+        context_storage.cleanup_old_sessions(hours=24)
         
         # Get form data
         logger.info(f"[{VERSION}] Post request - retrieving form data")
@@ -606,8 +619,15 @@ def questionnaire():
             region=questions['metadata'].get('region', params.get('region', 'Unknown')),
             organization_size=params.get('organization_size')
         )
-        session['assessment_context'] = context.to_dict()
-        logger.info(f"[{VERSION}]   - Assessment context initialized (ID: {context.assessment_id})")
+        
+        # Save context to SQLite storage
+        session_id = session.get('context_session_id')
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            session['context_session_id'] = session_id
+        
+        context_storage.save(session_id, context.to_dict())
+        logger.info(f"[{VERSION}]   - Assessment context initialized (ID: {context.assessment_id}, Session: {session_id[:8]})")
         
         return render_template('questionnaire_chat_rationale.html',
                              questions=questions,
@@ -633,10 +653,15 @@ def update_context():
     try:
         data = request.json
         
-        # Load context from session
-        context_dict = session.get('assessment_context')
+        # Load context from SQLite storage
+        session_id = session.get('context_session_id')
+        if not session_id:
+            logger.warning(f"[{VERSION}] No context session ID found")
+            return jsonify({'status': 'error', 'message': 'No session found'}), 400
+        
+        context_dict = context_storage.load(session_id)
         if not context_dict:
-            logger.warning(f"[{VERSION}] No assessment context found in session")
+            logger.warning(f"[{VERSION}] No assessment context found for session {session_id}")
             return jsonify({'status': 'error', 'message': 'No context found'}), 400
         
         context = AssessmentContext.from_dict(context_dict)
@@ -673,9 +698,8 @@ def update_context():
         else:
             logger.warning(f"[{VERSION}]   - Unknown action: {action}")
         
-        # Save back to session
-        session['assessment_context'] = context.to_dict()
-        session.modified = True
+        # Save back to SQLite storage
+        context_storage.save(session_id, context.to_dict())
         
         return jsonify({'status': 'success'})
         
@@ -796,15 +820,17 @@ Be concise, practical, and supportive."""
     
     prompt_parts.append(f"User question: {user_message}")
     
-    # Try to load full AssessmentContext from session for enhanced context
+    # Try to load full AssessmentContext from SQLite storage for enhanced context
     assessment_summary = None
     try:
         from flask import session as flask_session
-        context_dict = flask_session.get('assessment_context')
-        if context_dict:
-            assessment_context = AssessmentContext.from_dict(context_dict)
-            assessment_summary = assessment_context.get_summary_for_chat()
-            logger.info(f"[{VERSION}] Using full AssessmentContext for chat (answered {assessment_summary['questions_answered']} questions)")
+        session_id = flask_session.get('context_session_id')
+        if session_id:
+            context_dict = context_storage.load(session_id)
+            if context_dict:
+                assessment_context = AssessmentContext.from_dict(context_dict)
+                assessment_summary = assessment_context.get_summary_for_chat()
+                logger.info(f"[{VERSION}] Using full AssessmentContext for chat (answered {assessment_summary['questions_answered']} questions)")
     except Exception as e:
         logger.warning(f"[{VERSION}] Could not load AssessmentContext: {e}")
     
@@ -933,21 +959,22 @@ Be concise, practical, and supportive."""
     
     response_text = message.content[0].text
     
-    # Save chat exchange to AssessmentContext
+    # Save chat exchange to AssessmentContext in SQLite
     try:
         from flask import session as flask_session
-        context_dict = flask_session.get('assessment_context')
-        if context_dict:
-            assessment_context = AssessmentContext.from_dict(context_dict)
-            current_q_id = assessment_context.current_question_id
-            assessment_context.add_chat_message(
-                user_message=user_message,
-                assistant_response=response_text,
-                question_id=current_q_id
-            )
-            flask_session['assessment_context'] = assessment_context.to_dict()
-            flask_session.modified = True
-            logger.info(f"[{VERSION}] Chat exchange saved to AssessmentContext")
+        session_id = flask_session.get('context_session_id')
+        if session_id:
+            context_dict = context_storage.load(session_id)
+            if context_dict:
+                assessment_context = AssessmentContext.from_dict(context_dict)
+                current_q_id = assessment_context.current_question_id
+                assessment_context.add_chat_message(
+                    user_message=user_message,
+                    assistant_response=response_text,
+                    question_id=current_q_id
+                )
+                context_storage.save(session_id, assessment_context.to_dict())
+                logger.info(f"[{VERSION}] Chat exchange saved to AssessmentContext")
     except Exception as e:
         logger.warning(f"[{VERSION}] Could not save chat to context: {e}")
     
