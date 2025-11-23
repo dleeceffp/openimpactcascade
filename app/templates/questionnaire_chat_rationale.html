@@ -773,14 +773,23 @@
             }
             
             // Capture vulnerability if present
-            if (element.dataset.vulnerability) {
+            console.log('Choice dataset.vulnerability:', element.dataset.vulnerability);
+            if (element.dataset.vulnerability && element.dataset.vulnerability !== '') {
                 vulnerability = parseFloat(element.dataset.vulnerability);
                 baseVulnerability = vulnerability; // Store original
                 layeredControlsApplied = false; // Reset on new selection
                 console.log('Captured vulnerability:', vulnerability);
+                console.log('Showing layered controls toggle...');
                 
                 // Show layered controls toggle
-                showLayeredControlsToggle(element);
+                try {
+                    showLayeredControlsToggle(element);
+                    console.log('Layered controls toggle shown successfully');
+                } catch (error) {
+                    console.error('Error showing layered controls toggle:', error);
+                }
+            } else {
+                console.log('No vulnerability data found on this choice');
             }
             
             // Record answer to backend context
