@@ -267,7 +267,7 @@ def generate():
         logger.info(f"[{VERSION}] Created new context session: {new_session_id}")
         
         # Cleanup old sessions (older than 24 hours)
-        context_storage.cleanup_old_sessions(hours=24)
+        context_storage.cleanup_old_sessions(hours=2)
         
         # Get form data
         logger.info(f"[{VERSION}] Post request - retrieving form data")
@@ -1210,6 +1210,78 @@ def chat_results():
             'status': 'error',
             'error': str(e)
         }), 500
+
+@app.route('/chat/export', methods=['GET'])
+def export_chat():
+    """Export complete chat history from SQLite storage."""
+    try:
+        # Get session ID
+        session_id = session.get('context_session_id')
+        if not session_id:
+            return jsonify({'error': 'No active session'}), 400
+        
+        # Load context from SQLite
+        context_dict = context_storage.load(session_id)
+        if not context_dict:
+            return jsonify({'error': 'No chat history found'}), 404
+        
+        context = AssessmentContext.from_dict(context_dict)
+        chat_history = context.chat_history
+        
+        if not chat_history:
+            return jsonify({'error': 'No chat messages to export'}), 404
+        
+        # Format as text
+        lines = []
+        lines.append("=" * 80)
+        lines.append(f"RISK ASSESSMENT CHAT HISTORY")
+        lines.append(f"Industry: {context.industry}")
+        lines.append(f"Region: {context.region}")
+        if context.organization_size:
+            lines.append(f"Organization Size: {context.organization_size}")
+        lines.append(f"Assessment ID: {context.assessment_id}")
+        lines.append(f"Started: {context.started_at}")
+        lines.append(f"Total Exchanges: {len(chat_history)}")
+        lines.append("=" * 80)
+        lines.append("")
+        
+        # Add each exchange
+        for i, exchange in enumerate(chat_history, 1):
+            lines.append(f"{'=' * 80}")
+            lines.append(f"EXCHANGE {i}")
+            if exchange.get('question_id'):
+                lines.append(f"Question ID: {exchange['question_id']}")
+            if exchange.get('timestamp'):
+                lines.append(f"Timestamp: {exchange['timestamp']}")
+            lines.append(f"{'=' * 80}")
+            lines.append("")
+            lines.append(f"USER:")
+            lines.append(exchange.get('user', ''))
+            lines.append("")
+            lines.append(f"ASSISTANT:")
+            lines.append(exchange.get('assistant', ''))
+            lines.append("")
+        
+        lines.append("=" * 80)
+        lines.append(f"END OF CHAT HISTORY - {len(chat_history)} exchanges")
+        lines.append("=" * 80)
+        
+        content = "\n".join(lines)
+        
+        return jsonify({
+            'status': 'success',
+            'content': content,
+            'count': len(chat_history),
+            'metadata': {
+                'industry': context.industry,
+                'region': context.region,
+                'assessment_id': context.assessment_id
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"[{VERSION}] Chat export error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/chat/save', methods=['POST'])
 def save_chat():
