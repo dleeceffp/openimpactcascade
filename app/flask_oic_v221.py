@@ -91,7 +91,7 @@ class AssessmentContext:
         }
         
         # Extract special values
-        if 'vulnerability' in answer_data:
+        if 'vulnerability' in answer_data and answer_data['vulnerability'] is not None:
             self.fair_estimates['vulnerability'] = float(answer_data['vulnerability'])
         if 'threat_scenario' in answer_data:
             self.threat_scenario = answer_data['threat_scenario']
@@ -255,16 +255,16 @@ def generate():
     
     # POST - generate the questionnaire
     try:
-        # Clear any existing assessment context (starting new assessment)
-        old_session_id = session.get('context_session_id')
-        if old_session_id:
-            logger.info(f"[{VERSION}] Clearing previous assessment context: {old_session_id}")
-            context_storage.delete(old_session_id)
+        # Clear entire session to prevent cookie overflow from stale data
+        session.clear()
         
-        # Generate new session ID
+        # Generate new session ID for context storage
         new_session_id = str(uuid.uuid4())
         session['context_session_id'] = new_session_id
         logger.info(f"[{VERSION}] Created new context session: {new_session_id}")
+        
+        # Cleanup old context storage (delete old session from SQLite if needed)
+        # Note: session.clear() already removed the old session_id from cookie
         
         # Cleanup old sessions (older than 24 hours)
         context_storage.cleanup_old_sessions(hours=2)
