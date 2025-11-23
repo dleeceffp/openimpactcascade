@@ -242,6 +242,11 @@ def about_probability_weighting():
     """Information page about probability weighting modifications for cyber risk."""
     return render_template('about_probability_weighting.html')
 
+@app.route('/about/layered-controls')
+def about_layered_controls():
+    """Information page about layered security controls and vulnerability reduction."""
+    return render_template('about_layered_controls.html')
+
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     """Generate a new questionnaire using AI."""
