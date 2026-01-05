@@ -1,20 +1,22 @@
 """
 Flask web application for AI-powered risk assessment questionnaire generation.
-VERSION 2 ENHANCED: RAG + LLM with Enhanced Monte Carlo Distributions
+VERSION 2.2.1: RAG + LLM with Assessment Context Tracking
 
-Port: 8085
-Code Generator ID: v2-rag-enhanced
-Uses simulation_enhanced.py with lognormal and configurable distributions
+Port: 8080
+Code Generator ID: v221-context-aware
+Features: Session-based assessment context, TEF/LEF decomposition, enhanced chat assistance
 """
 
 import os
 import json
 import logging
+import uuid
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Optional, List, Any
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, send_file
 from ai_question_generator_v221 import AIQuestionGeneratorWithRAGAndRationale
 from user_tracking import get_tracker, create_api_metadata
+from context_storage import get_context_storage
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -24,13 +26,188 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 
 # Version identifier
-VERSION = "v215-rag-websearch"
+VERSION = "v221-context-aware"
 PORT = 8080
 # Right after line 27 in flask_app_chat_v2_rag.py
 logger.info(f"========== STARTING {VERSION} on PORT {PORT} ==========")
 
 # Create required directories
 os.makedirs('./generated', exist_ok=True)
+
+# Initialize context storage (SQLite-based)
+context_storage = get_context_storage()
+
+
+# ========== ASSESSMENT CONTEXT CLASS ==========
+
+class AssessmentContext:
+    """
+    Session-based context for a single risk assessment.
+    Tracks user's journey through questionnaire and all relevant data.
+    """
+    
+    def __init__(self, industry: str, region: str, organization_size: Optional[str] = None):
+        """Initialize new assessment context."""
+        self.assessment_id = str(uuid.uuid4())[:8]
+        self.started_at = datetime.now()
+        
+        # Assessment metadata
+        self.industry = industry
+        self.region = region
+        self.organization_size = organization_size
+        
+        # Question path tracking
+        self.question_path = []  # List of question IDs answered
+        self.answers = {}  # {question_id: answer_data}
+        
+        # FAIR estimates captured
+        self.fair_estimates = {
+            'tef': {'min': None, 'mle': None, 'max': None},
+            'vulnerability': None,  # From control selection
+            'lef': {'min': None, 'mle': None, 'max': None},
+            'lm': {'min': None, 'mle': None, 'max': None}
+        }
+        
+        # Threat/scenario information
+        self.threat_scenario = None  # Selected threat
+        self.asset_target = None  # Selected asset
+        self.control_level = None  # Selected control maturity
+        
+        # Chat history for this assessment
+        self.chat_history = []  # List of {user: msg, assistant: response, question_id: id}
+        
+        # Current question context
+        self.current_question_id = None
+        self.current_question_text = None
+        self.current_question_type = None
+    
+    def add_answer(self, question_id: str, question_text: str, answer_data: Dict):
+        """Record user's answer to a question."""
+        self.question_path.append(question_id)
+        self.answers[question_id] = {
+            'question_text': question_text,
+            'answer': answer_data,
+            'answered_at': datetime.now().isoformat()
+        }
+        
+        # Extract special values
+        if 'vulnerability' in answer_data and answer_data['vulnerability'] is not None:
+            self.fair_estimates['vulnerability'] = float(answer_data['vulnerability'])
+        if 'threat_scenario' in answer_data:
+            self.threat_scenario = answer_data['threat_scenario']
+        if 'control_level' in answer_data:
+            self.control_level = answer_data['control_level']
+        if 'choice_text' in answer_data:
+            # Store the first significant choice
+            if not self.threat_scenario and 'threat' in question_id.lower():
+                self.threat_scenario = answer_data['choice_text']
+    
+    def update_fair_estimates(self, component: str, min_val=None, mle_val=None, max_val=None):
+        """Update FAIR estimates (TEF, LEF, or LM)."""
+        if component in ['tef', 'lef', 'lm']:
+            if min_val is not None:
+                self.fair_estimates[component]['min'] = float(min_val)
+            if mle_val is not None:
+                self.fair_estimates[component]['mle'] = float(mle_val)
+            if max_val is not None:
+                self.fair_estimates[component]['max'] = float(max_val)
+    
+    def add_chat_message(self, user_message: str, assistant_response: str, question_id: Optional[str] = None):
+        """Add chat exchange to history."""
+        self.chat_history.append({
+            'user': user_message,
+            'assistant': assistant_response,
+            'question_id': question_id,
+            'timestamp': datetime.now().isoformat()
+        })
+    
+    def set_current_question(self, question_id: str, question_text: str, question_type: str):
+        """Update current question context."""
+        self.current_question_id = question_id
+        self.current_question_text = question_text
+        self.current_question_type = question_type
+    
+    def get_recent_chat_history(self, n: int = 3) -> List[Dict]:
+        """Get last N chat exchanges."""
+        return self.chat_history[-n:] if len(self.chat_history) >= n else self.chat_history
+    
+    def get_summary_for_chat(self) -> Dict:
+        """
+        Generate a concise summary of assessment progress for chat assistant.
+        This is passed to Claude to provide full context.
+        """
+        summary = {
+            'industry': self.industry,
+            'region': self.region,
+            'organization_size': self.organization_size,
+            'questions_answered': len(self.question_path),
+            'current_question': {
+                'id': self.current_question_id,
+                'text': self.current_question_text,
+                'type': self.current_question_type
+            },
+            'threat_scenario': self.threat_scenario,
+            'control_level': self.control_level,
+            'fair_estimates': self.fair_estimates,
+            'recent_answers': self._get_recent_answers(5),
+            'chat_history': self.get_recent_chat_history(3)
+        }
+        return summary
+    
+    def _get_recent_answers(self, n: int = 5) -> Dict:
+        """Get last N question-answer pairs."""
+        recent_q_ids = self.question_path[-n:] if len(self.question_path) >= n else self.question_path
+        return {qid: self.answers[qid] for qid in recent_q_ids}
+    
+    def to_dict(self) -> Dict:
+        """Convert to dictionary for session storage."""
+        return {
+            'assessment_id': self.assessment_id,
+            'started_at': self.started_at.isoformat(),
+            'industry': self.industry,
+            'region': self.region,
+            'organization_size': self.organization_size,
+            'question_path': self.question_path,
+            'answers': self.answers,
+            'fair_estimates': self.fair_estimates,
+            'threat_scenario': self.threat_scenario,
+            'asset_target': self.asset_target,
+            'control_level': self.control_level,
+            'chat_history': self.chat_history,
+            'current_question_id': self.current_question_id,
+            'current_question_text': self.current_question_text,
+            'current_question_type': self.current_question_type
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'AssessmentContext':
+        """Recreate from dictionary (from session)."""
+        context = cls(
+            industry=data['industry'],
+            region=data['region'],
+            organization_size=data.get('organization_size')
+        )
+        context.assessment_id = data.get('assessment_id', str(uuid.uuid4())[:8])
+        context.started_at = datetime.fromisoformat(data['started_at'])
+        context.question_path = data.get('question_path', [])
+        context.answers = data.get('answers', {})
+        context.fair_estimates = data.get('fair_estimates', {
+            'tef': {'min': None, 'mle': None, 'max': None},
+            'vulnerability': None,
+            'lef': {'min': None, 'mle': None, 'max': None},
+            'lm': {'min': None, 'mle': None, 'max': None}
+        })
+        context.threat_scenario = data.get('threat_scenario')
+        context.asset_target = data.get('asset_target')
+        context.control_level = data.get('control_level')
+        context.chat_history = data.get('chat_history', [])
+        context.current_question_id = data.get('current_question_id')
+        context.current_question_text = data.get('current_question_text')
+        context.current_question_type = data.get('current_question_type')
+        return context
+
+
+# ========== END ASSESSMENT CONTEXT CLASS ==========
 
 # Initialize AI generator with version-specific tracker
 ai_generator = None
@@ -65,6 +242,11 @@ def about_probability_weighting():
     """Information page about probability weighting modifications for cyber risk."""
     return render_template('about_probability_weighting.html')
 
+@app.route('/about/layered-controls')
+def about_layered_controls():
+    """Information page about layered security controls and vulnerability reduction."""
+    return render_template('about_layered_controls.html')
+
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     """Generate a new questionnaire using AI."""
@@ -78,6 +260,20 @@ def generate():
     
     # POST - generate the questionnaire
     try:
+        # Clear entire session to prevent cookie overflow from stale data
+        session.clear()
+        
+        # Generate new session ID for context storage
+        new_session_id = str(uuid.uuid4())
+        session['context_session_id'] = new_session_id
+        logger.info(f"[{VERSION}] Created new context session: {new_session_id}")
+        
+        # Cleanup old context storage (delete old session from SQLite if needed)
+        # Note: session.clear() already removed the old session_id from cookie
+        
+        # Cleanup old sessions (older than 24 hours)
+        context_storage.cleanup_old_sessions(hours=2)
+        
         # Get form data
         logger.info(f"[{VERSION}] Post request - retrieving form data")
         industry = request.form.get('industry', '').strip()
@@ -99,7 +295,7 @@ def generate():
                    (f" (org size: {org_size})" if org_size else ""))
         
         # Get tracker with version-specific code generator ID
-        tracker = get_tracker(session_based=True, code_generator="v215-rag-websearchenhanced")
+        tracker = get_tracker(session_based=True, code_generator="v221-context-aware")
         user_id = tracker.get_user_id()
         
         logger.info(f"[{VERSION}] User ID: {user_id}")
@@ -422,6 +618,22 @@ def questionnaire():
         
         logger.info(f"[{VERSION}]   - JSON loaded successfully")
         
+        # Initialize AssessmentContext for this session
+        context = AssessmentContext(
+            industry=questions['metadata'].get('industry', params.get('industry', 'Unknown')),
+            region=questions['metadata'].get('region', params.get('region', 'Unknown')),
+            organization_size=params.get('organization_size')
+        )
+        
+        # Save context to SQLite storage
+        session_id = session.get('context_session_id')
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            session['context_session_id'] = session_id
+        
+        context_storage.save(session_id, context.to_dict())
+        logger.info(f"[{VERSION}]   - Assessment context initialized (ID: {context.assessment_id}, Session: {session_id[:8]})")
+        
         return render_template('questionnaire_chat_rationale.html',
                              questions=questions,
                              params=params,
@@ -440,6 +652,66 @@ def questionnaire():
         return render_template('error.html',
             error=f"Error loading questionnaire: {str(e)}"), 500
 
+@app.route('/context/update', methods=['POST'])
+def update_context():
+    """Update assessment context with user progress."""
+    try:
+        data = request.json
+        
+        # Load context from SQLite storage
+        session_id = session.get('context_session_id')
+        if not session_id:
+            logger.warning(f"[{VERSION}] No context session ID found")
+            return jsonify({'status': 'error', 'message': 'No session found'}), 400
+        
+        context_dict = context_storage.load(session_id)
+        if not context_dict:
+            logger.warning(f"[{VERSION}] No assessment context found for session {session_id}")
+            return jsonify({'status': 'error', 'message': 'No context found'}), 400
+        
+        context = AssessmentContext.from_dict(context_dict)
+        
+        # Update based on action type
+        action = data.get('action')
+        logger.info(f"[{VERSION}] Context update: action={action}")
+        
+        if action == 'answer_question':
+            context.add_answer(
+                question_id=data['question_id'],
+                question_text=data['question_text'],
+                answer_data=data['answer']
+            )
+            logger.info(f"[{VERSION}]   - Recorded answer for: {data['question_id']}")
+        
+        elif action == 'set_current_question':
+            context.set_current_question(
+                question_id=data['question_id'],
+                question_text=data['question_text'],
+                question_type=data['question_type']
+            )
+            logger.info(f"[{VERSION}]   - Set current question: {data['question_id']}")
+        
+        elif action == 'update_fair':
+            context.update_fair_estimates(
+                component=data['component'],
+                min_val=data.get('min'),
+                mle_val=data.get('mle'),
+                max_val=data.get('max')
+            )
+            logger.info(f"[{VERSION}]   - Updated {data['component']} estimates")
+        
+        else:
+            logger.warning(f"[{VERSION}]   - Unknown action: {action}")
+        
+        # Save back to SQLite storage
+        context_storage.save(session_id, context.to_dict())
+        
+        return jsonify({'status': 'success'})
+        
+    except Exception as e:
+        logger.error(f"[{VERSION}] Context update error: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     """Handle chat messages for coaching assistance."""
@@ -452,7 +724,7 @@ def chat():
             return jsonify({'error': 'Message is required'}), 400
         
         # Get tracker with version-specific code generator ID
-        tracker = get_tracker(session_based=True, code_generator="v215-rag-websearch-enhanced")
+        tracker = get_tracker(session_based=True, code_generator="v221-context-aware")
         user_id = tracker.get_user_id()
         
         logger.info(f"[{VERSION}] Chat request from {user_id}: {user_message[:50]}...")
@@ -553,42 +825,106 @@ Be concise, practical, and supportive."""
     
     prompt_parts.append(f"User question: {user_message}")
     
-    if context.get('industry'):
-        prompt_parts.append(f"\nIndustry: {context['industry']}")
-    if context.get('region'):
-        prompt_parts.append(f"Region: {context['region']}")
+    # Try to load full AssessmentContext from SQLite storage for enhanced context
+    assessment_summary = None
+    try:
+        from flask import session as flask_session
+        session_id = flask_session.get('context_session_id')
+        if session_id:
+            context_dict = context_storage.load(session_id)
+            if context_dict:
+                assessment_context = AssessmentContext.from_dict(context_dict)
+                assessment_summary = assessment_context.get_summary_for_chat()
+                logger.info(f"[{VERSION}] Using full AssessmentContext for chat (answered {assessment_summary['questions_answered']} questions)")
+    except Exception as e:
+        logger.warning(f"[{VERSION}] Could not load AssessmentContext: {e}")
     
-    # Add current question context (sent from questionnaire page)
-    if context.get('question_text'):
-        prompt_parts.append(f"\nCurrent Question: {context['question_text']}")
-    if context.get('question_type'):
-        prompt_parts.append(f"Question Type: {context['question_type']}")
-    if context.get('fair_component'):
-        prompt_parts.append(f"FAIR Component: {context['fair_component']}")
-    if context.get('help_text'):
-        prompt_parts.append(f"Help Text: {context['help_text']}")
+    # Use enhanced context if available, otherwise fall back to basic context
+    if assessment_summary:
+        prompt_parts.append(f"\n=== ASSESSMENT CONTEXT ===")
+        prompt_parts.append(f"Industry: {assessment_summary['industry']}")
+        prompt_parts.append(f"Region: {assessment_summary['region']}")
+        
+        if assessment_summary.get('organization_size'):
+            prompt_parts.append(f"Organization Size: {assessment_summary['organization_size']}")
+        
+        prompt_parts.append(f"\nQuestions Answered: {assessment_summary['questions_answered']}")
+        
+        # Current question
+        current = assessment_summary['current_question']
+        if current.get('id'):
+            prompt_parts.append(f"\nCurrent Question: {current['text']}")
+            prompt_parts.append(f"Question Type: {current['type']}")
+        
+        # Threat scenario context
+        if assessment_summary.get('threat_scenario'):
+            prompt_parts.append(f"\nThreat Scenario: {assessment_summary['threat_scenario']}")
+        
+        if assessment_summary.get('control_level'):
+            prompt_parts.append(f"Control Maturity: {assessment_summary['control_level']}")
+        
+        # FAIR estimates captured (only show if all values present)
+        fair = assessment_summary['fair_estimates']
+        
+        # TEF estimates
+        tef = fair.get('tef', {})
+        if tef.get('min') is not None and tef.get('mle') is not None and tef.get('max') is not None:
+            prompt_parts.append(f"\nThreat Event Frequency: {tef['min']}-{tef['mle']}-{tef['max']} attempts/year")
+        
+        # Vulnerability
+        if fair.get('vulnerability') is not None:
+            prompt_parts.append(f"Vulnerability: {fair['vulnerability']*100:.0f}% (attack success rate)")
+        
+        # LEF estimates
+        lef = fair.get('lef', {})
+        if lef.get('min') is not None and lef.get('mle') is not None and lef.get('max') is not None:
+            prompt_parts.append(f"Loss Event Frequency: {lef['min']}-{lef['mle']}-{lef['max']} events/year")
+        
+        # LM estimates
+        lm = fair.get('lm', {})
+        if lm.get('min') is not None and lm.get('mle') is not None and lm.get('max') is not None:
+            prompt_parts.append(f"Loss Magnitude: ${lm['min']:,.0f}-${lm['mle']:,.0f}-${lm['max']:,.0f}")
+        
+        # Recent question path
+        if assessment_summary.get('recent_answers'):
+            prompt_parts.append(f"\n=== RECENT ANSWERS ===")
+            for qid, ans_data in list(assessment_summary['recent_answers'].items())[:3]:
+                prompt_parts.append(f"Q: {ans_data['question_text'][:80]}")
+                answer_text = ans_data['answer'].get('choice_text', str(ans_data['answer']))[:80]
+                prompt_parts.append(f"A: {answer_text}")
+        
+        # Chat history (for continuity)
+        if assessment_summary.get('chat_history'):
+            prompt_parts.append(f"\n=== RECENT CHAT HISTORY ===")
+            for exchange in assessment_summary['chat_history'][-2:]:
+                prompt_parts.append(f"User: {exchange['user'][:60]}")
+                prompt_parts.append(f"Assistant: {exchange['assistant'][:100]}...")
     
-    # Add results page context (sent from results page)
-    if context.get('page') == 'results':
-        if context.get('risk_scenario'):
-            prompt_parts.append(f"\nRisk Scenario: {context['risk_scenario']}")
-        if context.get('expected_loss'):
-            prompt_parts.append(f"Expected Annual Loss: ${context['expected_loss']:,.0f}")
-        if context.get('p90_loss'):
-            prompt_parts.append(f"90th Percentile Loss: ${context['p90_loss']:,.0f}")
+    else:
+        # Fallback to basic context from request
+        if context.get('industry'):
+            prompt_parts.append(f"\nIndustry: {context['industry']}")
+        if context.get('region'):
+            prompt_parts.append(f"Region: {context['region']}")
         
-        # Add FAIR estimates for context
-        if context.get('lef_min') is not None:
-            prompt_parts.append(f"\nLoss Event Frequency Estimates:")
-            prompt_parts.append(f"  Min: {context['lef_min']} events/year")
-            prompt_parts.append(f"  Most Likely: {context['lef_mle']} events/year")
-            prompt_parts.append(f"  Max: {context['lef_max']} events/year")
+        # Add current question context (sent from questionnaire page)
+        if context.get('question_text'):
+            prompt_parts.append(f"\nCurrent Question: {context['question_text']}")
+        if context.get('question_type'):
+            prompt_parts.append(f"Question Type: {context['question_type']}")
+        if context.get('fair_component'):
+            prompt_parts.append(f"FAIR Component: {context['fair_component']}")
+        if context.get('help_text'):
+            prompt_parts.append(f"Help Text: {context['help_text']}")
         
-        if context.get('lm_min') is not None:
-            prompt_parts.append(f"\nLoss Magnitude Estimates:")
-            prompt_parts.append(f"  Min: ${context['lm_min']:,.0f}")
-            prompt_parts.append(f"  Most Likely: ${context['lm_mle']:,.0f}")
-            prompt_parts.append(f"  Max: ${context['lm_max']:,.0f}")
+        # Add results page context (sent from results page)
+        if context.get('page') == 'results':
+            if context.get('risk_scenario'):
+                prompt_parts.append(f"\nRisk Scenario: {context['risk_scenario']}")
+            if context.get('expected_loss'):
+                prompt_parts.append(f"Expected Annual Loss: ${context['expected_loss']:,.0f}")
+            if context.get('p90_loss'):
+                prompt_parts.append(f"90th Percentile Loss: ${context['p90_loss']:,.0f}")
     
     user_prompt = "\n".join(prompt_parts)
     
@@ -609,7 +945,7 @@ Be concise, practical, and supportive."""
     )
     
     # Log the API call
-    tracker = get_tracker(session_based=True, code_generator="v215-rag-websearch-enhanced")
+    tracker = get_tracker(session_based=True, code_generator="v221-context-aware")
     tracker.log_api_call(
         user_id=original_user_id,
         hashed_user_id=api_metadata['user_id'],
@@ -619,12 +955,35 @@ Be concise, practical, and supportive."""
         metadata={
             'version': VERSION,
             'has_context': bool(context),
+            'has_assessment_context': assessment_summary is not None,
+            'questions_answered': assessment_summary.get('questions_answered', 0) if assessment_summary else 0,
             'rag_contexts_retrieved': len(rag_contexts),
             'rag_enabled': rag_engine.enabled
         }
     )
     
-    return message.content[0].text
+    response_text = message.content[0].text
+    
+    # Save chat exchange to AssessmentContext in SQLite
+    try:
+        from flask import session as flask_session
+        session_id = flask_session.get('context_session_id')
+        if session_id:
+            context_dict = context_storage.load(session_id)
+            if context_dict:
+                assessment_context = AssessmentContext.from_dict(context_dict)
+                current_q_id = assessment_context.current_question_id
+                assessment_context.add_chat_message(
+                    user_message=user_message,
+                    assistant_response=response_text,
+                    question_id=current_q_id
+                )
+                context_storage.save(session_id, assessment_context.to_dict())
+                logger.info(f"[{VERSION}] Chat exchange saved to AssessmentContext")
+    except Exception as e:
+        logger.warning(f"[{VERSION}] Could not save chat to context: {e}")
+    
+    return response_text
 
 def save_questionnaire(questions: Dict, industry: str, region: str, version: str, custom_scenario: str = None) -> str:
     """Save questionnaire to file and return filename."""
@@ -856,6 +1215,78 @@ def chat_results():
             'status': 'error',
             'error': str(e)
         }), 500
+
+@app.route('/chat/export', methods=['GET'])
+def export_chat():
+    """Export complete chat history from SQLite storage."""
+    try:
+        # Get session ID
+        session_id = session.get('context_session_id')
+        if not session_id:
+            return jsonify({'error': 'No active session'}), 400
+        
+        # Load context from SQLite
+        context_dict = context_storage.load(session_id)
+        if not context_dict:
+            return jsonify({'error': 'No chat history found'}), 404
+        
+        context = AssessmentContext.from_dict(context_dict)
+        chat_history = context.chat_history
+        
+        if not chat_history:
+            return jsonify({'error': 'No chat messages to export'}), 404
+        
+        # Format as text
+        lines = []
+        lines.append("=" * 80)
+        lines.append(f"RISK ASSESSMENT CHAT HISTORY")
+        lines.append(f"Industry: {context.industry}")
+        lines.append(f"Region: {context.region}")
+        if context.organization_size:
+            lines.append(f"Organization Size: {context.organization_size}")
+        lines.append(f"Assessment ID: {context.assessment_id}")
+        lines.append(f"Started: {context.started_at}")
+        lines.append(f"Total Exchanges: {len(chat_history)}")
+        lines.append("=" * 80)
+        lines.append("")
+        
+        # Add each exchange
+        for i, exchange in enumerate(chat_history, 1):
+            lines.append(f"{'=' * 80}")
+            lines.append(f"EXCHANGE {i}")
+            if exchange.get('question_id'):
+                lines.append(f"Question ID: {exchange['question_id']}")
+            if exchange.get('timestamp'):
+                lines.append(f"Timestamp: {exchange['timestamp']}")
+            lines.append(f"{'=' * 80}")
+            lines.append("")
+            lines.append(f"USER:")
+            lines.append(exchange.get('user', ''))
+            lines.append("")
+            lines.append(f"ASSISTANT:")
+            lines.append(exchange.get('assistant', ''))
+            lines.append("")
+        
+        lines.append("=" * 80)
+        lines.append(f"END OF CHAT HISTORY - {len(chat_history)} exchanges")
+        lines.append("=" * 80)
+        
+        content = "\n".join(lines)
+        
+        return jsonify({
+            'status': 'success',
+            'content': content,
+            'count': len(chat_history),
+            'metadata': {
+                'industry': context.industry,
+                'region': context.region,
+                'assessment_id': context.assessment_id
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"[{VERSION}] Chat export error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/chat/save', methods=['POST'])
 def save_chat():

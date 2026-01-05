@@ -446,7 +446,7 @@
         <!-- Chat Sidebar with dynamic context -->
         <div class="chat-sidebar" id="chatSidebar">
             <div class="chat-header">
-                <h3>💬 AI Assistant</h3>
+                <h3>💬 Risk Reduction Assistant</h3>
                 <button class="chat-close-btn" onclick="toggleChat()" aria-label="Close chat">✕</button>
             </div>
             
@@ -506,13 +506,38 @@
             lef_max: null,
             lm_min: null,
             lm_mle: null,
-            lm_max: null
+            lm_max: null,
+            tef_min: null,
+            tef_mle: null,
+            tef_max: null
         };
+        let vulnerability = null;
+        let baseVulnerability = null; // Store original before adjustment
+        let layeredControlsApplied = false;
         // Track the first multiple-choice question the user answers and their first selected option
         let firstQuestionCaptured = false;
         let firstQuestionText = '';
         let firstChoiceText = '';
         let chatHistory = [];
+        
+        // ========== CONTEXT TRACKING ==========
+        
+        // Send context updates to backend for assessment tracking
+        async function updateBackendContext(action, data) {
+            try {
+                await fetch('/context/update', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        action: action,
+                        ...data
+                    })
+                });
+                console.log('Context updated:', action, data);
+            } catch (error) {
+                console.error('Context update failed:', error);
+            }
+        }
         
         // ========== QUESTIONNAIRE FUNCTIONS ==========
         
@@ -534,6 +559,13 @@
             // Update chat context
             updateChatContext();
             
+            // Update backend context with current question
+            updateBackendContext('set_current_question', {
+                question_id: questionId,
+                question_text: question.text,
+                question_type: question.type
+            });
+            
             // Build question HTML
             let html = '';
             html += `<div class="question-number">Question ${currentIndex} of ${totalQuestions}</div>`;
@@ -547,9 +579,10 @@
                 html += '<div class="choices">';
                 question.choices.forEach((choice, index) => {
                     html += `
-                        <div class="choice-card" data-next="${choice.next_question_id}" onclick="selectChoice(this)">
+                        <div class="choice-card" data-next="${choice.next_question_id}" data-vulnerability="${choice.vulnerability || ''}" onclick="selectChoice(this)">
                             <div class="choice-title">${choice.text}</div>
                             ${choice.description ? `<div class="choice-description">${choice.description}</div>` : ''}
+                            ${choice.vulnerability_display ? `<div class="mitre-badge" style="background:#fed7d7; color:#c53030; margin-bottom:8px;">${choice.vulnerability_display}</div>` : ''}
                             
                             ${choice.mitre_techniques && choice.mitre_techniques.length > 0 ? `
                                 <div class="mitre-techniques">
@@ -578,9 +611,16 @@
                 
                 if (question.estimate_type) {
                     // v2/v3 RAG schema
-                    const isFrequency = question.estimate_type === 'frequency_per_year';
-                    unitLabel = isFrequency ? 'events per year' : 'USD';
-                    prefix = isFrequency ? 'lef' : 'lm';
+                    if (question.estimate_type === 'frequency_per_year') {
+                         unitLabel = 'events per year';
+                         prefix = 'lef';
+                    } else if (question.estimate_type === 'threat_event_frequency') {
+                         unitLabel = 'attempts per year';
+                         prefix = 'tef';
+                    } else {
+                         unitLabel = 'USD';
+                         prefix = 'lm';
+                    }
                     guidance = question.guidance || {};
                 } else if (question.unit) {
                     // v1 websearch schema
@@ -622,14 +662,88 @@
                         </div>
                     </div>
                 `;
+            } else if (question.type === 'calculated_display') {
+                // Calculate LEF based on captured TEF and Vulnerability
+                const tef_min = pertValues.tef_min || 0;
+                const tef_mle = pertValues.tef_mle || 0;
+                const tef_max = pertValues.tef_max || 0;
+                const vuln = vulnerability || 1.0; // Default to 100% if not set
+                
+                // Auto-calculate initial LEF values
+                const calc_lef_min = (tef_min * vuln).toFixed(2);
+                const calc_lef_mle = (tef_mle * vuln).toFixed(2);
+                const calc_lef_max = (tef_max * vuln).toFixed(2);
+                
+                // Update state with calculated values (can be overridden by user editing inputs)
+                pertValues.lef_min = parseFloat(calc_lef_min);
+                pertValues.lef_mle = parseFloat(calc_lef_mle);
+                pertValues.lef_max = parseFloat(calc_lef_max);
+
+                html += `
+                    <div style="background: #f0fff4; border: 1px solid #c6f6d5; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+                        <h3 style="color: #2f855a; margin-bottom: 10px;">🧮 Calculation Preview</h3>
+                        <div style="display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 10px; align-items: center; text-align: center; font-family: monospace; font-size: 1.1em;">
+                            <div>
+                                <div style="font-weight:bold; color:#2d3748;">${tef_mle}</div>
+                                <div style="font-size:0.8em; color:#718096;">TEF (Attempts)</div>
+                            </div>
+                            <div style="color:#718096;">×</div>
+                            <div>
+                                <div style="font-weight:bold; color:#2d3748;">${(vuln * 100).toFixed(0)}%</div>
+                                <div style="font-size:0.8em; color:#718096;">Vulnerability</div>
+                            </div>
+                            <div style="color:#718096;">=</div>
+                            <div>
+                                <div style="font-weight:bold; color:#2f855a;">${calc_lef_mle}</div>
+                                <div style="font-size:0.8em; color:#2f855a;">LEF (Successes)</div>
+                            </div>
+                        </div>
+                        <p style="margin-top: 15px; font-size: 0.9em; color: #4a5568;">
+                            ${(() => {
+                                const yearsPerBreach = (1/parseFloat(calc_lef_mle)).toFixed(1);
+                                if (parseFloat(calc_lef_mle) >= 1) {
+                                    return `On average, <strong>${parseFloat(calc_lef_mle).toFixed(1)}</strong> successful breach${parseFloat(calc_lef_mle) > 1 ? 'es' : ''} per year`;
+                                } else {
+                                    return `On average, 1 successful breach every <strong>${yearsPerBreach}</strong> year${yearsPerBreach > 1 ? 's' : ''}`;
+                                }
+                            })()}
+                        </p>
+                    </div>
+
+                    <p style="margin-bottom: 15px; color: #4a5568;">Review and adjust the calculated Loss Event Frequency (LEF) if needed:</p>
+
+                    <div class="pert-input-group">
+                        <div class="input-field">
+                            <label>Minimum (events/year)</label>
+                            <input type="number" step="any" min="0" required 
+                                   id="input_min" 
+                                   value="${calc_lef_min}"
+                                   onchange="updatePertValue('lef_min', this.value)">
+                        </div>
+                        <div class="input-field">
+                            <label>Most Likely (events/year)</label>
+                            <input type="number" step="any" min="0" required 
+                                   id="input_mle"
+                                   value="${calc_lef_mle}"
+                                   onchange="updatePertValue('lef_mle', this.value)">
+                        </div>
+                        <div class="input-field">
+                            <label>Maximum (events/year)</label>
+                            <input type="number" step="any" min="0" required 
+                                   id="input_max"
+                                   value="${calc_lef_max}"
+                                   onchange="updatePertValue('lef_max', this.value)">
+                        </div>
+                    </div>
+                `;
             }
             
             html += `
                 <div class="button-group">
                     ${questionHistory.length > 0 ? '<button type="button" class="btn btn-secondary" onclick="goBack()">← Back</button>' : ''}
-                    ${question.type === 'pert_estimate' && question.next_question_id ? 
+                    ${(question.type === 'pert_estimate' || question.type === 'calculated_display') && question.next_question_id ? 
                         `<button type="button" class="btn btn-primary" onclick="goNext('${question.next_question_id}')">Continue →</button>` : ''}
-                    ${question.type === 'pert_estimate' && !question.next_question_id ? 
+                    ${(question.type === 'pert_estimate' || question.type === 'calculated_display') && !question.next_question_id ? 
                         '<button type="button" class="btn btn-success" onclick="submitForm()">Submit Assessment ✓</button>' : ''}
                 </div>
                 <div style="margin-top: 10px; text-align: right; font-size: 0.85em; color: #718096;">
@@ -665,26 +779,246 @@
                 }
             }
             
-            // Get next question ID and navigate
+            // Capture vulnerability if present
+            console.log('Choice dataset.vulnerability:', element.dataset.vulnerability);
+            if (element.dataset.vulnerability && element.dataset.vulnerability !== '') {
+                vulnerability = parseFloat(element.dataset.vulnerability);
+                baseVulnerability = vulnerability; // Store original
+                layeredControlsApplied = false; // Reset on new selection
+                console.log('Captured vulnerability:', vulnerability);
+                console.log('Showing layered controls toggle...');
+                
+                // Show layered controls toggle
+                try {
+                    showLayeredControlsToggle(element);
+                    console.log('Layered controls toggle shown successfully');
+                } catch (error) {
+                    console.error('Error showing layered controls toggle:', error);
+                }
+            } else {
+                console.log('No vulnerability data found on this choice');
+            }
+            
+            // Record answer to backend context
+            const currentQuestion = questions.questions[currentQuestionId];
+            if (currentQuestion) {
+                const titleEl = element.querySelector('.choice-title');
+                const descEl = element.querySelector('.choice-description');
+                
+                const answerData = {
+                    choice_text: titleEl ? titleEl.textContent.trim() : '',
+                    choice_description: descEl ? descEl.textContent.trim() : '',
+                    vulnerability: element.dataset.vulnerability || null
+                };
+                
+                updateBackendContext('answer_question', {
+                    question_id: currentQuestionId,
+                    question_text: currentQuestion.text,
+                    answer: answerData
+                });
+            }
+            
+            // Get next question ID - but delay navigation if layered controls toggle is shown
             const nextQuestionId = element.dataset.next;
             if (nextQuestionId) {
-                setTimeout(() => {
-                    questionHistory.push(currentQuestionId);
-                    currentQuestionId = nextQuestionId;
-                    renderQuestion(currentQuestionId);
-                }, 300);
+                // Check if we showed the layered controls toggle
+                const hasVulnerability = element.dataset.vulnerability && element.dataset.vulnerability !== '';
+                
+                if (hasVulnerability) {
+                    // Don't auto-navigate - user needs to interact with toggle first
+                    // Store next question ID for the Continue button
+                    element.dataset.pendingNext = nextQuestionId;
+                    console.log('Auto-navigation paused - waiting for layered controls decision');
+                } else {
+                    // No toggle shown - proceed normally
+                    setTimeout(() => {
+                        questionHistory.push(currentQuestionId);
+                        currentQuestionId = nextQuestionId;
+                        renderQuestion(currentQuestionId);
+                    }, 300);
+                }
             }
+        }
+        
+        function showLayeredControlsToggle(selectedElement) {
+            // Remove any existing toggle
+            const existingToggle = document.getElementById('layeredControlsToggle');
+            if (existingToggle) {
+                existingToggle.remove();
+            }
+            
+            const toggleHtml = `
+                <div id="layeredControlsToggle" style="
+                    margin-top: 20px; 
+                    padding: 20px; 
+                    background: #f7fafc; 
+                    border: 2px dashed #cbd5e0; 
+                    border-radius: 8px;
+                    animation: fadeIn 0.3s ease;
+                ">
+                    <label style="display: flex; align-items: start; cursor: pointer;">
+                        <input type="checkbox" id="layeredControlsCheckbox" 
+                               onchange="applyLayeredControlsAdjustment(this.checked)"
+                               style="margin-right: 12px; margin-top: 4px; width: 18px; height: 18px; cursor: pointer;">
+                        <div style="flex: 1;">
+                            <strong style="font-size: 1.05em;">Secondary/layered controls in place?</strong>
+                            <div style="font-size: 0.9em; color: #718096; margin-top: 5px; line-height: 1.5;">
+                                Examples: Network segmentation, offline backups, EDR/XDR, SIEM, incident response plan, security awareness training
+                            </div>
+                            <div style="
+                                margin-top: 12px; 
+                                padding: 12px; 
+                                background: #edf2f7; 
+                                border-radius: 6px;
+                                font-size: 0.85em;
+                                line-height: 1.6;
+                            ">
+                                <div style="margin-bottom: 8px;">
+                                    ✓ Reduces vulnerability by <strong style="color: #667eea;">25%</strong> (simplified single-factor model)
+                                    <a href="/about/layered-controls" 
+                                       target="_blank"
+                                       style="color: #667eea; margin-left: 8px; text-decoration: none; font-size: 0.9em;"
+                                       onclick="event.stopPropagation();">
+                                        ℹ️ Why 25%?
+                                    </a>
+                                </div>
+                                <div style="color: #e53e3e; display: flex; align-items: start; gap: 6px;">
+                                    <span style="font-weight: bold; flex-shrink: 0;">⚠</span>
+                                    <div>
+                                        <em>Note: This is a basic adjustment. For precise multi-layer control 
+                                        effectiveness and attack path analysis, consider 
+                                        <strong>Cascade Risk Modeling™</strong></em>
+                                        <a href="mailto:sales@openimpactcascade.com?subject=Cascade%20Risk%20Modeling%20Inquiry" 
+                                           style="color: #667eea; margin-left: 8px; text-decoration: none; font-weight: 600;"
+                                           onclick="event.stopPropagation();">
+                                            Contact Sales →
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    
+                    <div id="adjustedVulnDisplay" style="
+                        margin-top: 15px; 
+                        padding: 12px; 
+                        background: white; 
+                        border-left: 4px solid #667eea;
+                        border-radius: 4px;
+                        display: none;
+                    ">
+                        <strong style="color: #2d3748;">Adjusted Vulnerability:</strong> 
+                        <span id="adjustedVulnValue" style="font-size: 1.2em; color: #667eea; font-weight: bold;"></span>
+                    </div>
+                    
+                    <button id="continueBtn" onclick="proceedToNextQuestion()" style="
+                        margin-top: 20px;
+                        padding: 12px 24px;
+                        background: #667eea;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 1.05em;
+                        font-weight: 600;
+                        cursor: pointer;
+                        width: 100%;
+                        transition: all 0.3s ease;
+                    " onmouseover="this.style.background='#5568d3'" onmouseout="this.style.background='#667eea'">
+                        Continue to Next Question →
+                    </button>
+                </div>
+            `;
+            
+            // Insert after the selected choice card
+            selectedElement.insertAdjacentHTML('afterend', toggleHtml);
+        }
+        
+        function proceedToNextQuestion() {
+            // Get the selected choice element to retrieve the pending next question ID
+            const selectedChoice = document.querySelector('.choice-card.selected');
+            if (!selectedChoice) {
+                console.error('No selected choice found');
+                return;
+            }
+            
+            const nextQuestionId = selectedChoice.dataset.pendingNext || selectedChoice.dataset.next;
+            if (nextQuestionId) {
+                console.log('Proceeding to next question:', nextQuestionId);
+                questionHistory.push(currentQuestionId);
+                currentQuestionId = nextQuestionId;
+                renderQuestion(currentQuestionId);
+            } else {
+                console.error('No next question ID found');
+            }
+        }
+        
+        function applyLayeredControlsAdjustment(isChecked) {
+            const ADJUSTMENT_FACTOR = 0.75; // 25% reduction
+            
+            if (isChecked) {
+                // Apply adjustment
+                vulnerability = baseVulnerability * ADJUSTMENT_FACTOR;
+                layeredControlsApplied = true;
+                
+                // Show adjusted value
+                const displayDiv = document.getElementById('adjustedVulnDisplay');
+                const valueSpan = document.getElementById('adjustedVulnValue');
+                
+                if (displayDiv && valueSpan) {
+                    displayDiv.style.display = 'block';
+                    valueSpan.textContent = 
+                        `${(vulnerability * 100).toFixed(0)}% (reduced from ${(baseVulnerability * 100).toFixed(0)}%)`;
+                }
+                
+                console.log(`Layered controls applied: ${(baseVulnerability * 100).toFixed(0)}% → ${(vulnerability * 100).toFixed(0)}%`);
+            } else {
+                // Revert to base
+                vulnerability = baseVulnerability;
+                layeredControlsApplied = false;
+                
+                const displayDiv = document.getElementById('adjustedVulnDisplay');
+                if (displayDiv) {
+                    displayDiv.style.display = 'none';
+                }
+                
+                console.log(`Layered controls removed: reverted to ${(baseVulnerability * 100).toFixed(0)}%`);
+            }
+            
+            // Update backend context with adjustment details
+            updateBackendContext('layered_controls_adjustment', {
+                applied: isChecked,
+                base_vulnerability: baseVulnerability,
+                adjusted_vulnerability: vulnerability,
+                adjustment_factor: isChecked ? ADJUSTMENT_FACTOR : 1.0
+            });
         }
         
         function updatePertValue(key, value) {
             pertValues[key] = parseFloat(value);
             console.log('Updated PERT value:', key, '=', value);
+            
+            // Determine component (tef, lef, or lm)
+            let component = 'lef';  // default
+            if (key.startsWith('tef_')) component = 'tef';
+            else if (key.startsWith('lm_')) component = 'lm';
+            
+            // Extract min/mle/max
+            const parts = key.split('_');
+            const suffix = parts[parts.length - 1]; // 'min', 'mle', or 'max'
+            
+            // Update backend context
+            const updateData = {
+                component: component
+            };
+            updateData[suffix] = parseFloat(value);
+            
+            updateBackendContext('update_fair', updateData);
         }
         
         function goNext(nextQuestionId) {
-            // Validate PERT inputs if current question is PERT
+            // Validate PERT inputs if current question is PERT or Calculated Display
             const question = questions.questions[currentQuestionId];
-            if (question.type === 'pert_estimate') {
+            if (question.type === 'pert_estimate' || question.type === 'calculated_display') {
                 const min = parseFloat(document.getElementById('input_min').value);
                 const mle = parseFloat(document.getElementById('input_mle').value);
                 const max = parseFloat(document.getElementById('input_max').value);

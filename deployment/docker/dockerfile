@@ -1,5 +1,6 @@
-# OpenImpactCascade v2-rag-enhanced
-# Flask-based AI-powered risk assessment platform with chat history tracking
+# OpenImpactCascade v221-context-aware
+# Flask-based AI-powered risk assessment platform with SQLite context storage
+# Features: Chat assistant, FAIR methodology, layered controls toggle
 # Port: 8080
 
 FROM python:3.11-slim
@@ -20,11 +21,12 @@ COPY app/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy Python application files
-COPY app/flask_oic_v215.py /app/
-COPY app/ai_question_generator_v214.py /app/
+COPY app/flask_oic_v221.py /app/
+COPY app/ai_question_generator_v221.py /app/
 COPY app/simulation_v211.py /app/
 COPY app/vertex_rag_v211.py /app/
 COPY app/user_tracking.py /app/
+COPY app/context_storage.py /app/
 
 # Copy static assets directory structure
 COPY app/static/ /app/static/
@@ -36,10 +38,12 @@ COPY app/templates/ /app/templates/
 RUN mkdir -p /app/generated \
     && mkdir -p /app/static/js \
     && mkdir -p /app/static/css \
-    && mkdir -p /app/templates/partials
+    && mkdir -p /app/templates/partials \
+    && mkdir -p /tmp \
+    && chmod 1777 /tmp
 
 # Set environment variables
-ENV FLASK_APP=flask_oic_v211.py
+ENV FLASK_APP=flask_oic_v221.py
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
 
@@ -51,4 +55,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8080/', timeout=5)"
 
 # Run the application
-CMD ["python", "flask_oic_v211.py"]
+CMD ["python", "flask_oic_v221.py"]

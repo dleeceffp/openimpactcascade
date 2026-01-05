@@ -174,24 +174,28 @@ def generate_pert_samples(min_val, mode_val, max_val, n_samples, lambda_param=4)
 
 def generate_lognormal_samples(min_val, mode_val, max_val, n_samples):
     """
-    Generate samples from a Lognormal distribution.
+    Generate samples from a Lognormal distribution with fat tails for cyber risk.
     
     Lognormal is MORE REALISTIC for cyber risk losses because:
     1. Right-skewed (many small losses, few large ones)
-    2. Fat tails (captures catastrophic events)
+    2. Fat tails (captures catastrophic events beyond user's max input)
     3. Used in insurance and financial risk modeling
     4. Supported by research (Eling & Jung 2018)
     
     Real-world pattern:
     - 80% of incidents: Below mode (small losses)
-    - 15% of incidents: Near mode to 75th percentile (moderate losses)
-    - 5% of incidents: Above 75th percentile (large losses)
-    - 1% of incidents: Above 95th percentile (catastrophic losses)
+    - 15% of incidents: Near mode to 85th percentile (moderate losses)
+    - 4% of incidents: 85th to 99th percentile (large losses, may exceed max_val)
+    - 1% of incidents: Above 99th percentile (catastrophic losses, often 2-5x max_val)
+    
+    IMPORTANT: Catastrophic tail events (P95, P99) will typically EXCEED max_val.
+    This is intentional and realistic for cyber losses. The max_val represents
+    roughly the 85th percentile, allowing fat tails to capture rare severe events.
     
     Args:
         min_val: Minimum value (treated as floor, not hard bound)
         mode_val: Most likely value (peak of distribution)
-        max_val: Maximum value (used to calibrate tail, not hard bound)
+        max_val: Target for ~85th percentile (tail events will exceed this)
         n_samples: Number of samples to generate
     
     Returns:
@@ -216,30 +220,34 @@ def generate_lognormal_samples(min_val, mode_val, max_val, n_samples):
     # For lognormal: mode = exp(μ - σ²)
     # We need to find μ and σ such that:
     # 1. Mode is at mode_shifted
-    # 2. ~95th percentile is near max_shifted
+    # 2. ~85th-90th percentile is near max_shifted (allows fat tail beyond)
     
     # Use quantile matching approach
-    # Assume max is approximately the 95th percentile
-    # For lognormal: P95 ≈ exp(μ + 1.645σ)
+    # Assume max is approximately the 85th percentile for cyber losses
+    # This allows catastrophic tail events to exceed user's max input
+    # For lognormal: P85 ≈ exp(μ + 1.036σ)
     # Mode = exp(μ - σ²)
     
     # Initial estimate: use mode and max to estimate parameters
     # log(mode) = μ - σ²
-    # log(P95) = μ + 1.645σ
+    # log(P85) = μ + 1.036σ
     
     # Solve for σ and μ
-    # This is a simplified approach that works well in practice
+    # This approach calibrates for realistic cyber risk fat tails
     log_mode = np.log(mode_shifted)
-    log_p95 = np.log(max_shifted)
+    log_p85 = np.log(max_shifted)
     
     # Estimate sigma from the spread
-    sigma = (log_p95 - log_mode) / 2.0  # Heuristic that works well
+    # For cyber risk, we want fatter tails, so use a more aggressive multiplier
+    # This ensures catastrophic losses can exceed the user's max input
+    sigma = (log_p85 - log_mode) / 1.2  # More aggressive for fat tails
     
     # Solve for mu
     mu = log_mode + sigma**2
     
-    # Ensure reasonable parameters (avoid extreme values)
-    sigma = np.clip(sigma, 0.3, 2.0)  # Reasonable range for cyber risk
+    # Ensure reasonable parameters (allow fat tails for cyber risk)
+    # Research shows cyber losses need sigma of 1.5-3.0 for realistic catastrophic events
+    sigma = np.clip(sigma, 0.5, 3.5)  # Expanded range for cyber risk fat tails
     
     # Generate lognormal samples
     lognormal_samples = np.random.lognormal(mu, sigma, n_samples)

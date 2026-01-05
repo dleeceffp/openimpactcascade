@@ -947,21 +947,43 @@
             }
         });
         
-        // Export chat as downloadable text file
-        // Now uses centralized ChatHistory for complete session export
-        function exportChat() {
-            // Use the global centralized export function
-            exportCompleteHistory();
-            
-            // Show success message in chat
-            const successMsg = document.createElement('div');
-            successMsg.className = 'chat-message assistant';
-            successMsg.innerHTML = `
-                <div class="message-label">System</div>
-                <div class="message-bubble">✅ Complete chat history exported! Check your downloads folder.</div>
-            `;
-            document.getElementById('chatMessages').appendChild(successMsg);
-            setTimeout(() => successMsg.remove(), 3000);
+        // Export chat as downloadable text file from SQLite database
+        async function exportChat() {
+            try {
+                const response = await fetch('/chat/export');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // Create and download the file
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+                    const blob = new Blob([data.content], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `risk-assessment-chat-${data.metadata.assessment_id}-${timestamp}.txt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    // Show success message
+                    const successMsg = document.createElement('div');
+                    successMsg.style.cssText = `
+                        position: fixed; top: 20px; right: 20px; z-index: 10000;
+                        background: #10b981; color: white; padding: 15px 20px;
+                        border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        font-weight: 500;
+                    `;
+                    successMsg.textContent = `✓ Exported ${data.count} chat exchanges`;
+                    document.body.appendChild(successMsg);
+                    setTimeout(() => successMsg.remove(), 3000);
+                } else {
+                    alert('No chat history to export. Start a conversation first!');
+                }
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Failed to export chat history. Please try again.');
+            }
         }
         
         // Sync local chatHistory to centralized ChatHistory before page unload
