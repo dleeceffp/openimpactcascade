@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime
 from typing import Dict, Optional, List, Any
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, send_file
-from ai_question_generator_v221 import AIQuestionGeneratorWithRAGAndRationale
+from ai_question_generator import AIQuestionGeneratorWithRAGAndRationale
 from user_tracking import get_tracker, create_api_metadata
 from context_storage import get_context_storage
 
@@ -447,8 +447,8 @@ def refine_scenario():
         user_id = tracker.get_user_id()
 
         # Prepare RAG and intelligent web search context using v214 generator logic
-        from vertex_rag_v211 import get_rag_engine
-        rag_engine = get_rag_engine(enable_fallback=True)
+        from corpus.retrieve import get_rag_engine as get_corpus_retriever
+        rag_engine = get_corpus_retriever(enable_fallback=True)
         rag_contexts = []
         if rag_engine.enabled:
             try:
@@ -745,12 +745,12 @@ def chat():
 def generate_chat_response(user_message: str, context: Dict, user_id: str) -> str:
     """Generate chat response using Claude with RAG grounding, optionally supplemented by web search when RAG has gaps."""
     import anthropic
-    from vertex_rag_v211 import get_rag_engine
+    from corpus.retrieve import get_rag_engine as get_corpus_retriever
     
     client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
     
     # Get RAG engine and retrieve grounding context
-    rag_engine = get_rag_engine(enable_fallback=True)
+    rag_engine = get_corpus_retriever(enable_fallback=True)
     rag_contexts = []
     
     if rag_engine.enabled:
@@ -1008,7 +1008,7 @@ def analyze():
     """Process the questionnaire responses and run Monte Carlo analysis."""
     try:
         # Import ENHANCED simulation module
-        from simulation_v211 import run_monte_carlo
+        from simulation import run_monte_carlo
         
         # Get form data with better error handling
         try:
@@ -1137,7 +1137,7 @@ def analyze():
 def recalculate():
     """Recalculate simulation with adjusted parameters using enhanced distributions."""
     try:
-        from simulation_v211 import run_monte_carlo
+        from simulation import run_monte_carlo
         
         data = request.get_json()
         
@@ -1318,9 +1318,9 @@ def download():
 @app.route('/health')
 def health():
     """Health check endpoint."""
-    from vertex_rag_v211 import get_rag_engine
+    from corpus.retrieve import get_rag_engine as get_corpus_retriever
     
-    rag_engine = get_rag_engine(enable_fallback=True)
+    rag_engine = get_corpus_retriever(enable_fallback=True)
     
     return jsonify({
         'status': 'healthy',
@@ -1328,8 +1328,7 @@ def health():
         'port': PORT,
         'ai_available': ai_generator is not None,
         'approach': 'RAG + LLM with Enhanced Distributions',
-        'rag_enabled': rag_engine.enabled,
-        'rag_status': rag_engine.get_status()
+        'rag_enabled': rag_engine.enabled
     })
 
 if __name__ == '__main__':

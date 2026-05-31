@@ -6,7 +6,7 @@ Tests with the user's actual input: LM = $100k - $500k - $2M
 import sys
 sys.path.insert(0, 'app')
 
-from simulation_v211 import run_monte_carlo
+from simulation import run_monte_carlo
 
 print("="*80)
 print("TESTING LOGNORMAL FAT TAIL FIX")

@@ -7,7 +7,7 @@ import sys
 sys.path.insert(0, 'app')
 
 import numpy as np
-from simulation_v211 import run_monte_carlo, generate_pert_samples, generate_lognormal_samples
+from simulation import run_monte_carlo, generate_pert_samples, generate_lognormal_samples
 
 print("="*80)
 print("UNDERSTANDING MEDIAN IN MONTE CARLO SIMULATION")

@@ -14,7 +14,7 @@ import requests
 from typing import Dict, List, Optional, Tuple, Set
 from datetime import datetime
 from user_tracking import get_tracker, create_api_metadata
-from vertex_rag_v211 import get_rag_engine
+from corpus.retrieve import get_rag_engine as get_corpus_retriever
 
 
 class AIQuestionGeneratorWithRAGAndRationale:
@@ -68,16 +68,16 @@ class AIQuestionGeneratorWithRAGAndRationale:
             else:
                 print("✅ Google Custom Search API enabled (intelligent mode)")
         
-        # Initialize RAG engine if enabled
+        # Initialize Corpus Retriever
         if self.enable_rag:
-            self.rag_engine = get_rag_engine(enable_fallback=True)
+            self.rag_engine = get_corpus_retriever(enable_fallback=True)
             if self.rag_engine.enabled:
-                print("✅ RAG grounding enabled")
+                print("✅ File-based Corpus grounding enabled")
             else:
-                print("⚠️  RAG grounding disabled (fallback mode)")
+                print("⚠️  File-based Corpus index missing/empty - defaulting to intelligent web search")
         else:
             self.rag_engine = None
-            print("ℹ️  RAG grounding disabled by configuration")
+            print("ℹ️  Corpus grounding disabled by configuration")
         
         self.system_prompt = self._build_system_prompt()
     

@@ -21,10 +21,10 @@ COPY app/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy Python application files
-COPY app/flask_oic_v221.py /app/
-COPY app/ai_question_generator_v221.py /app/
-COPY app/simulation_v211.py /app/
-COPY app/vertex_rag_v211.py /app/
+COPY app/main.py /app/
+COPY app/ai_question_generator.py /app/
+COPY app/simulation.py /app/
+COPY app/vertex_rag.py /app/
 COPY app/user_tracking.py /app/
 COPY app/context_storage.py /app/
 
@@ -43,7 +43,7 @@ RUN mkdir -p /app/generated \
     && chmod 1777 /tmp
 
 # Set environment variables
-ENV FLASK_APP=flask_oic_v221.py
+ENV FLASK_APP=main.py
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
 
@@ -55,4 +55,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8080/', timeout=5)"
 
 # Run the application
-CMD ["python", "flask_oic_v221.py"]
+CMD ["python", "main.py"]
