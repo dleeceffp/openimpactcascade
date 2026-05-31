@@ -1,0 +1,37 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Logs and databases
+logs/*
+!logs/.gitkeep
+app/logs/*
+!app/logs/.gitkeep
+*.log
+*.sqlite3
+
+# Generated
+generated/*
+!generated/.gitkeep
+app/generated/*
+!app/generated/.gitkeep
+
+# OS/IDE
+.DS_Store
+.vscode/
+.idea/
+.windsurf/
+
+# Security
+*.pem
+*.key
+service-account-key.json
+keys/
