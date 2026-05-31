@@ -103,14 +103,20 @@ if ! gcloud secrets describe "GEMINI_API_KEY" --project="$PROJECT_ID" &>/dev/nul
     echo "Generating scoped Gemini API Key..."
     
     # Create key scoped to generativelanguage.googleapis.com
-    KEY_NAME=$(gcloud services api-keys create \
+    gcloud services api-keys create \
         --display-name="${APP_NAME}-gemini-key" \
         --api-target=service=generativelanguage.googleapis.com \
-        --project="$PROJECT_ID" \
-        --format="value(name)")
+        --project="$PROJECT_ID"
     
-    # Wait briefly for propagation
-    sleep 3
+    echo "Waiting for API key to be created..."
+    sleep 5
+    
+    # Retrieve the key name using its display name
+    KEY_NAME=$(gcloud services api-keys list \
+        --filter="displayName=${APP_NAME}-gemini-key" \
+        --project="$PROJECT_ID" \
+        --format="value(name)" \
+        --limit=1)
     
     GEMINI_KEY_VALUE=$(gcloud services api-keys get-key-string "$KEY_NAME" \
         --project="$PROJECT_ID" \
