@@ -218,6 +218,60 @@ except Exception as e:
     logger.warning(f"[{VERSION}] AI Generator not available: {e}", exc_info=True)
     ai_generator = None
 
+# ========== AUTHENTICATION ==========
+
+@app.before_request
+def require_auth():
+    """Require authentication for all routes except login, static files, and health check."""
+    # Always allow health check for Cloud Run
+    if request.endpoint == 'health':
+        return
+        
+    # Allow static assets and login page
+    if request.endpoint in ['login', 'static']:
+        return
+        
+    # Check session
+    if not session.get('authenticated'):
+        # For API endpoints, return 401
+        if request.path.startswith('/api/') or request.path.startswith('/chat/') or request.path.startswith('/context/'):
+            return jsonify({'error': 'Unauthorized'}), 401
+        # For web pages, redirect to login
+        return redirect(url_for('login', next=request.url))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Basic auth login page to prevent bot access."""
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        expected_username = os.environ.get('APP_USERNAME', 'admin')
+        expected_password = os.environ.get('APP_PASSWORD')
+        
+        if not expected_password:
+            logger.error("APP_PASSWORD environment variable is not set!")
+            return render_template('login.html', error='System configuration error. Please contact administrator.')
+            
+        if username == expected_username and password == expected_password:
+            session['authenticated'] = True
+            
+            # Redirect to next URL if provided and safe, else home
+            next_url = request.args.get('next')
+            if next_url and next_url.startswith('/'):
+                return redirect(next_url)
+            return redirect(url_for('home'))
+        else:
+            return render_template('login.html', error='Invalid username or password')
+            
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    """Log out the current user."""
+    session.pop('authenticated', None)
+    return redirect(url_for('login'))
+
 @app.route('/')
 def home():
     """Home page - choose between static or AI-generated questionnaire."""

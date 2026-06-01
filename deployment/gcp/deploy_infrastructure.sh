@@ -167,6 +167,8 @@ SECRETS=(
     "SECRET_KEY"
     "GOOGLE_SEARCH_API_KEY"
     "GOOGLE_SEARCH_CSE_ID"
+    "APP_USERNAME"
+    "APP_PASSWORD"
 )
 
 echo "Setting up remaining Secret Manager secrets..."
@@ -244,7 +246,7 @@ gcloud run deploy "$APP_NAME" \
     --max-instances 3 \
     --min-instances 0 \
     --set-env-vars="GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GCS_BUCKET_NAME=$GCS_BUCKET_NAME,VERTEX_AI_LOCATION=$REGION,VERTEX_RAG_CORPUS=$VERTEX_RAG_CORPUS" \
-    --set-secrets="ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,SECRET_KEY=SECRET_KEY:latest,GOOGLE_SEARCH_API_KEY=GOOGLE_SEARCH_API_KEY:latest,GOOGLE_SEARCH_CSE_ID=GOOGLE_SEARCH_CSE_ID:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest" \
+    --set-secrets="ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,SECRET_KEY=SECRET_KEY:latest,GOOGLE_SEARCH_API_KEY=GOOGLE_SEARCH_API_KEY:latest,GOOGLE_SEARCH_CSE_ID=GOOGLE_SEARCH_CSE_ID:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,APP_USERNAME=APP_USERNAME:latest,APP_PASSWORD=APP_PASSWORD:latest" \
     --allow-unauthenticated
 
 echo "============================================================"
