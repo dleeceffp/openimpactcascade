@@ -56,7 +56,7 @@ gcloud services enable \
 # =============================================================================
 # 2. SERVICE ACCOUNT CONFIGURATION
 # =============================================================================
-echo "Setting up Service Account ($SA_EMAIL)..."
+echo "Setting up Application Service Account ($SA_EMAIL)..."
 
 if ! gcloud iam service-accounts describe "$SA_EMAIL" &>/dev/null; then
     gcloud iam service-accounts create "$SA_NAME" \
@@ -67,15 +67,36 @@ else
 fi
 
 # Grant necessary IAM roles for runtime operations
-ROLES=(
+APP_ROLES=(
     "roles/aiplatform.user"       # For Vertex AI RAG and Models
     "roles/storage.objectAdmin"   # For reading/writing GCS
     "roles/logging.logWriter"     # For writing application logs
 )
 
-for ROLE in "${ROLES[@]}"; do
+for ROLE in "${APP_ROLES[@]}"; do
     gcloud projects add-iam-policy-binding "$PROJECT_ID" \
         --member="serviceAccount:${SA_EMAIL}" \
+        --role="$ROLE" \
+        --condition=None \
+        --quiet
+done
+
+# In many enterprise environments, the Compute Engine Default Service Account 
+# (which Cloud Build uses by default) has its default Editor role stripped.
+# We must explicitly grant it permissions to build, read sources from GCS, and push to Artifact Registry.
+PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")
+COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+
+echo "Configuring Cloud Build permissions for Default Compute SA ($COMPUTE_SA)..."
+BUILD_ROLES=(
+    "roles/storage.admin"            # Needs to read/write source and logs in GCS
+    "roles/artifactregistry.writer"  # Needs to push the compiled image
+    "roles/logging.logWriter"        # Needs to write build logs
+)
+
+for ROLE in "${BUILD_ROLES[@]}"; do
+    gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+        --member="serviceAccount:${COMPUTE_SA}" \
         --role="$ROLE" \
         --condition=None \
         --quiet
