@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy Python application files
 COPY app/main.py /app/
+COPY app/config.py /app/
 COPY app/ai_question_generator.py /app/
 COPY app/simulation.py /app/
 COPY app/vertex_rag.py /app/
