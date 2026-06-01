@@ -30,6 +30,13 @@
             flex: 1;
             padding: 20px;
             overflow-y: auto;
+            margin-right: 400px; /* Space for the fixed sidebar */
+        }
+        
+        @media (max-width: 1024px) {
+            .questionnaire-section {
+                margin-right: 0;
+            }
         }
         
         /* Questionnaire-specific chat styles */
@@ -119,44 +126,6 @@
             }
             30% {
                 transform: translateY(-10px);
-            }
-        }
-        
-        /* Responsive: Hide chat on mobile, show toggle */
-        @media (max-width: 768px) {
-            .chat-sidebar {
-                position: fixed;
-                right: -400px;
-                top: 0;
-                bottom: 0;
-                transition: right 0.3s;
-                z-index: 1000;
-            }
-            
-            .chat-sidebar.open {
-                right: 0;
-            }
-            
-            .mobile-chat-toggle {
-                position: fixed;
-                bottom: 20px;
-                right: 20px;
-                width: 60px;
-                height: 60px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                border: none;
-                border-radius: 50%;
-                font-size: 24px;
-                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-                cursor: pointer;
-                z-index: 999;
-            }
-        }
-        
-        @media (min-width: 769px) {
-            .mobile-chat-toggle {
-                display: none;
             }
         }
         
