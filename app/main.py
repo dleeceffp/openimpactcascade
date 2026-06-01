@@ -316,8 +316,15 @@ def generate():
     
     # POST - generate the questionnaire
     try:
+        # Preserve auth state if present
+        was_authenticated = session.get('authenticated')
+        
         # Clear entire session to prevent cookie overflow from stale data
         session.clear()
+        
+        # Restore auth state
+        if was_authenticated:
+            session['authenticated'] = True
         
         # Generate new session ID for context storage
         new_session_id = str(uuid.uuid4())
