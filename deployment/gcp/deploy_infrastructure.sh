@@ -227,8 +227,10 @@ gcloud builds submit "$PROJECT_ROOT" \
 # =============================================================================
 echo "Deploying to Cloud Run..."
 
-# Set up Vertex AI Corpus Placeholder (You can override this as needed)
-read -p "Enter VERTEX_RAG_CORPUS ID or name (leave blank if not using): " VERTEX_RAG_CORPUS
+# Set up Vertex AI Corpus Placeholder
+# Uncomment if using Vertex AI RAG Corpus functionality
+# read -p "Enter VERTEX_RAG_CORPUS ID or name (leave blank if not using): " VERTEX_RAG_CORPUS
+VERTEX_RAG_CORPUS=""
 
 gcloud run deploy "$APP_NAME" \
     --image "$IMAGE_TAG" \

@@ -3,13 +3,13 @@
 # Features: Chat assistant, FAIR methodology, layered controls toggle
 # Port: 8080
 
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies and apply security updates
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     gcc \
     g++ \
     && rm -rf /var/lib/apt/lists/*
@@ -27,6 +27,9 @@ COPY app/simulation.py /app/
 COPY app/vertex_rag.py /app/
 COPY app/user_tracking.py /app/
 COPY app/context_storage.py /app/
+
+# Copy corpus module
+COPY app/corpus/ /app/corpus/
 
 # Copy static assets directory structure
 COPY app/static/ /app/static/
@@ -54,5 +57,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8080/', timeout=5)"
 
-# Run the application
-CMD ["python", "main.py"]
+# Run the application using gunicorn for production
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
