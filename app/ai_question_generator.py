@@ -17,6 +17,8 @@ from user_tracking import get_tracker, create_api_metadata
 from corpus.retrieve import get_rag_engine as get_corpus_retriever
 
 
+from config import OIC_MODEL, OIC_MODEL_FAST, OIC_MODEL_DEEP, build_system
+
 class AIQuestionGeneratorWithRAGAndRationale:
     """
     AI Question Generator with RAG grounding, intelligent web search, and rationales.
@@ -58,6 +60,8 @@ class AIQuestionGeneratorWithRAGAndRationale:
         # Google Search API credentials
         self.google_search_api_key = google_search_api_key or os.environ.get('GOOGLE_SEARCH_API_KEY')
         self.google_search_cse_id = google_search_cse_id or os.environ.get('GOOGLE_SEARCH_CSE_ID')
+        
+        self.model = OIC_MODEL
         
         # Validate web search configuration
         if self.enable_web_search:
@@ -615,9 +619,9 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
                 
                 # Call Claude API
                 response = self.client.messages.create(
-                    model="claude-sonnet-4-20250514",
+                    model=self.model,
                     max_tokens=16000,
-                    system=self.system_prompt,
+                    system=build_system(self.system_prompt),
                     messages=[{
                         "role": "user",
                         "content": user_message
@@ -662,7 +666,7 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
                     user_id=original_user_id,
                     hashed_user_id=metadata['user_id'],
                     api_type='questionnaire_generation_intelligent_web_rag',
-                    model='claude-sonnet-4-20250514',
+                    model=self.model,
                     request_id=response.id,
                     metadata={
                         'industry': industry,

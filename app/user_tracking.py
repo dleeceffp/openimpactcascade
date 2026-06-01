@@ -30,6 +30,8 @@ LOG_DIR = './logs/api_calls'
 os.makedirs(LOG_DIR, exist_ok=True)
 
 
+from config import OIC_MODEL
+
 class UserTracker:
     """Manages user ID generation, hashing, and API call logging."""
     
@@ -295,7 +297,7 @@ if __name__ == '__main__':
             user_id=user_id,
             hashed_user_id=hashed_id,
             api_type='questionnaire_generation' if i % 2 == 0 else 'chat_assist',
-            model='claude-sonnet-4-20250514',
+            model=OIC_MODEL,
             request_id=f'req_{uuid.uuid4().hex[:16]}',
             metadata={'industry': 'Healthcare', 'region': 'Canada'}
         )

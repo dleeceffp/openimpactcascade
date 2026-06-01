@@ -18,6 +18,8 @@ from ai_question_generator import AIQuestionGeneratorWithRAGAndRationale
 from user_tracking import get_tracker, create_api_metadata
 from context_storage import get_context_storage
 
+from config import OIC_MODEL, OIC_MODEL_FAST, OIC_MODEL_DEEP, build_system
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -599,9 +601,9 @@ Return JSON format:
         original_user_id = api_metadata.pop('_original_user_id')
         
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model=OIC_MODEL,
             max_tokens=4000,
-            system=system_prompt,
+            system=build_system(system_prompt),
             messages=[{"role": "user", "content": user_prompt}],
             metadata=api_metadata
         )
@@ -611,7 +613,7 @@ Return JSON format:
             user_id=original_user_id,
             hashed_user_id=api_metadata['user_id'],
             api_type='scenario_refinement',
-            model='claude-sonnet-4-20250514',
+            model=OIC_MODEL,
             request_id=response.id
         )
         
@@ -988,10 +990,10 @@ Be concise, practical, and supportive."""
     
     # Call Claude
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=OIC_MODEL,
         max_tokens=2048,
         temperature=0.3,
-        system=system_prompt,
+        system=build_system(system_prompt),
         messages=[
             {"role": "user", "content": user_prompt}
         ],
@@ -1004,7 +1006,7 @@ Be concise, practical, and supportive."""
         user_id=original_user_id,
         hashed_user_id=api_metadata['user_id'],
         api_type='chat_assist',
-        model='claude-sonnet-4-20250514',
+        model=OIC_MODEL,
         request_id=message.id,
         metadata={
             'version': VERSION,
