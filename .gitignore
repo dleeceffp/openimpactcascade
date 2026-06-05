@@ -23,6 +23,7 @@ generated/*
 !generated/.gitkeep
 app/generated/*
 !app/generated/.gitkeep
+!app/generated/cascade_archetypes/
 
 # OS/IDE
 .DS_Store
