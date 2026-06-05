@@ -18,7 +18,11 @@ from ai_question_generator import AIQuestionGeneratorWithRAGAndRationale
 from user_tracking import get_tracker, create_api_metadata
 from context_storage import get_context_storage
 
-from config import OIC_MODEL, OIC_MODEL_FAST, OIC_MODEL_DEEP, build_system
+from config import (
+    OIC_MODEL, OIC_MODEL_FAST, OIC_MODEL_DEEP, build_system,
+    OIC_CARDS_ENABLED, OIC_ARCHETYPE_SELECT, OIC_ARCHETYPE_LIMIT,
+)
+from cards.library import get_card_library
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -310,9 +314,23 @@ def generate():
         return render_template('error.html', 
             error="AI question generation is not available. Please set ANTHROPIC_API_KEY environment variable."), 503
     
+    archetype_step = OIC_CARDS_ENABLED and OIC_ARCHETYPE_SELECT
+
     if request.method == 'GET':
-        # Show the generation form
-        return render_template('generate.html', version=VERSION)
+        # Show the generation form. When the archetype step is enabled, surface
+        # the available cascade archetypes for the selection dropdown.
+        archetypes = []
+        if archetype_step:
+            try:
+                archetypes = get_card_library().archetypes_for('', None, OIC_ARCHETYPE_LIMIT)
+            except Exception as e:
+                logger.error(f"[{VERSION}] Failed to load archetypes: {e}", exc_info=True)
+        return render_template(
+            'generate.html',
+            version=VERSION,
+            archetype_step=archetype_step,
+            archetypes=archetypes,
+        )
     
     # POST - generate the questionnaire
     try:
@@ -354,6 +372,18 @@ def generate():
             org_size = org_size[:100]
             logger.info(f"[{VERSION}] Sanitized organization size: '{org_size}'")
         
+        # Resolve optional cascade-archetype selection (Path A grounded mode).
+        # 'none'/'ai_suggest'/empty -> existing web-search behavior (fallback).
+        archetype_card = None
+        if archetype_step:
+            selected_id = request.form.get('selected_archetype_id', '').strip()
+            if selected_id and selected_id not in ('none', 'ai_suggest'):
+                archetype_card = get_card_library().get(selected_id)
+                if archetype_card is None:
+                    logger.warning(f"[{VERSION}] Unknown archetype id '{selected_id}'; falling back to web-only")
+                else:
+                    logger.info(f"[{VERSION}] Grounding on cascade archetype: {selected_id}")
+        
         logger.info(f"[{VERSION}] Generating questionnaire for {industry} in {region}" + 
                    (f" (org size: {org_size})" if org_size else ""))
         
@@ -369,7 +399,8 @@ def generate():
             region=region,
             organization_size=org_size if org_size else None,
             user_id=user_id,
-            max_retries=2
+            max_retries=2,
+            archetype_card=archetype_card
         )
         
         # Save to file
@@ -381,6 +412,7 @@ def generate():
             'industry': industry,
             'region': region,
             'organization_size': org_size,
+            'selected_archetype_id': archetype_card.id if archetype_card else None,
             'generated_at': datetime.now().isoformat(),
             'version': VERSION
         }
@@ -393,6 +425,39 @@ def generate():
         logger.error(f"[{VERSION}] Error generating questionnaire: {e}", exc_info=True)
         return render_template('error.html', 
             error=f"Failed to generate questionnaire: {str(e)}"), 500
+
+@app.route('/archetype/view/<archetype_id>')
+def archetype_view(archetype_id):
+    """Render a full cascade-archetype card as a standalone HTML page.
+
+    Linked from the generate form's archetype selector (opens in a new tab) so
+    the presenter can read the complete cascade without losing the in-progress
+    selection. A Back button returns to the selection.
+    """
+    if not (OIC_CARDS_ENABLED and OIC_ARCHETYPE_SELECT):
+        return render_template('error.html',
+            error="Cascade archetypes are not enabled."), 404
+
+    card = get_card_library().get(archetype_id)
+    if card is None:
+        return render_template('error.html',
+            error=f"Cascade archetype '{archetype_id}' not found."), 404
+
+    # Render the card's markdown body to HTML. Fall back to preformatted text
+    # if the markdown package is unavailable so the page still works.
+    try:
+        import markdown as _md
+        body_html = _md.markdown(card.body, extensions=['tables', 'fenced_code'])
+    except Exception:
+        from html import escape as _escape
+        body_html = f"<pre>{_escape(card.body)}</pre>"
+
+    return render_template(
+        'archetype_view.html',
+        version=VERSION,
+        card=card,
+        body_html=body_html,
+    )
 
 @app.route('/generate-custom', methods=['GET', 'POST'])
 def generate_custom():

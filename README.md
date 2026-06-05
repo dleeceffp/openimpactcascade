@@ -40,6 +40,37 @@ OpenImpactCascade is a Flask-based web application that generates custom cyberse
 - Source verification before citation
 - Transparent about data limitations
 
+### 🧬 Cascade-Archetype Grounding (Path A) — flag-gated
+Optional grounded-analysis mode for the **AI-Generated Questionnaire**. After choosing
+industry and region (and org size), the presenter can select a **curated cascade archetype**
+— a compressed, authoritative attack cascade — to anchor the assessment.
+
+- **Selection step:** a dropdown on the generate form lists the available archetypes plus
+  *"Let AI suggest threats"* (the existing web-only fallback, unchanged).
+- **Full cascade view:** a *"View full cascade ↗"* link opens the complete card as a rendered
+  HTML page (`/archetype/view/<id>`) in a **new tab**, with a Back button — so the in-progress
+  selection is never lost.
+- **Grounding pipeline (improves question quality):** when an archetype is selected, the
+  generator assembles, **before the LLM is called**:
+  1. the **cascade card** (authoritative, verbatim — the foundational block),
+  2. a **cascade-grounded web search** — industry + region + card facts (`dbir_pattern`,
+     anchor incident, regulatory drivers) form the query set, so Google Custom Search enriches
+     *frequency/magnitude* framing rather than re-discovering the threat, and
+  3. the **system context**.
+  Precedence is enforced: web/industry context informs how often / how costly, and must **not**
+  alter the cascade's steps or chokepoints.
+- **Metadata:** generated questionnaires record `grounding_mode` (`cascade` | `web_only`),
+  `selected_archetype_id`, and `selected_card_ids`.
+- **Cards location:** `app/generated/cascade_archetypes/oic-ca-*.md`. Only this folder is copied
+  into the Docker image; the detailed source flows remain in the codebase for now.
+- **Default OFF.** With the flags unset the application behaves exactly as before (web-only
+  generation). See **Configuration** below.
+
+### 🎯 Custom Risk Scenario (Path B) — directional
+The "Custom Risk Scenario Assessment" card is the **quick, directional** option: define any
+threat scenario in your own words and get a fast questionnaire focused on it. Best when no
+grounded archetype fits; for credible structured analysis, use Path A with a cascade archetype.
+
 ### 📊 Enhanced FAIR Risk Analysis
 - **TEF × Vulnerability Decomposition**: Separates attack attempts from success probability
 - **Threat Event Frequency (TEF)**: How often attackers attempt attacks
@@ -86,9 +117,12 @@ app/
 │   ├── retrieve.py                     # Deterministic slice retrieval from index
 │   ├── build_index.py                  # Scans and validates corpus, builds _index.json
 │   └── schema.py                       # Frontmatter schema, vocabularies, and governance
+├── cards/                              # Cascade-archetype card library (flag-gated)
+│   └── library.py                      # Card loader (frontmatter+body parse, archetypes_for)
 ├── templates/
 │   ├── home.html                       # Landing page
-│   ├── generate.html                   # Standard questionnaire form
+│   ├── generate.html                   # Standard questionnaire form (+ archetype dropdown)
+│   ├── archetype_view.html             # Full cascade archetype rendered as HTML
 │   ├── generate_custom.html            # Custom scenario generator
 │   ├── questionnaire_chat_rationale.html  # Interactive questionnaire with chat
 │   ├── results.html                    # Analysis results with chat sidebar
@@ -98,6 +132,7 @@ app/
 │   └── about_probability_weighting.html # Probability weighting explanation
 ├── static/                             # Static assets (CSS, JS, images)
 ├── generated/                          # Generated questionnaires saved here
+│   └── cascade_archetypes/             # Curated cascade-archetype cards (oic-ca-*.md)
 ├── logs/
 │   └── api_calls/                      # API call logs (JSONL format)
 ├── requirements.txt                    # Python dependencies
@@ -165,6 +200,25 @@ GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
 GOOGLE_CLOUD_PROJECT=your-project-id
 EOF
 ```
+
+**Cascade-Archetype Grounding (optional, default OFF):**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OIC_CARDS_ENABLED` | `0` | Load the cascade-archetype card library and allow card grounding. Set to `1` to enable. |
+| `OIC_ARCHETYPE_SELECT` | `0` | Show the archetype selection dropdown on the generate form. Set to `1` to enable. |
+| `OIC_ARCHETYPE_LIMIT` | `3` | Maximum number of archetypes surfaced in the dropdown. |
+| `OIC_CARDS_DIR` | `generated/cascade_archetypes` | Directory (relative to the app working dir / `/app` in Docker) holding `oic-ca-*.md` cards. |
+
+```bash
+# Enable Path A cascade-archetype grounding for the demo
+export OIC_CARDS_ENABLED=1
+export OIC_ARCHETYPE_SELECT=1
+```
+
+> Both flags must be `1` for the selection step and the `/archetype/view/<id>` page to appear.
+> Google Custom Search keys (`GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_CSE_ID`) are still used for
+> the cascade-grounded web search; without them, generation falls back to card-only grounding.
 
 ### 3. Create Directories
 
@@ -339,8 +393,9 @@ For complete implementation details, see:
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/` | Home page |
-| GET | `/generate` | Questionnaire generation form |
-| POST | `/generate` | Generate questionnaire (requires industry, region) |
+| GET | `/generate` | Questionnaire generation form (shows archetype dropdown when flags enabled) |
+| POST | `/generate` | Generate questionnaire (requires industry, region; optional `selected_archetype_id`) |
+| GET | `/archetype/view/<id>` | Render a full cascade archetype as an HTML page (flag-gated) |
 | GET | `/questionnaire` | Display generated questionnaire |
 | POST | `/analyze` | Run Monte Carlo simulation |
 | POST | `/chat/assist` | AI chat assistance (AJAX) |
@@ -634,6 +689,86 @@ ls -la ./logs/api_calls/
 
 ---
 
+## ✅ Cascade-Archetype Test Plan
+
+Use this checklist to validate the cascade-archetype grounding feature (Path A) before/at the demo.
+It is organized so you can run the **flags-OFF regression** first (prove nothing broke), then the
+**flags-ON feature** tests.
+
+### Pre-flight
+
+```bash
+# 1. Confirm the cards are present and parse (no server needed)
+python -c "import sys; sys.path.insert(0,'app'); from cards.library import CardLibrary; \
+lib=CardLibrary('app/generated/cascade_archetypes'); lib.load(); \
+print('cards:', [c.id for c in lib.all()])"
+# Expect: cards: ['oic-ca-001-b', 'oic-ca-010', 'oic-ca-011']
+
+# 2. Byte-compile the edited modules
+python -m py_compile app/config.py app/cards/library.py app/ai_question_generator.py app/main.py
+```
+
+### A. Regression — flags OFF (default)
+
+> Goal: prove the app is unchanged when the feature is disabled.
+
+| # | Step | Expected result |
+|---|------|-----------------|
+| A1 | Start app with `OIC_CARDS_ENABLED` / `OIC_ARCHETYPE_SELECT` **unset** | App boots; `/health` returns healthy |
+| A2 | Open `/generate` | **No** archetype dropdown is shown; only industry/region/org size |
+| A3 | Generate a questionnaire (Healthcare / Canada) | Succeeds exactly as before; metadata `grounding_mode` = `web_only` (or absent) |
+| A4 | Visit `/archetype/view/oic-ca-010` | Returns the error page with HTTP 404 ("not enabled") |
+| A5 | Home page | Path A = "grounded analysis", Path B = "directional" copy renders correctly |
+
+### B. Feature — flags ON
+
+```bash
+export OIC_CARDS_ENABLED=1
+export OIC_ARCHETYPE_SELECT=1
+# restart the app
+```
+
+| # | Step | Expected result |
+|---|------|-----------------|
+| B1 | Open `/generate` | Archetype **dropdown** appears after org size, defaulting to *"Let AI suggest threats"* |
+| B2 | Open the dropdown | Lists the 3 archetypes (`001-b` ransomware, `010` IT→OT pivot, `011` SIS), each with an `[IT]`/`[OT]` badge; scenario hint updates on change |
+| B3 | Select an archetype (e.g. `010`) | *"View full cascade ↗"* link appears |
+| B4 | Click *"View full cascade ↗"* | Opens `/archetype/view/oic-ca-010` in a **new tab**, rendered as HTML (headings, lists), with a **Back** button; the generate form is untouched in the original tab |
+| B5 | Click **Back** on the view page | New tab closes (or navigates back to the form); the in-progress selection is preserved |
+| B6 | Choose `oic-ca-001-b` + Healthcare/Canada and Generate | Server log shows `Grounding on cascade archetype: oic-ca-001-b` and a **cascade-grounded** web search; questionnaire generates |
+| B7 | Inspect generated questionnaire metadata | `grounding_mode` = `cascade`, `selected_archetype_id` = `oic-ca-001-b`, `selected_card_ids` = `["oic-ca-001-b"]` |
+| B8 | Review questions | Exposure questions reflect the cascade's chokepoints; rationales cite the archetype/anchor incident; web context shaped frequency/magnitude (not new threats) |
+| B9 | Select *"Let AI suggest threats"* and Generate | Falls back to the existing web-only path; `grounding_mode` = `web_only` |
+| B10 | Generate with an OT archetype (`010`/`011`) | Cascade-grounded queries use the card's `dbir_pattern` and anchor incident (check server log query lines) |
+
+### C. Edge cases
+
+| # | Step | Expected result |
+|---|------|-----------------|
+| C1 | POST `/generate` with an unknown `selected_archetype_id` | Logs a warning and falls back to web-only generation (no crash) |
+| C2 | Visit `/archetype/view/does-not-exist` (flags ON) | Error page, HTTP 404 ("not found") |
+| C3 | `markdown` package missing | View page still renders the card as preformatted text (graceful fallback) |
+| C4 | Generate with web search keys absent | Card-only grounding still produces a questionnaire |
+
+### D. Docker / deploy validation
+
+```bash
+docker build -t openimpactcascade:demo .
+
+# Confirm the cards shipped inside the image
+docker run --rm openimpactcascade:demo ls /app/generated/cascade_archetypes
+# Expect the three oic-ca-*.md files
+
+docker run -p 8080:8080 \
+  -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  -e SECRET_KEY=$SECRET_KEY \
+  -e OIC_CARDS_ENABLED=1 -e OIC_ARCHETYPE_SELECT=1 \
+  openimpactcascade:demo
+# Then re-run section B against the container
+```
+
+---
+
 ## 🐛 Troubleshooting
 
 ### Common Issues
@@ -887,10 +1022,10 @@ Before deploying to production:
 
 ---
 
-**Version**: 2.2.1 (LEF Decomposition)  
-**Last Updated**: January 2026  
+**Version**: 2.2.1 (LEF Decomposition) + Cascade-Archetype Grounding (Path A, flag-gated)  
+**Last Updated**: June 2026  
 **Status**: Production Ready (Evaluation Mode)  
-**Key Enhancement**: TEF × Vulnerability decomposition for improved FAIR risk analysis
+**Key Enhancement**: TEF × Vulnerability decomposition; optional cascade-archetype grounding with cascade-grounded web search
 
 For detailed safeguards implementation, see **[SAFEGUARDS_README.md](SAFEGUARDS_README.md)**  
 For LEF decomposition methodology, see **[FAIR_LEF_DECOMPOSITION_PROPOSAL.md](documentation/FAIR_LEF_DECOMPOSITION_PROPOSAL.md)**

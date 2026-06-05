@@ -287,6 +287,27 @@
                 <p class="help-text">Helps calibrate risk estimates to your organization's scale</p>
             </div>
             
+            {% if archetype_step %}
+            <div class="form-group">
+                <label for="selected_archetype_id">Cascade Archetype (Optional)</label>
+                <select id="selected_archetype_id" name="selected_archetype_id"
+                        data-view-url="{{ url_for('archetype_view', archetype_id='__ID__') }}">
+                    <option value="ai_suggest" data-scenario="AI proposes the top threats from current intelligence.">
+                        Let AI suggest threats from current intelligence
+                    </option>
+                    {% for c in archetypes %}
+                    <option value="{{ c.id }}" data-scenario="{{ c.scenario_line }}">
+                        {{ c.label }}{% if c.domain %} [{{ c.domain|upper }}]{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <p class="help-text" id="archetypeScenario">Ground the questionnaire on a curated attack cascade, or let AI propose threats.</p>
+                <p class="help-text">
+                    <a id="viewCascadeLink" href="#" target="_blank" rel="noopener" style="display:none; font-weight:600;">View full cascade &#8599;</a>
+                </p>
+            </div>
+            {% endif %}
+            
             <div class="button-group">
                 <button type="button" class="btn-secondary" onclick="window.location.href='{{ url_for('home') }}'">
                     Cancel
@@ -339,6 +360,34 @@
                 clearInterval(window.stepInterval);
             }
         });
+
+        // Cascade-archetype selector: update the scenario hint and the
+        // "View full cascade" link (opens the full card in a new tab).
+        (function () {
+            const select = document.getElementById('selected_archetype_id');
+            if (!select) return;
+            const link = document.getElementById('viewCascadeLink');
+            const scenario = document.getElementById('archetypeScenario');
+            const viewUrlTemplate = select.getAttribute('data-view-url');
+
+            function update() {
+                const opt = select.options[select.selectedIndex];
+                const id = select.value;
+                if (scenario && opt) {
+                    scenario.textContent = opt.getAttribute('data-scenario') || '';
+                }
+                if (link) {
+                    if (id && id !== 'ai_suggest' && id !== 'none') {
+                        link.href = viewUrlTemplate.replace('__ID__', encodeURIComponent(id));
+                        link.style.display = 'inline';
+                    } else {
+                        link.style.display = 'none';
+                    }
+                }
+            }
+            select.addEventListener('change', update);
+            update();
+        })();
     </script>
 </body>
 </html>

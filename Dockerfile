@@ -32,6 +32,13 @@ COPY app/context_storage.py /app/
 # Copy corpus module
 COPY app/corpus/ /app/corpus/
 
+# Copy cascade-archetype card library module
+COPY app/cards/ /app/cards/
+
+# Copy ONLY the compressed cascade-archetype cards (not other generated artifacts).
+# The detailed source flows are intentionally left out of the image for now.
+COPY app/generated/cascade_archetypes/ /app/generated/cascade_archetypes/
+
 # Copy static assets directory structure
 COPY app/static/ /app/static/
 

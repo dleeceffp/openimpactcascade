@@ -441,12 +441,87 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         
         return "\n".join(formatted)
 
+    def _assemble_card_grounding(self, card) -> str:
+        """Assemble a cascade-archetype card into a verbatim grounding block.
+
+        Card facts enter the prompt VERBATIM (no LLM, no paraphrase). The body is
+        already presentation-ready markdown holding the cascade and the
+        likelihood/impact mitigation split; we wrap it with a header and clear
+        delimiters so it occupies the foundational/authoritative slot.
+        """
+        fm = card.frontmatter or {}
+        header_lines = [
+            "=" * 70,
+            "AUTHORITATIVE CASCADE ARCHETYPE (grounding base - do not alter)",
+            "=" * 70,
+            f"Archetype ID: {card.id}",
+            f"Label: {card.label}",
+        ]
+        if card.domain:
+            header_lines.append(f"Domain: {card.domain.upper()}")
+        if card.entry:
+            header_lines.append(f"Entry: {card.entry}")
+        if card.terminal_impact:
+            header_lines.append(f"Terminal impact: {card.terminal_impact}")
+        if fm.get("applies_when"):
+            header_lines.append(f"Applies when: {fm.get('applies_when')}")
+        if card.anchor_incident:
+            header_lines.append(f"Anchor incident: {card.anchor_incident}")
+        header_lines.append("=" * 70)
+
+        return "\n".join(header_lines) + "\n\n" + (card.body or "") + "\n" + ("=" * 70)
+
+    def _generate_card_grounded_queries(
+        self,
+        industry: str,
+        region: str,
+        card,
+        rag_analysis: Dict,
+        max_queries: int = 4
+    ) -> List[Tuple[str, str]]:
+        """Compose web-search queries grounded on the cascade card + industry.
+
+        The card already owns the attack; these queries target INDUSTRY CONTEXT
+        for this archetype (prevalence, loss magnitude, regulation, recency) so
+        the search enriches frequency/magnitude framing without re-discovering
+        the threat. Replaces the RAG-gap queries when an archetype is selected.
+        """
+        queries: List[Tuple[str, str]] = []
+        current_year = datetime.now().year
+        current_month = datetime.now().strftime('%B')
+        pattern = card.dbir_pattern or "cyberattack"
+
+        # 1) Sector prevalence / recent incidents for this archetype pattern.
+        queries.append((
+            f"{industry} {pattern} incidents {region} {current_month} {current_year}",
+            "archetype_prevalence"
+        ))
+        # 2) Loss magnitude / breach cost for the sector.
+        queries.append((
+            f"cost of data breach {industry} {current_year} loss magnitude IBM Ponemon",
+            "breach_statistics"
+        ))
+        # 3) Regulatory drivers for the sector + region.
+        queries.append((
+            f"{industry} {region} cybersecurity regulatory requirements {current_year}",
+            "regulatory_drivers"
+        ))
+        # 4) Frequency / prevalence signal anchored to the documented campaign.
+        anchor = card.anchor_incident or card.label
+        queries.append((
+            f"{industry} attacks like {anchor} frequency {current_year}",
+            "archetype_frequency"
+        ))
+
+        return queries[:max_queries]
+
     def _perform_intelligent_web_search(
         self,
         industry: str,
         region: str,
         rag_analysis: Dict,
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        card=None
     ) -> Tuple[str, List[Dict]]:
         """
         Perform intelligent, RAG-informed web searches targeting identified gaps.
@@ -463,10 +538,12 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         if not self.enable_web_search:
             return "", []
         
-        print("🔍 Performing intelligent web search (RAG-informed)...")
-        
-        # Analyze gaps and generate targeted queries
-        queries = self._generate_targeted_queries(industry, region, rag_analysis)
+        if card is not None:
+            print("🔍 Performing intelligent web search (cascade-grounded)...")
+            queries = self._generate_card_grounded_queries(industry, region, card, rag_analysis)
+        else:
+            print("🔍 Performing intelligent web search (RAG-informed)...")
+            queries = self._generate_targeted_queries(industry, region, rag_analysis)
         
         print(f"   RAG Analysis: {len(rag_analysis.get('gaps', []))} gaps identified")
         print(f"   Generated {len(queries)} targeted search queries")
@@ -522,7 +599,8 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         region: str,
         organization_size: Optional[str] = None,
         user_id: Optional[str] = None,
-        max_retries: int = 3
+        max_retries: int = 3,
+        archetype_card=None
     ) -> Dict:
         """
         Generate risk assessment questionnaire WITH intelligent web search + RAG + rationales.
@@ -533,19 +611,35 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
             organization_size: Optional organization size
             user_id: Optional user ID for tracking
             max_retries: Maximum retry attempts
+            archetype_card: Optional cascade-archetype Card. When provided, the
+                card grounds generation (authoritative foundational block) and
+                the web search is cascade-grounded instead of RAG-grounded.
             
         Returns:
             Generated questionnaire dictionary with source-backed rationales
         """
         print(f"\nGenerating questionnaire for {industry} in {region}")
-        print("   Using intelligent RAG-informed web search + grounding...")
+        if archetype_card is not None:
+            print(f"   Cascade-grounded mode: archetype {archetype_card.id}")
+        else:
+            print("   Using intelligent RAG-informed web search + grounding...")
         
-        # STEP 1: Retrieve RAG grounding context FIRST
+        # STEP 1: Build foundational grounding context FIRST.
         rag_context = ""
         rag_sources_used = []
         rag_contexts = []
+        grounding_mode = "web_only"
         
-        if self.rag_engine and self.rag_engine.enabled:
+        if archetype_card is not None:
+            # Cascade card takes the foundational/authoritative slot the RAG
+            # engine used to occupy. Card facts are injected verbatim.
+            grounding_mode = "cascade"
+            rag_context = self._assemble_card_grounding(archetype_card)
+            # Shim so the existing gap-analysis runs over the card text, letting
+            # the web search target what the card does NOT cover (recency, etc.).
+            rag_contexts = [type("Ctx", (), {"content": rag_context})()]
+            print(f"\u2705 Grounded on cascade archetype {archetype_card.id}")
+        elif self.rag_engine and self.rag_engine.enabled:
             print("🔍 Retrieving grounding context from knowledge base...")
             
             try:
@@ -596,16 +690,19 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
                 industry=industry,
                 region=region,
                 rag_analysis=rag_analysis,
-                user_id=user_id
+                user_id=user_id,
+                card=archetype_card
             )
         
-        # STEP 4: Build user message with BOTH contexts
+        # STEP 4: Build user message with ALL contexts assembled before the LLM call:
+        #         foundational grounding (card or RAG) FIRST, then web context.
         user_message = self._build_user_message_with_contexts(
             industry=industry,
             region=region,
             organization_size=organization_size,
             web_context=web_context,
-            rag_context=rag_context
+            rag_context=rag_context,
+            cascade_mode=(archetype_card is not None)
         )
         
         # STEP 5: Generate with Claude (with retries)
@@ -653,6 +750,10 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
                     'newest_year': rag_analysis.get('newest_year_found', 0)
                 }
                 questionnaire['metadata']['rationale_included'] = True
+                questionnaire['metadata']['grounding_mode'] = grounding_mode
+                if archetype_card is not None:
+                    questionnaire['metadata']['selected_archetype_id'] = archetype_card.id
+                    questionnaire['metadata']['selected_card_ids'] = [archetype_card.id]
                 
                 if web_search_metadata:
                     questionnaire['metadata']['web_search_metadata'] = web_search_metadata
@@ -712,19 +813,34 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         region: str,
         organization_size: Optional[str],
         web_context: str,
-        rag_context: str
+        rag_context: str,
+        cascade_mode: bool = False
     ) -> str:
-        """Build user message with BOTH web search and RAG grounding contexts."""
+        """Build user message with foundational grounding + web search contexts.
+
+        When ``cascade_mode`` is True the foundational block is an authoritative
+        cascade archetype; the framing enforces precedence (industry/web context
+        informs frequency/magnitude only and must NOT alter the cascade).
+        """
         
         message_parts = []
         
-        # Add RAG context FIRST (foundational knowledge)
+        # Add foundational grounding FIRST.
         if rag_context:
             message_parts.append(rag_context)
             message_parts.append("\n" + "="*70)
-            message_parts.append("IMPORTANT: The above RAG context contains authoritative, foundational knowledge.")
-            message_parts.append("Use this context for framework guidance and established threat patterns.")
-            message_parts.append("CITE these sources in your rationale_summary fields.")
+            if cascade_mode:
+                message_parts.append("IMPORTANT: The cascade archetype above is AUTHORITATIVE and FIXED.")
+                message_parts.append("Generate the questionnaire's exposure questions from the cascade's")
+                message_parts.append("chokepoints (the 'Succeeds when ...' prerequisites). The industry/web")
+                message_parts.append("context that follows may inform HOW OFTEN this occurs in this sector,")
+                message_parts.append("HOW COSTLY it tends to be, and which regulations apply - it must NOT")
+                message_parts.append("change, add, or remove cascade steps, prerequisites, or mitigations.")
+                message_parts.append("CITE the archetype and its anchor incident in your rationale_summary fields.")
+            else:
+                message_parts.append("IMPORTANT: The above RAG context contains authoritative, foundational knowledge.")
+                message_parts.append("Use this context for framework guidance and established threat patterns.")
+                message_parts.append("CITE these sources in your rationale_summary fields.")
             message_parts.append("="*70 + "\n")
         
         # Add web search context SECOND (recent supplements)
