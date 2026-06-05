@@ -18,9 +18,9 @@ def build_system(system_prompt: str, cache: bool = True) -> list[dict]:
 
 
 # --- Cascade-archetype card grounding (additive, flag-gated) ---
-# Flag off -> today's behavior exactly (web-search-only generation).
-OIC_CARDS_ENABLED    = os.getenv("OIC_CARDS_ENABLED", "0") == "1"     # load + ground on cards
-OIC_ARCHETYPE_SELECT = os.getenv("OIC_ARCHETYPE_SELECT", "0") == "1"  # show Path A archetype step
+# Default ON. Set the env var to "0" to revert to the legacy web-only behavior.
+OIC_CARDS_ENABLED    = os.getenv("OIC_CARDS_ENABLED", "1") == "1"     # load + ground on cards
+OIC_ARCHETYPE_SELECT = os.getenv("OIC_ARCHETYPE_SELECT", "1") == "1"  # show Path A archetype step
 OIC_ARCHETYPE_LIMIT  = int(os.getenv("OIC_ARCHETYPE_LIMIT", "3"))     # max archetypes surfaced
 # Directory holding the compressed cascade-archetype cards (oic-ca-*.md).
 # Relative to the app working directory (/app in the container).
