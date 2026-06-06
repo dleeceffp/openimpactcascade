@@ -735,6 +735,11 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
                 # Validate rationales
                 self._validate_rationales(questionnaire)
                 
+                # In cascade mode, ENFORCE the single-path contract in code
+                # (do not trust the model): keep one threat + its question tree.
+                if archetype_card is not None:
+                    self._trim_to_single_threat(questionnaire)
+                
                 # Add metadata
                 if 'metadata' not in questionnaire:
                     questionnaire['metadata'] = {}
@@ -807,6 +812,59 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         
         raise RuntimeError(f"Failed to generate questionnaire after {max_retries} attempts")
     
+    def _trim_to_single_threat(self, questionnaire: Dict) -> None:
+        """Enforce the single-threat contract for cascade mode (in place).
+
+        Keeps the first threat choice in the start (threat-selection) question and
+        drops every question node not reachable from it, so the model cannot
+        smuggle extra threats into the cascade-grounded output. The JSON schema is
+        unchanged - the same structure simply contains exactly one threat path.
+        """
+        questions = questionnaire.get('questions')
+        start_id = questionnaire.get('start_question_id')
+        if not isinstance(questions, dict) or start_id not in (questions or {}):
+            return
+
+        start_q = questions[start_id]
+        choices = start_q.get('choices')
+        if not isinstance(choices, list) or len(choices) <= 1:
+            return  # already single-path (or no choices to trim)
+
+        dropped = len(choices) - 1
+        kept_choice = choices[0]
+        start_q['choices'] = [kept_choice]
+
+        def _next_ids(q: Dict) -> List[str]:
+            ids = []
+            nid = q.get('next_question_id')
+            if nid:
+                ids.append(nid)
+            for ch in q.get('choices', []) or []:
+                cnid = ch.get('next_question_id')
+                if cnid:
+                    ids.append(cnid)
+            return ids
+
+        # BFS the reachable question tree from the single kept choice.
+        reachable = {start_id}
+        frontier = [cid for cid in [kept_choice.get('next_question_id')] if cid]
+        while frontier:
+            qid = frontier.pop()
+            if qid in reachable or qid not in questions:
+                continue
+            reachable.add(qid)
+            frontier.extend(_next_ids(questions[qid]))
+
+        removed = [qid for qid in list(questions.keys()) if qid not in reachable]
+        for qid in removed:
+            del questions[qid]
+
+        kept_label = kept_choice.get('text') or kept_choice.get('id') or '?'
+        print(
+            f"⚠️  Cascade mode: model returned {dropped + 1} threats; trimmed to 1 "
+            f"('{kept_label}'). Removed {len(removed)} orphan question nodes."
+        )
+    
     def _build_user_message_with_contexts(
         self,
         industry: str,
@@ -854,6 +912,20 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
             message_parts.append("CITE these sources in your rationale_summary fields with URLs when available.")
             message_parts.append("="*70 + "\n")
         
+        # Threat-count directive branches on whether a cascade archetype grounds
+        # generation: one fixed threat path (cascade) vs the multi-threat default.
+        if cascade_mode:
+            threat_directive = (
+                "Generate EXACTLY ONE threat scenario: the cascade archetype provided "
+                "above. Do NOT invent or add any other threats. Derive this threat's "
+                "questions from the cascade's chokepoints (the 'Succeeds when ...' "
+                "prerequisites) - one exposure question per chokepoint."
+            )
+        else:
+            threat_directive = (
+                "Generate 3-4 threat scenarios relevant to this industry/region."
+            )
+
         # Add generation request with rationale requirements
         message_parts.append(f"""Generate a risk assessment questionnaire for:
 
@@ -866,7 +938,7 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
 1. Use RAG context for foundational threat intelligence and framework guidance
 2. PRIORITIZE web search results for recent incidents and current statistics
 3. The web searches were intelligently selected to fill gaps in RAG knowledge
-4. Generate 3-5 threat scenarios relevant to this industry/region
+4. {threat_directive}
 5. For EACH threat, include a rationale_summary (100-150 tokens) explaining:
    - Which specific sources support this threat (with names, dates, IDs)
    - Why it's relevant to this industry/region
