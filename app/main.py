@@ -504,22 +504,20 @@ def generate_custom():
         
         logger.info(f"[{VERSION}] User ID: {user_id}")
         
-        # Build organization size string that includes custom scenario context
-        org_context = org_size if org_size else ""
-        
-        # Append custom scenario to organization context
+        # Build custom scenario string: combine title + optional description
         if scenario_description:
-            org_context = f"{org_context}\n\nCustom Risk Scenario: {risk_scenario}\nDetails: {scenario_description}".strip()
+            custom_scenario_str = f"{risk_scenario}: {scenario_description}"
         else:
-            org_context = f"{org_context}\n\nCustom Risk Scenario: {risk_scenario}".strip()
+            custom_scenario_str = risk_scenario
         
-        # Generate questionnaire using standard method with custom scenario in context
+        # Generate questionnaire using dedicated custom_scenario path
         questions = ai_generator.generate_questionnaire(
             industry=industry,
             region=region,
-            organization_size=org_context,
+            organization_size=org_size if org_size else None,
             user_id=user_id,
-            max_retries=2
+            max_retries=2,
+            custom_scenario=custom_scenario_str
         )
         
         # Save to file with custom scenario indicator

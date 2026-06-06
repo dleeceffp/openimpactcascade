@@ -34,8 +34,7 @@ process itself. This is in contrast to OT cards (`oic-ca-010`, `oic-ca-011`), wh
 2. **Foothold goes unnoticed** — the loader establishes C2 and persists while disabling defenses.
    *Succeeds when:* there's no behavior-based endpoint detection, and AV/firewall can be disabled without alerting. *(dwell)*
 3. **Privilege escalation & credential access** — the attacker harvests credentials and gains admin/domain rights.
-   *Succeeds when:* admin rights are broadly held and credentials are harvestable from memory or
-   stores. *(spread)*
+   *Succeeds when:* admin rights are broadly held and credentials are harvestable from memory or stores. *(spread)*
 4. **Lateral movement** — admin access is reused across the estate via remote services.
    *Succeeds when:* the network is flat and remote services accept reused credentials without MFA.
    *(spread)*

@@ -33,10 +33,8 @@ devices have no out-of-band path for recovery. Unlike ransomware, the target her
 4. **Lock out the operators** — sessions/credentials are changed so staff can't reverse the commands.
    *Succeeds when:* there's no independent local/manual control path to override the remote session.
    *(size — extends the outage)*
-5. **Inhibit recovery** — field-device (serial-to-Ethernet converter) firmware is overwritten and
-   workstations are wiped, forcing slow on-site manual restoration; UPS reconfigured.
-   *Succeeds when:* device firmware isn't integrity-protected and there's no out-of-band recovery
-   path. *(size — the duration/magnitude driver)*
+5. **Inhibit recovery** — field-device (serial-to-Ethernet converter) firmware is overwritten and workstations are wiped, forcing slow on-site manual restoration; UPS reconfigured.
+   *Succeeds when:* device firmware isn't integrity-protected and there's no out-of-band recovery path. *(size — the duration/magnitude driver)*
 6. **Suppress response** — the customer call centre is flooded (telephonic DoS) to delay awareness.
    *Succeeds when:* response channels share the attack surface and have no fallback. *(dwell)*
 

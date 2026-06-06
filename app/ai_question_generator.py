@@ -600,7 +600,8 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         organization_size: Optional[str] = None,
         user_id: Optional[str] = None,
         max_retries: int = 3,
-        archetype_card=None
+        archetype_card=None,
+        custom_scenario: Optional[str] = None
     ) -> Dict:
         """
         Generate risk assessment questionnaire WITH intelligent web search + RAG + rationales.
@@ -614,6 +615,8 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
             archetype_card: Optional cascade-archetype Card. When provided, the
                 card grounds generation (authoritative foundational block) and
                 the web search is cascade-grounded instead of RAG-grounded.
+            custom_scenario: Optional user-specified risk scenario. When provided,
+                directs the LLM to generate exactly ONE threat path focused on it.
             
         Returns:
             Generated questionnaire dictionary with source-backed rationales
@@ -702,7 +705,8 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
             organization_size=organization_size,
             web_context=web_context,
             rag_context=rag_context,
-            cascade_mode=(archetype_card is not None)
+            cascade_mode=(archetype_card is not None),
+            custom_scenario=custom_scenario
         )
         
         # STEP 5: Generate with Claude (with retries)
@@ -872,13 +876,16 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         organization_size: Optional[str],
         web_context: str,
         rag_context: str,
-        cascade_mode: bool = False
+        cascade_mode: bool = False,
+        custom_scenario: Optional[str] = None
     ) -> str:
         """Build user message with foundational grounding + web search contexts.
 
         When ``cascade_mode`` is True the foundational block is an authoritative
         cascade archetype; the framing enforces precedence (industry/web context
         informs frequency/magnitude only and must NOT alter the cascade).
+        When ``custom_scenario`` is provided the LLM is directed to generate
+        exactly ONE threat path focused on that scenario.
         """
         
         message_parts = []
@@ -912,14 +919,23 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
             message_parts.append("CITE these sources in your rationale_summary fields with URLs when available.")
             message_parts.append("="*70 + "\n")
         
-        # Threat-count directive branches on whether a cascade archetype grounds
-        # generation: one fixed threat path (cascade) vs the multi-threat default.
+        # Threat-count directive branches on generation mode:
+        #   cascade  -> one fixed threat path from the archetype
+        #   custom   -> one threat path focused on the user-specified scenario
+        #   default  -> 3-4 threats relevant to industry/region
         if cascade_mode:
             threat_directive = (
                 "Generate EXACTLY ONE threat scenario: the cascade archetype provided "
                 "above. Do NOT invent or add any other threats. Derive this threat's "
                 "questions from the cascade's chokepoints (the 'Succeeds when ...' "
                 "prerequisites) - one exposure question per chokepoint."
+            )
+        elif custom_scenario:
+            threat_directive = (
+                f"Generate EXACTLY ONE threat scenario focused on the user-selected "
+                f"risk scenario: '{custom_scenario}'. Do NOT generate other unrelated "
+                f"threat scenarios. All questions must be directly relevant to this "
+                f"specific scenario."
             )
         else:
             threat_directive = (
