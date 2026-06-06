@@ -710,7 +710,10 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         )
         
         # STEP 5: Generate with Claude (with retries)
-        print("🤖 Generating questionnaire with Claude...")
+        # Custom-scenario path uses OIC_MODEL_DEEP for higher fidelity on the
+        # single focused scenario; cascade and default paths use self.model.
+        generation_model = OIC_MODEL_DEEP if custom_scenario else self.model
+        print(f"🤖 Generating questionnaire with Claude ({generation_model})...")
         
         for attempt in range(max_retries):
             try:
@@ -720,7 +723,7 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
                 
                 # Call Claude API
                 response = self.client.messages.create(
-                    model=self.model,
+                    model=generation_model,
                     max_tokens=16000,
                     system=build_system(self.system_prompt),
                     messages=[{
@@ -776,7 +779,7 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
                     user_id=original_user_id,
                     hashed_user_id=metadata['user_id'],
                     api_type='questionnaire_generation_intelligent_web_rag',
-                    model=self.model,
+                    model=generation_model,
                     request_id=response.id,
                     metadata={
                         'industry': industry,
