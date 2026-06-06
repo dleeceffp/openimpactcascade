@@ -13,13 +13,18 @@ from scipy import stats
 
 
 def run_monte_carlo(
-    lef_min, lef_mle, lef_max, 
-    lm_min, lm_mle, lm_max, 
+    lef_min, lef_mle, lef_max,
+    lm_min, lm_mle, lm_max,
     n_simulations=10000,
     lef_distribution='pert',
     lm_distribution='lognormal',
     lef_lambda=4,
-    lm_lambda=2
+    lm_lambda=2,
+    odds_reduction=0.0,
+    size_reduction=0.0,
+    max_reduction=0.95,
+    compound_mode=False,
+    seed=None,
 ):
     """
     Run Monte Carlo simulation for risk analysis with configurable distributions.
@@ -40,7 +45,12 @@ def run_monte_carlo(
         lm_distribution: Distribution type for LM ('pert', 'lognormal')
         lef_lambda: PERT lambda for LEF if using PERT (2-6, default 4)
         lm_lambda: PERT lambda for LM if using PERT (2-6, default 2 for right-skew)
-    
+        odds_reduction: Likelihood lever [0, max_reduction] — scales LEF (frequency/vulnerability)
+        size_reduction: Impact lever [0, max_reduction] — scales LM (magnitude)
+        max_reduction: Residual-risk floor; reductions clamp here, never 1.0 (default 0.95)
+        compound_mode: False = product model (default); True = Poisson-frequency × per-event severity sum
+        seed: Optional integer seed for compound-mode reproducibility
+
     Returns:
         dict: Dictionary containing simulation results with keys:
             - mean: Expected annual loss
@@ -49,6 +59,7 @@ def run_monte_carlo(
             - max: Maximum observed loss
             - p10, p25, p50, p75, p90, p95, p99: Percentiles
             - distribution_info: Information about distributions used
+            - levers: Lever inputs actually applied (for audit/transparency)
     """
     
     # Validate inputs
@@ -61,6 +72,18 @@ def run_monte_carlo(
     if lef_min < 0 or lm_min < 0:
         raise ValueError("All values must be non-negative")
     
+    # Clamp lever reductions and compute per-variable factors.
+    # max_reduction keeps a residual-risk floor — neither lever can reach 1.0.
+    # Note: on the lef*lm product, splitting the factor across both variables is
+    # algebraically equivalent to one combined multiplier. Distribution-shape
+    # divergence only materialises in compound_mode=True.
+    odds_reduction = min(max(float(odds_reduction), 0.0), max_reduction)
+    size_reduction = min(max(float(size_reduction), 0.0), max_reduction)
+    freq_factor = 1.0 - odds_reduction
+    mag_factor  = 1.0 - size_reduction
+
+    rng = np.random.default_rng(seed)  # used by compound mode; legacy helpers use global np.random
+
     # Generate Loss Event Frequency samples based on selected distribution
     if lef_distribution == 'pert':
         lef_samples = generate_pert_samples(lef_min, lef_mle, lef_max, n_simulations, lambda_param=lef_lambda)
@@ -77,9 +100,34 @@ def run_monte_carlo(
     else:
         raise ValueError(f"Unknown LM distribution: {lm_distribution}")
     
-    # Calculate Annual Loss for each simulation
-    # Annual Loss = Loss Event Frequency × Loss Magnitude
-    annual_loss = lef_samples * lm_samples
+    # Local closure so the compound path can draw k LM samples without
+    # duplicating the distribution-selection logic.
+    def _draw_lm(k):
+        if lm_distribution == 'pert':
+            return generate_pert_samples(lm_min, lm_mle, lm_max, k, lambda_param=lm_lambda)
+        return generate_lognormal_samples(lm_min, lm_mle, lm_max, k)
+
+    # Calculate Annual Loss — two modes:
+    if not compound_mode:
+        # Current product model, lever-routed.
+        # Behaviour-preserving when reductions are 0.
+        lef_adj = lef_samples * freq_factor
+        lm_adj  = lm_samples  * mag_factor
+        annual_loss = lef_adj * lm_adj
+    else:
+        # Compound model: events occur at the reduced rate; each event draws an
+        # independent (reduced) severity; annual loss is the sum of per-event
+        # severities. Zero-count trials correctly contribute $0.
+        rates  = np.clip(lef_samples * freq_factor, 0.0, None)
+        counts = rng.poisson(rates)
+        total  = int(counts.sum())
+        if total == 0:
+            annual_loss = np.zeros(n_simulations)
+        else:
+            severities = _draw_lm(total) * mag_factor
+            trial_idx  = np.repeat(np.arange(n_simulations), counts)
+            annual_loss = np.zeros(n_simulations)
+            np.add.at(annual_loss, trial_idx, severities)
     
     # Calculate statistics
     results = {
@@ -100,6 +148,12 @@ def run_monte_carlo(
             'lef_lambda': lef_lambda if lef_distribution == 'pert' else None,
             'lm_lambda': lm_lambda if lm_distribution == 'pert' else None
         },
+        'levers': {
+            'odds_reduction': odds_reduction,
+            'size_reduction': size_reduction,
+            'max_reduction': max_reduction,
+            'compound_mode': compound_mode,
+        },
         # Include raw samples for visualization (convert to lists for JSON serialization)
         'samples': {
             'lef': lef_samples.tolist(),
@@ -109,6 +163,25 @@ def run_monte_carlo(
     }
     
     return results
+
+
+def combine_reductions(reductions):
+    """Combine independent reductions multiplicatively: 1 - prod(1 - r).
+
+    Multiple controls on the same lever must compound, not add.
+    Example: three 25% likelihood controls give ≈ 0.578, not 0.75 — and
+    the result never exceeds 1.0.
+
+    Args:
+        reductions: Iterable of fractional reductions in [0, 1]
+
+    Returns:
+        float: Combined reduction in [0, 1)
+    """
+    surv = 1.0
+    for r in reductions:
+        surv *= (1.0 - min(max(float(r), 0.0), 1.0))
+    return 1.0 - surv
 
 
 def generate_pert_samples(min_val, mode_val, max_val, n_samples, lambda_param=4):

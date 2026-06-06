@@ -17,6 +17,10 @@ def build_system(system_prompt: str, cache: bool = True) -> list[dict]:
     return [block]
 
 
+# Monte Carlo simulation mode: compound (Poisson×severity sum) vs product model.
+# Default off for demo stability; validate percentile shift before enabling.
+OIC_MC_COMPOUND = os.getenv("OIC_MC_COMPOUND", "1") == "1"
+
 # --- Cascade-archetype card grounding (additive, flag-gated) ---
 # Default ON. Set the env var to "0" to revert to the legacy web-only behavior.
 OIC_CARDS_ENABLED    = os.getenv("OIC_CARDS_ENABLED", "1") == "1"     # load + ground on cards

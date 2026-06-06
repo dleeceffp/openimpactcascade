@@ -1263,41 +1263,52 @@ def analyze():
 def recalculate():
     """Recalculate simulation with adjusted parameters using enhanced distributions."""
     try:
-        from simulation import run_monte_carlo
-        
+        from simulation import run_monte_carlo, combine_reductions
+        from config import OIC_MC_COMPOUND
+
         data = request.get_json()
-        
+
         # Get parameters
         inputs = data.get('original_inputs')
         likelihood_reduction = data.get('likelihood_reduction', 0) / 100.0
         impact_reduction = data.get('impact_reduction', 0) / 100.0
         n_simulations = min(int(data.get('n_simulations', 10000)), 100000)
-        
-        # Apply reductions
-        adjusted_inputs = {
-            'lef_min': inputs['lef_min'] * (1 - likelihood_reduction),
-            'lef_mle': inputs['lef_mle'] * (1 - likelihood_reduction),
-            'lef_max': inputs['lef_max'] * (1 - likelihood_reduction),
-            'lm_min': inputs['lm_min'] * (1 - impact_reduction),
-            'lm_mle': inputs['lm_mle'] * (1 - impact_reduction),
-            'lm_max': inputs['lm_max'] * (1 - impact_reduction)
-        }
-        
-        logger.info(f"[{VERSION}] Recalculating with likelihood reduction: {likelihood_reduction*100}%, impact reduction: {impact_reduction*100}%")
-        
-        # Run ENHANCED simulation with lognormal for LM
+
+        # The existing 25% vulnerability-management credit is a likelihood/frequency
+        # reduction, not a final-loss haircut. Route it into odds_reduction and
+        # combine multiplicatively with any user-selected likelihood controls.
+        VULN_CREDIT = 0.25
+        odds_reduction = combine_reductions([VULN_CREDIT, likelihood_reduction])
+        size_reduction = impact_reduction
+
+        logger.info(
+            f"[{VERSION}] Recalculating — odds_reduction: {odds_reduction*100:.1f}% "
+            f"(vuln credit + {likelihood_reduction*100:.0f}% slider), "
+            f"size_reduction: {size_reduction*100:.0f}%, compound_mode: {OIC_MC_COMPOUND}"
+        )
+
+        # Run ENHANCED simulation with lognormal for LM.
+        # Levers are applied inside run_monte_carlo; inputs are unchanged.
         new_results = run_monte_carlo(
-            **adjusted_inputs, 
+            lef_min=inputs['lef_min'],
+            lef_mle=inputs['lef_mle'],
+            lef_max=inputs['lef_max'],
+            lm_min=inputs['lm_min'],
+            lm_mle=inputs['lm_mle'],
+            lm_max=inputs['lm_max'],
             n_simulations=n_simulations,
             lef_distribution='pert',
-            lm_distribution='lognormal'
+            lm_distribution='lognormal',
+            odds_reduction=odds_reduction,
+            size_reduction=size_reduction,
+            compound_mode=OIC_MC_COMPOUND,
         )
-        
+
         return jsonify({
             'status': 'success',
             'results': new_results
         })
-        
+
     except Exception as e:
         logger.error(f"[{VERSION}] Recalculation error: {e}")
         return jsonify({
