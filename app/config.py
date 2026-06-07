@@ -29,3 +29,10 @@ OIC_ARCHETYPE_LIMIT  = int(os.getenv("OIC_ARCHETYPE_LIMIT", "3"))     # max arch
 # Directory holding the compressed cascade-archetype cards (oic-ca-*.md).
 # Relative to the app working directory (/app in the container).
 OIC_CARDS_DIR        = os.getenv("OIC_CARDS_DIR", "generated/cascade_archetypes")
+
+# --- Pillar reference grounding (additive, flag-gated) ---
+# Default ON. Set the env var to "0" to disable pillar data loading.
+OIC_PILLARS_ENABLED  = os.getenv("OIC_PILLARS_ENABLED", "1") == "1"
+# Directory holding the pillar YAML files (dbir-*.yaml, netdiligence-*.yaml, etc.)
+# Relative to /app in the container (copied by Dockerfile: COPY app/corpus/ /app/corpus/)
+OIC_PILLARS_DIR      = os.getenv("OIC_PILLARS_DIR", "corpus/ref_pillars")
