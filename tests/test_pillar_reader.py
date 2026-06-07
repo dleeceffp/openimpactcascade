@@ -127,6 +127,51 @@ def test_disabled_flag_no_ops():
 
 
 # -----------------------------------------------------------------------------
+# Public API Methods — has_series() and latest_edition()
+# -----------------------------------------------------------------------------
+
+def test_has_series_true_when_data_present(reader):
+    """has_series returns True when DBIR data is loaded."""
+    from corpus.pillar_crosswalk import SERIES_VERIZON_DBIR
+    assert reader.has_series(SERIES_VERIZON_DBIR) is True
+
+
+def test_has_series_false_when_empty(reader):
+    """has_series returns False for non-existent series."""
+    assert reader.has_series("nonexistent-series") is False
+
+
+def test_has_series_false_when_disabled():
+    """has_series returns False when reader is disabled."""
+    fixtures_dir = Path(__file__).parent / "fixtures" / "pillars"
+    r = PillarReader(pillars_dir=str(fixtures_dir), enabled=False)
+    from corpus.pillar_crosswalk import SERIES_VERIZON_DBIR
+    assert r.has_series(SERIES_VERIZON_DBIR) is False
+
+
+def test_latest_edition_returns_year(reader):
+    """latest_edition returns the edition year for loaded series."""
+    from corpus.pillar_crosswalk import SERIES_VERIZON_DBIR
+    edition = reader.latest_edition(SERIES_VERIZON_DBIR)
+    assert edition == "2025"
+
+
+def test_latest_edition_empty_when_no_data(reader):
+    """latest_edition returns '' for non-existent series."""
+    edition = reader.latest_edition("nonexistent-series")
+    assert edition == ""
+
+
+def test_latest_edition_empty_when_disabled():
+    """latest_edition returns '' when reader is disabled."""
+    fixtures_dir = Path(__file__).parent / "fixtures" / "pillars"
+    r = PillarReader(pillars_dir=str(fixtures_dir), enabled=False)
+    from corpus.pillar_crosswalk import SERIES_VERIZON_DBIR
+    edition = r.latest_edition(SERIES_VERIZON_DBIR)
+    assert edition == ""
+
+
+# -----------------------------------------------------------------------------
 # Coverage Report Test — THE KEY INTEGRITY CHECK
 # -----------------------------------------------------------------------------
 

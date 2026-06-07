@@ -248,6 +248,27 @@ class PillarReader:
             }
         return report
 
+    def has_series(self, series: str) -> bool:
+        """Return True if the reader has loaded data for the given series.
+
+        This is the UI/template gate: it returns False when OIC_PILLARS_ENABLED=0
+        (reader loads nothing) or when the series files are absent.
+        """
+        if not self._loaded:
+            self.load()
+        return self._latest(series) is not None
+
+    def latest_edition(self, series: str) -> str:
+        """Return the edition string for the latest data of a series, or ''.
+
+        Used in templates to show "Verizon DBIR 2025" — returns empty string
+        when series is unavailable so templates can conditional-render.
+        """
+        if not self._loaded:
+            self.load()
+        latest = self._latest(series)
+        return latest.get("edition", "") if latest else ""
+
 
 # Singleton instance (mirrors CardLibrary pattern)
 _reader: Optional[PillarReader] = None

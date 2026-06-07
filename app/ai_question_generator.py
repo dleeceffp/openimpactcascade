@@ -72,16 +72,16 @@ class AIQuestionGeneratorWithRAGAndRationale:
             else:
                 print("✅ Google Custom Search API enabled (intelligent mode)")
         
-        # Initialize Corpus Retriever
+        # Initialize Corpus Retriever (pillar-based grounding)
         if self.enable_rag:
-            self.rag_engine = get_corpus_retriever(enable_fallback=True)
-            if self.rag_engine.enabled:
-                print("✅ File-based Corpus grounding enabled")
+            self.grounding_retriever = get_corpus_retriever(enable_fallback=True)
+            if self.grounding_retriever.enabled:
+                print("✅ Pillar grounding enabled (DBIR likelihood)")
             else:
-                print("⚠️  File-based Corpus index missing/empty - defaulting to intelligent web search")
+                print("⚠️  Pillar grounding unavailable - defaulting to web-only")
         else:
-            self.rag_engine = None
-            print("ℹ️  Corpus grounding disabled by configuration")
+            self.grounding_retriever = None
+            print("ℹ️  Pillar grounding disabled by configuration")
         
         self.system_prompt = self._build_system_prompt()
     
@@ -627,53 +627,35 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         else:
             print("   Using intelligent RAG-informed web search + grounding...")
         
-        # STEP 1: Build foundational grounding context FIRST.
-        rag_context = ""
-        rag_sources_used = []
-        rag_contexts = []
+        # STEP 1: Build foundational grounding context FIRST (card takes authoritative slot).
+        grounding_context = ""
+        grounding_sources = []
+        rag_contexts = []  # Kept for gap analysis shim (mode 3) or empty (modes 1/2)
         grounding_mode = "web_only"
-        
+
         if archetype_card is not None:
-            # Cascade card takes the foundational/authoritative slot the RAG
-            # engine used to occupy. Card facts are injected verbatim.
+            # Cascade card takes the foundational/authoritative slot.
             grounding_mode = "cascade"
-            rag_context = self._assemble_card_grounding(archetype_card)
-            # Shim so the existing gap-analysis runs over the card text, letting
-            # the web search target what the card does NOT cover (recency, etc.).
-            rag_contexts = [type("Ctx", (), {"content": rag_context})()]
+            grounding_context = self._assemble_card_grounding(archetype_card)
+            # Shim so gap-analysis runs over the card text (web search targets gaps).
+            rag_contexts = [type("Ctx", (), {"content": grounding_context})()]
             print(f"\u2705 Grounded on cascade archetype {archetype_card.id}")
-        elif self.rag_engine and self.rag_engine.enabled:
-            print("🔍 Retrieving grounding context from knowledge base...")
-            
+        # Note: Old elif branch removed — retriever no longer feeds foundational slot.
+
+        # STEP 1.5: Fetch pillar likelihood in ALL modes (new layer, not foundational).
+        pillar_likelihood_block = ""
+        pillar_sources = []
+        if self.grounding_retriever and self.grounding_retriever.enabled:
             try:
-                rag_contexts = self.rag_engine.retrieve_risk_identification_context(
-                    industry=industry,
-                    region=region,
-                    organization_size=organization_size,
-                    max_results=5
+                docs = self.grounding_retriever.retrieve_risk_identification_context(
+                    industry=industry, region=region, organization_size=organization_size
                 )
-                
-                if rag_contexts:
-                    print(f"✅ Retrieved {len(rag_contexts)} relevant documents from RAG corpus")
-                    
-                    # Format for prompt
-                    rag_context = self.rag_engine.format_context_for_prompt(rag_contexts)
-                    
-                    # Track sources for metadata
-                    rag_sources_used = [
-                        {
-                            'source': ctx.source,
-                            'relevance': ctx.relevance_score,
-                            'content_preview': ctx.content[:200]
-                        }
-                        for ctx in rag_contexts
-                    ]
-                else:
-                    print("⚠️  No relevant documents found in RAG corpus")
-            
+                if docs:
+                    pillar_likelihood_block = self.grounding_retriever.format_context_for_prompt(docs)
+                    pillar_sources = [{"source": d.source, "relevance": d.relevance_score} for d in docs]
+                    print(f"✅ Pillar likelihood retrieved ({len(docs)} doc(s))")
             except Exception as e:
-                print(f"⚠️  RAG retrieval failed: {e}")
-                # Continue without RAG context
+                print(f"⚠️  Pillar likelihood retrieval failed: {e}")  # Never fatal
         
         # STEP 2: Analyze RAG content to identify gaps
         rag_analysis = self._analyze_rag_content(rag_contexts, industry, region)
@@ -698,13 +680,16 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
             )
         
         # STEP 4: Build user message with ALL contexts assembled before the LLM call:
-        #         foundational grounding (card or RAG) FIRST, then web context.
+        #         foundational grounding (card if mode 3) FIRST,
+        #         pillar likelihood SECOND,
+        #         web context THIRD.
         user_message = self._build_user_message_with_contexts(
             industry=industry,
             region=region,
             organization_size=organization_size,
             web_context=web_context,
-            rag_context=rag_context,
+            grounding_context=grounding_context,
+            pillar_likelihood_block=pillar_likelihood_block,
             cascade_mode=(archetype_card is not None),
             custom_scenario=custom_scenario
         )
@@ -754,24 +739,30 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
                 questionnaire['metadata']['web_search_enabled'] = self.enable_web_search
                 questionnaire['metadata']['web_search_queries'] = len(web_search_metadata)
                 questionnaire['metadata']['web_search_mode'] = 'intelligent_rag_informed'
-                questionnaire['metadata']['rag_grounding_enabled'] = bool(rag_context)
-                questionnaire['metadata']['rag_sources_count'] = len(rag_sources_used)
+                # Legacy RAG keys preserved (now refer to card/cascade grounding)
+                questionnaire['metadata']['rag_grounding_enabled'] = bool(grounding_context)
+                questionnaire['metadata']['rag_sources_count'] = len(grounding_sources)
                 questionnaire['metadata']['rag_analysis'] = {
                     'gaps_identified': rag_analysis.get('gaps', []),
                     'threats_found': list(rag_analysis.get('threats_mentioned', set())),
                     'newest_year': rag_analysis.get('newest_year_found', 0)
                 }
+                # New pillar keys (additive only)
+                questionnaire['metadata']['pillar_grounding_enabled'] = bool(pillar_likelihood_block)
+                if pillar_sources:
+                    questionnaire['metadata']['pillar_sources'] = pillar_sources
+
                 questionnaire['metadata']['rationale_included'] = True
                 questionnaire['metadata']['grounding_mode'] = grounding_mode
                 if archetype_card is not None:
                     questionnaire['metadata']['selected_archetype_id'] = archetype_card.id
                     questionnaire['metadata']['selected_card_ids'] = [archetype_card.id]
-                
+
                 if web_search_metadata:
                     questionnaire['metadata']['web_search_metadata'] = web_search_metadata
-                
-                if rag_sources_used:
-                    questionnaire['metadata']['rag_sources'] = rag_sources_used
+
+                if grounding_sources:
+                    questionnaire['metadata']['rag_sources'] = grounding_sources
                 
                 # Log API call
                 tracker = get_tracker()
@@ -787,8 +778,8 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
                         'web_search_enabled': self.enable_web_search,
                         'web_search_queries': len(web_search_metadata),
                         'web_search_mode': 'intelligent',
-                        'rag_enabled': bool(rag_context),
-                        'rag_sources': len(rag_sources_used),
+                        'rag_enabled': bool(grounding_context),
+                        'rag_sources': len(grounding_sources),
                         'rag_gaps': len(rag_analysis.get('gaps', [])),
                         'rationale_enabled': True
                     }
@@ -798,8 +789,8 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
                 if web_search_metadata:
                     total_results = sum(r.get('results_count', 0) for r in web_search_metadata)
                     print(f"   Intelligent search: {len(web_search_metadata)} targeted queries, {total_results} results")
-                if rag_sources_used:
-                    print(f"   RAG grounding: {len(rag_sources_used)} authoritative sources")
+                if grounding_sources:
+                    print(f"   Cascade grounding: {len(grounding_sources)} authoritative sources")
                 print(f"   Rationales validated for all threats")
                 
                 return questionnaire
@@ -878,7 +869,8 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         region: str,
         organization_size: Optional[str],
         web_context: str,
-        rag_context: str,
+        grounding_context: str,
+        pillar_likelihood_block: str = "",
         cascade_mode: bool = False,
         custom_scenario: Optional[str] = None
     ) -> str:
@@ -889,13 +881,18 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         informs frequency/magnitude only and must NOT alter the cascade).
         When ``custom_scenario`` is provided the LLM is directed to generate
         exactly ONE threat path focused on that scenario.
+
+        Structure:
+            [grounding_context (card, if cascade)] — FIRST, authoritative
+            [pillar_likelihood_block]             — SECOND, subordinate context
+            [web_context]                         — THIRD, recent supplements
         """
-        
+
         message_parts = []
-        
-        # Add foundational grounding FIRST.
-        if rag_context:
-            message_parts.append(rag_context)
+
+        # Add foundational grounding FIRST (card takes authoritative slot in cascade mode).
+        if grounding_context:
+            message_parts.append(grounding_context)
             message_parts.append("\n" + "="*70)
             if cascade_mode:
                 message_parts.append("IMPORTANT: The cascade archetype above is AUTHORITATIVE and FIXED.")
@@ -906,12 +903,25 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
                 message_parts.append("change, add, or remove cascade steps, prerequisites, or mitigations.")
                 message_parts.append("CITE the archetype and its anchor incident in your rationale_summary fields.")
             else:
-                message_parts.append("IMPORTANT: The above RAG context contains authoritative, foundational knowledge.")
+                message_parts.append("IMPORTANT: The above grounding context contains authoritative knowledge.")
                 message_parts.append("Use this context for framework guidance and established threat patterns.")
                 message_parts.append("CITE these sources in your rationale_summary fields.")
             message_parts.append("="*70 + "\n")
-        
-        # Add web search context SECOND (recent supplements)
+
+        # Add pillar likelihood SECOND (subordinate to card, informs framing only).
+        if pillar_likelihood_block:
+            message_parts.append(pillar_likelihood_block)
+            message_parts.append("\n" + "="*70)
+            if cascade_mode:
+                message_parts.append("NOTE: The industry likelihood grounding above shows what is currently")
+                message_parts.append("observed in this sector. It may inform HOW OFTEN or HOW CREDIBLE the")
+                message_parts.append("cascade threat is, but must NOT add, remove, or alter cascade steps.")
+            else:
+                message_parts.append("NOTE: The industry likelihood grounding above is from Verizon DBIR.")
+                message_parts.append("Prioritise these sector-credible threats; cite the publisher.")
+            message_parts.append("="*70 + "\n")
+
+        # Add web search context THIRD (recent supplements).
         if web_context:
             message_parts.append(web_context)
             message_parts.append("\n" + "="*70)
@@ -954,9 +964,9 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
 - Organization Size: {organization_size or 'Not specified'}
 
 **Instructions:**
-1. Use RAG context for foundational threat intelligence and framework guidance
+1. Use grounding context for foundational threat intelligence and framework guidance
 2. PRIORITIZE web search results for recent incidents and current statistics
-3. The web searches were intelligently selected to fill gaps in RAG knowledge
+3. The web searches were intelligently selected to fill gaps in grounding knowledge
 4. {threat_directive}
 5. For EACH threat, include a rationale_summary (100-150 tokens) explaining:
    - Which specific sources support this threat (with names, dates, IDs)

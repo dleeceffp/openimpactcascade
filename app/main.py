@@ -224,6 +224,14 @@ except Exception as e:
     logger.warning(f"[{VERSION}] AI Generator not available: {e}", exc_info=True)
     ai_generator = None
 
+# Eager load pillar reader so first request isn't slow (lazy fallback stays)
+try:
+    from corpus.pillar_reader import get_pillar_reader
+    get_pillar_reader().load()
+    logger.info(f"[{VERSION}] PillarReader eager loaded")
+except Exception as e:
+    logger.warning(f"[{VERSION}] PillarReader eager load failed (will lazy-load): {e}")
+
 # ========== AUTHENTICATION ==========
 
 @app.before_request
