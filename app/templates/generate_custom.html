@@ -409,7 +409,17 @@
                 <li>Get scenario-specific frequency and impact estimates</li>
             </ul>
         </div>
-        
+
+        {% if pillar_grounding_enabled %}
+        <div class="info-box" style="background: #f0f9ff; border-left-color: #0284c7;">
+            <strong>📈 Industry Likelihood Grounding:</strong>
+            <p style="margin: 5px 0 0 0; font-size: 0.9em;">
+                Verizon DBIR {{ dbir_edition or 'latest' }} breach statistics will be used to inform
+                threat likelihood estimates specific to your selected industry.
+            </p>
+        </div>
+        {% endif %}
+
         <form id="generateForm" method="POST" action="{{ url_for('generate_custom') }}">
             <div class="form-group">
                 <label for="industry">Industry <span class="required">*</span></label>
@@ -541,14 +551,17 @@
             </div>
         </form>
         
-        <div id="loading" class="loading">
+        <div id="loading" class="loading" data-max-step="{% if pillar_grounding_enabled %}5{% else %}4{% endif %}" data-step-ms="{% if pillar_grounding_enabled %}7000{% else %}8000{% endif %}">
             <div class="spinner"></div>
             <p><strong>Researching your specific scenario...</strong></p>
             <div class="loading-steps">
-                <div class="loading-step active" id="step1">🔍 Searching for scenario-specific threat intelligence...</div>
-                <div class="loading-step" id="step2">📋 Verifying documented incidents and sources...</div>
-                <div class="loading-step" id="step3">🎯 Building scenario-tailored questions...</div>
-                <div class="loading-step" id="step4">✅ Finalizing custom assessment...</div>
+                <div class="loading-step active" id="step1">
+                    {% if pillar_grounding_enabled %}� Loading industry likelihood data (DBIR {{ dbir_edition or 'latest' }})...{% else %}� Searching for scenario-specific threat intelligence...{% endif %}
+                </div>
+                <div class="loading-step" id="step2">{% if pillar_grounding_enabled %}� Searching for scenario-specific threat intelligence...{% else %}�� Verifying documented incidents and sources...{% endif %}</div>
+                <div class="loading-step" id="step3">{% if pillar_grounding_enabled %}📋 Verifying documented incidents and sources...{% else %}🎯 Building scenario-tailored questions...{% endif %}</div>
+                <div class="loading-step" id="step4">{% if pillar_grounding_enabled %}🎯 Building scenario-tailored questions...{% else %}✅ Finalizing custom assessment...{% endif %}</div>
+                {% if pillar_grounding_enabled %}<div class="loading-step" id="step5">✅ Finalizing custom assessment...</div>{% endif %}
             </div>
             <p style="font-size: 0.9em; color: #666; margin-top: 15px;">
                 This may take 90-120 seconds as we research your specific scenario and find relevant threat intelligence.
@@ -762,13 +775,15 @@
             
             // Animate through the steps
             let currentStep = 1;
+            const maxStep = document.getElementById('loading').dataset.maxStep || 4;
+            const stepMs = document.getElementById('loading').dataset.stepMs || 8000;
             const stepInterval = setInterval(() => {
-                if (currentStep < 4) {
+                if (currentStep < maxStep) {
                     document.getElementById('step' + currentStep).classList.remove('active');
                     currentStep++;
                     document.getElementById('step' + currentStep).classList.add('active');
                 }
-            }, 8000); // Change step every 8 seconds
+            }, parseInt(stepMs, 10));
             
             // Store interval ID to clear if page unloads
             window.stepInterval = stepInterval;

@@ -1,7 +1,7 @@
 """
-Enhanced AI Question Generator with RAG-Informed Intelligent Web Search.
+Enhanced AI Question Generator with currated-context informed Intelligent Web Search.
 
-Version 2.2.1 - Analyzes RAG content to identify gaps, then performs targeted
+Version 2.2.1 - Analyzes currated-context content to identify gaps, then performs targeted
 web searches only for missing information. Avoids duplication.
 
 This is a DROP-IN REPLACEMENT for v213 with identical interface.
@@ -21,14 +21,14 @@ from config import OIC_MODEL, OIC_MODEL_FAST, OIC_MODEL_DEEP, build_system
 
 class AIQuestionGeneratorWithRAGAndRationale:
     """
-    AI Question Generator with RAG grounding, intelligent web search, and rationales.
+    AI Question Generator with currated-context grounding, intelligent web search, and rationales.
     
     Key Enhancements in v221:
-    - RAG-informed search queries (analyzes what RAG has, searches for gaps)
+    - Currated-context informed search queries (analyzes what currated-contexthas, searches for gaps)
     - Reduced query count (2-4 instead of always 5)
-    - Avoids duplicating information RAG already contains
+    - Avoids duplicating information currated-contextalready contains
     - Targets ultra-recent incidents (last 30-60 days)
-    - Adapts to each industry/region/RAG state
+    - Adapts to each industry/region/currated-contextstate
     """
     
     def __init__(
@@ -40,11 +40,11 @@ class AIQuestionGeneratorWithRAGAndRationale:
         google_search_cse_id: Optional[str] = None
     ):
         """
-        Initialize the question generator with RAG and intelligent Google Search.
+        Initialize the question generator with currated-context and intelligent Google Search.
         
         Args:
             api_key: Anthropic API key (or from ANTHROPIC_API_KEY env var)
-            enable_rag: Enable RAG corpus retrieval (default: True)
+            enable_rag: Enable currated-context corpus retrieval (default: True)
             enable_web_search: Enable intelligent web search (default: True)
             google_search_api_key: Google Custom Search API key (or from env)
             google_search_cse_id: Google Custom Search Engine ID (or from env)
@@ -86,7 +86,7 @@ class AIQuestionGeneratorWithRAGAndRationale:
         self.system_prompt = self._build_system_prompt()
     
     def _build_system_prompt(self) -> str:
-        """Build the system prompt with RAG grounding and rationale requirements."""
+        """Build the system prompt with currated-context grounding and rationale requirements."""
         return """You are a cybersecurity risk assessment expert with deep knowledge of:
 
 **FAIR (Factor Analysis of Information Risk) Methodology:**
@@ -206,19 +206,26 @@ You must generate valid, parseable JSON. Follow these critical rules:
 
 Generate high-quality, factually grounded risk assessment questionnaires with concise, source-backed rationales."""
 
-    def _analyze_rag_content(self, rag_contexts: List, industry: str, region: str) -> Dict:
+    def _analyze_rag_content(
+        self,
+        rag_contexts: List,
+        industry: str,
+        region: str,
+        pillar_context: Optional[str] = None
+    ) -> Dict:
         """
-        Analyze RAG content to identify what information exists and what gaps need web search.
-        
+        Analyze grounding content to identify what information exists and what gaps need web search.
+
         Args:
-            rag_contexts: Retrieved RAG context chunks
+            rag_contexts: Retrieved grounding context chunks (card text in cascade mode)
             industry: Target industry
             region: Geographic region
-            
+            pillar_context: Optional pillar likelihood block (DBIR data) to include in analysis
+
         Returns:
-            Dictionary with analysis of RAG content and identified gaps
+            Dictionary with analysis of content and identified gaps
         """
-        if not rag_contexts:
+        if not rag_contexts and not pillar_context:
             return {
                 'has_content': False,
                 'gaps': ['all']  # Search for everything
@@ -237,32 +244,45 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         
         current_year = datetime.now().year
         
-        # Analyze all RAG contexts
+        import re
+
+        # Combine all content sources for analysis
+        all_contents = []
         for ctx in rag_contexts:
-            content_lower = ctx.content.lower()
-            
+            all_contents.append(ctx.content)
+        if pillar_context:
+            all_contents.append(pillar_context)
+            analysis['has_content'] = True
+
+        # Analyze all content sources (currated-context contexts + pillar data)
+        for content in all_contents:
+            content_lower = content.lower()
+
             # Check for current year data
-            if str(current_year) in ctx.content:
+            if str(current_year) in content:
                 analysis['has_current_year_data'] = True
-            
+
             # Check for regional information
             if region.lower() in content_lower:
                 analysis['has_regional_data'] = True
-            
-            # Check for breach statistics
-            if any(term in content_lower for term in ['cost of breach', 'breach cost', 'average loss', 'ibm x-force', 'ponemon']):
+
+            # Check for breach statistics (DBIR counts as breach statistics)
+            if any(term in content_lower for term in [
+                'cost of breach', 'breach cost', 'average loss',
+                'ibm x-force', 'ponemon', 'dbir', 'verizon', 'incident count', 'breach count'
+            ]):
                 analysis['has_breach_statistics'] = True
-            
+
             # Check for recent advisories
             if any(term in content_lower for term in ['cisa', 'advisory', 'aa24', 'aa23']):
                 analysis['has_recent_advisories'] = True
-            
-            # Extract years mentioned
-            import re
-            years = re.findall(r'\b(20\d{2})\b', ctx.content)
+
+            # Extract years mentioned (from all sources)
+            years = re.findall(r'\b(20\d{2})\b', content)
             if years:
-                analysis['newest_year_found'] = max(int(y) for y in years)
-            
+                max_year = max(int(y) for y in years)
+                analysis['newest_year_found'] = max(analysis['newest_year_found'], max_year)
+
             # Identify threat types mentioned
             threat_keywords = {
                 'ransomware': 'ransomware',
@@ -274,7 +294,7 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
                 'credential': 'credential theft',
                 'malware': 'malware'
             }
-            
+
             for keyword, threat_name in threat_keywords.items():
                 if keyword in content_lower:
                     analysis['threats_mentioned'].add(threat_name)
@@ -302,12 +322,12 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         max_queries: int = 4
     ) -> List[Tuple[str, str]]:
         """
-        Generate intelligent, targeted search queries based on RAG gaps.
+        Generate intelligent, targeted search queries based on currated-context gaps.
         
         Args:
             industry: Target industry
             region: Geographic region
-            rag_analysis: Analysis of RAG content gaps
+            rag_analysis: Analysis of currated-context content gaps
             max_queries: Maximum number of queries to generate
             
         Returns:
@@ -318,13 +338,13 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         current_month = datetime.now().strftime('%B')
         
         # PRIORITY 1: Always search for ultra-recent incidents (last 30-60 days)
-        # This is time-sensitive and RAG can't have it
+        # This is time-sensitive and currated-context can't have it
         queries.append((
             f"{region} {industry} cyberattack incident {current_month} {current_year}",
             "ultra_recent_incidents"
         ))
         
-        # PRIORITY 2: Current year breach statistics (if RAG doesn't have it)
+        # PRIORITY 2: Current year breach statistics (if currated-context doesn't have it)
         if 'breach_costs' in rag_analysis.get('gaps', []):
             queries.append((
                 f"cost of data breach {industry} {current_year} IBM Ponemon report",
@@ -338,14 +358,14 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
                 "federal_advisories"
             ))
         
-        # PRIORITY 4: Regional incidents (if RAG lacks regional data)
+        # PRIORITY 4: Regional incidents (if currated-context lacks regional data)
         if 'regional_incidents' in rag_analysis.get('gaps', []) and len(queries) < max_queries:
             queries.append((
                 f"{region} {industry} data breach incident {current_year}",
                 "regional_incidents"
             ))
         
-        # PRIORITY 5: Specific threats RAG mentioned (get current status)
+        # PRIORITY 5: Specific threats currated-context mentioned (get current status)
         # Only if we have room for more queries
         if len(queries) < max_queries and rag_analysis.get('threats_mentioned'):
             # Pick top 1-2 threats and search for recent activity
@@ -524,12 +544,12 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         card=None
     ) -> Tuple[str, List[Dict]]:
         """
-        Perform intelligent, RAG-informed web searches targeting identified gaps.
+        Perform intelligent, currated-context informed web searches targeting identified gaps.
         
         Args:
             industry: Target industry
             region: Geographic region
-            rag_analysis: Analysis of RAG content and gaps
+            rag_analysis: Analysis of currated-context content and gaps
             user_id: Optional user ID for tracking
             
         Returns:
@@ -542,10 +562,10 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
             print("🔍 Performing intelligent web search (cascade-grounded)...")
             queries = self._generate_card_grounded_queries(industry, region, card, rag_analysis)
         else:
-            print("🔍 Performing intelligent web search (RAG-informed)...")
+            print("🔍 Performing intelligent web search (currated-context informed)...")
             queries = self._generate_targeted_queries(industry, region, rag_analysis)
         
-        print(f"   RAG Analysis: {len(rag_analysis.get('gaps', []))} gaps identified")
+        print(f"   currated-context Analysis: {len(rag_analysis.get('gaps', []))} gaps identified")
         print(f"   Generated {len(queries)} targeted search queries")
         
         search_results = []
@@ -577,10 +597,10 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         if web_context_parts:
             formatted_context = "\n\n".join([
                 "=" * 70,
-                "🌐 TARGETED WEB SEARCH RESULTS (RAG-Informed Intelligence)",
+                "🌐 TARGETED WEB SEARCH RESULTS (currated-context informed Intelligence)",
                 "=" * 70,
-                f"Note: These searches target gaps in the RAG corpus knowledge base.",
-                f"RAG provides foundational knowledge; web search adds recent updates.",
+                f"Note: These searches target gaps in the currated-context corpus knowledge base.",
+                f"currated-context provides foundational knowledge; web search adds recent updates.",
                 "=" * 70,
                 "\n\n".join(web_context_parts),
                 "=" * 70
@@ -604,7 +624,7 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         custom_scenario: Optional[str] = None
     ) -> Dict:
         """
-        Generate risk assessment questionnaire WITH intelligent web search + RAG + rationales.
+        Generate risk assessment questionnaire WITH intelligent web search + currated-context + rationales.
         
         Args:
             industry: Target industry
@@ -625,7 +645,7 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         if archetype_card is not None:
             print(f"   Cascade-grounded mode: archetype {archetype_card.id}")
         else:
-            print("   Using intelligent RAG-informed web search + grounding...")
+            print("   Using intelligent currated-context informed web search + grounding...")
         
         # STEP 1: Build foundational grounding context FIRST (card takes authoritative slot).
         grounding_context = ""
@@ -657,11 +677,13 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
             except Exception as e:
                 print(f"⚠️  Pillar likelihood retrieval failed: {e}")  # Never fatal
         
-        # STEP 2: Analyze RAG content to identify gaps
-        rag_analysis = self._analyze_rag_content(rag_contexts, industry, region)
+        # STEP 2: Analyze grounding content to identify gaps (includes card + pillar data)
+        rag_analysis = self._analyze_rag_content(
+            rag_contexts, industry, region, pillar_context=pillar_likelihood_block
+        )
         
         if rag_analysis['has_content']:
-            print(f"📊 RAG Analysis:")
+            print(f"📊 currated-context Analysis:")
             print(f"   Threats mentioned: {len(rag_analysis.get('threats_mentioned', set()))}")
             print(f"   Newest year in RAG: {rag_analysis.get('newest_year_found', 'unknown')}")
             print(f"   Identified gaps: {', '.join(rag_analysis.get('gaps', ['none']))}")
@@ -739,7 +761,7 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
                 questionnaire['metadata']['web_search_enabled'] = self.enable_web_search
                 questionnaire['metadata']['web_search_queries'] = len(web_search_metadata)
                 questionnaire['metadata']['web_search_mode'] = 'intelligent_rag_informed'
-                # Legacy RAG keys preserved (now refer to card/cascade grounding)
+                # Legacy currated-context keys preserved (now refer to card/cascade grounding)
                 questionnaire['metadata']['rag_grounding_enabled'] = bool(grounding_context)
                 questionnaire['metadata']['rag_sources_count'] = len(grounding_sources)
                 questionnaire['metadata']['rag_analysis'] = {
@@ -926,7 +948,7 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
             message_parts.append(web_context)
             message_parts.append("\n" + "="*70)
             message_parts.append("IMPORTANT: The above web search results contain RECENT information")
-            message_parts.append("that supplements the RAG corpus. These searches targeted specific gaps")
+            message_parts.append("that supplements the currated-context corpus. These searches targeted specific gaps")
             message_parts.append("in the knowledge base (ultra-recent incidents, current statistics, etc.).")
             message_parts.append("PRIORITIZE these sources for current incidents and statistics.")
             message_parts.append("CITE these sources in your rationale_summary fields with URLs when available.")
@@ -1171,7 +1193,7 @@ Return ONLY valid JSON matching this structure.
 # Example usage
 if __name__ == "__main__":
     print("="*70)
-    print("AI Question Generator v2.1.4 - Intelligent RAG-Informed Search")
+    print("AI Question Generator v2.1.4 - Intelligent currated-context informed Search")
     print("="*70)
     
     try:
@@ -1196,10 +1218,10 @@ if __name__ == "__main__":
         print(f"\nIndustry: {questionnaire['metadata']['industry']}")
         print(f"Region: {questionnaire['metadata']['region']}")
         
-        # Show RAG analysis
+        # Show currated-context analysis
         rag_analysis = questionnaire['metadata'].get('rag_analysis', {})
         if rag_analysis:
-            print(f"\n📊 RAG Analysis:")
+            print(f"\n📊 currated-context Analysis:")
             print(f"   Gaps identified: {', '.join(rag_analysis.get('gaps_identified', []))}")
             print(f"   Threats found in RAG: {', '.join(rag_analysis.get('threats_found', []))}")
             print(f"   Newest year in RAG: {rag_analysis.get('newest_year', 'unknown')}")
@@ -1222,7 +1244,7 @@ if __name__ == "__main__":
             print(f"✅ Intelligent Search: {queries} targeted queries ({mode})")
         
         if questionnaire['metadata'].get('rag_grounding_enabled'):
-            print(f"✅ RAG Grounding: {questionnaire['metadata'].get('rag_sources_count', 0)} sources")
+            print(f"✅ currated-context Grounding: {questionnaire['metadata'].get('rag_sources_count', 0)} sources")
         
         # Save to file
         filename = "questionnaire_v214_intelligent_search.json"

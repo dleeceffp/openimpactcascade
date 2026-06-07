@@ -1,6 +1,6 @@
 """
 Flask web application for AI-powered risk assessment questionnaire generation.
-VERSION 2.2.1: RAG + LLM with Assessment Context Tracking
+VERSION 3.0.2: currated-context + LLM with Assessment Context Tracking
 
 Port: 8080
 Code Generator ID: v221-context-aware
@@ -219,7 +219,7 @@ class AssessmentContext:
 ai_generator = None
 try:
     ai_generator = AIQuestionGeneratorWithRAGAndRationale()
-    logger.info(f"[{VERSION}] AI Question Generator initialized successfully (RAG + Web Search)")
+    logger.info(f"[{VERSION}] AI Question Generator initialized successfully (currated-context + Web Search)")
 except Exception as e:
     logger.warning(f"[{VERSION}] AI Generator not available: {e}", exc_info=True)
     ai_generator = None
@@ -293,7 +293,7 @@ def home():
                          ai_available=ai_generator is not None,
                          version=VERSION,
                          port=PORT,
-                         description="RAG + LLM with Enhanced Distributions")
+                         description="currated-context + LLM with Enhanced Distributions")
 
 @app.route('/about/mitre')
 def about_mitre():
@@ -333,11 +333,25 @@ def generate():
                 archetypes = get_card_library().archetypes_for('', None, OIC_ARCHETYPE_LIMIT)
             except Exception as e:
                 logger.error(f"[{VERSION}] Failed to load archetypes: {e}", exc_info=True)
+        # Pillar grounding context for UI
+        pillar_grounding_enabled = False
+        dbir_edition = None
+        try:
+            from corpus.pillar_reader import get_pillar_reader, SERIES_VERIZON_DBIR
+            reader = get_pillar_reader()
+            pillar_grounding_enabled = reader.has_series(SERIES_VERIZON_DBIR)
+            if pillar_grounding_enabled:
+                dbir_edition = reader.latest_edition(SERIES_VERIZON_DBIR)
+        except Exception:
+            pass  # Pillar reader not critical for UI
+
         return render_template(
             'generate.html',
             version=VERSION,
             archetype_step=archetype_step,
             archetypes=archetypes,
+            pillar_grounding_enabled=pillar_grounding_enabled,
+            dbir_edition=dbir_edition,
         )
     
     # POST - generate the questionnaire
@@ -476,7 +490,23 @@ def generate_custom():
     
     if request.method == 'GET':
         # Show the custom scenario generation form
-        return render_template('generate_custom.html', version=VERSION)
+        # Pillar grounding context for UI
+        pillar_grounding_enabled = False
+        dbir_edition = None
+        try:
+            from corpus.pillar_reader import get_pillar_reader, SERIES_VERIZON_DBIR
+            reader = get_pillar_reader()
+            pillar_grounding_enabled = reader.has_series(SERIES_VERIZON_DBIR)
+            if pillar_grounding_enabled:
+                dbir_edition = reader.latest_edition(SERIES_VERIZON_DBIR)
+        except Exception:
+            pass
+        return render_template(
+            'generate_custom.html',
+            version=VERSION,
+            pillar_grounding_enabled=pillar_grounding_enabled,
+            dbir_edition=dbir_edition,
+        )
     
     # POST - generate the custom scenario questionnaire
     try:
@@ -580,7 +610,7 @@ def refine_scenario():
         tracker = get_tracker(session_based=True, code_generator="v215-rag-websearch-enhanced")
         user_id = tracker.get_user_id()
 
-        # Prepare RAG and intelligent web search context using v214 generator logic
+        # Prepare currated-context and intelligent web search context using v214 generator logic
         from corpus.retrieve import get_rag_engine as get_corpus_retriever
         rag_engine = get_corpus_retriever(enable_fallback=True)
         rag_contexts = []
@@ -593,17 +623,17 @@ def refine_scenario():
                     fair_component=None,
                     max_results=5
                 )
-                logger.info(f"[{VERSION}] [refine_scenario] Retrieved {len(rag_contexts)} RAG contexts")
+                logger.info(f"[{VERSION}] [refine_scenario] Retrieved {len(rag_contexts)} currated-context contexts")
             except Exception as e:
-                logger.warning(f"[{VERSION}] [refine_scenario] RAG retrieval failed: {e}")
+                logger.warning(f"[{VERSION}] [refine_scenario] currated-context retrieval failed: {e}")
 
-        # Analyze RAG coverage and conditionally perform intelligent web search
+        # Analyze currated-context coverage and conditionally perform intelligent web search
         rag_context_str = ""
         if rag_contexts:
             try:
                 rag_context_str = rag_engine.format_context_for_prompt(rag_contexts)
             except Exception as e:
-                logger.warning(f"[{VERSION}] [refine_scenario] Failed to format RAG context: {e}")
+                logger.warning(f"[{VERSION}] [refine_scenario] Failed to format currated-context context: {e}")
 
         web_context = ""
         if getattr(ai_generator, 'enable_web_search', False):
@@ -618,7 +648,7 @@ def refine_scenario():
                 needs_web_search = (not has_content) or (not has_current_year) or (not has_regional) or (not has_breach_stats)
 
                 if needs_web_search:
-                    logger.info(f"[{VERSION}] [refine_scenario] RAG gaps detected (current_year={has_current_year}, regional={has_regional}, breach_stats={has_breach_stats}); performing targeted web search")
+                    logger.info(f"[{VERSION}] [refine_scenario] currated-context gaps detected (current_year={has_current_year}, regional={has_regional}, breach_stats={has_breach_stats}); performing targeted web search")
                     web_context, _ = ai_generator._perform_intelligent_web_search(
                         industry=industry or "General",
                         region=region or "Global",
@@ -628,11 +658,11 @@ def refine_scenario():
                     if web_context:
                         logger.info(f"[{VERSION}] [refine_scenario] Web search context added to scenario refinement prompt")
                 else:
-                    logger.info(f"[{VERSION}] [refine_scenario] RAG coverage sufficient; skipping web search")
+                    logger.info(f"[{VERSION}] [refine_scenario] currated-context coverage sufficient; skipping web search")
             except Exception as e:
                 logger.warning(f"[{VERSION}] [refine_scenario] Web search for scenario refinement failed: {e}")
 
-        # Use AI to refine the narrative into structured scenarios, grounded by RAG and optional web context
+        # Use AI to refine the narrative into structured scenarios, grounded by currated-context and optional web context
         import anthropic
         
         client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
@@ -642,7 +672,7 @@ def refine_scenario():
 2. Recommended scenario options (3-5 specific, actionable risk scenarios)
 
 You are provided with two kinds of optional grounding context:
-- RAG corpus excerpts (framework and established threat intelligence)
+- currated-context corpus excerpts (framework and established threat intelligence)
 - Recent web search results (current incidents, statistics, advisories)
 
 When present, prioritize these contexts for factual grounding. Do not invent statistics or sources.
@@ -660,12 +690,12 @@ Return JSON format:
     ]
 }"""
 
-        # Build user prompt with RAG + optional web context followed by the original narrative
+        # Build user prompt with currated-context + optional web context followed by the original narrative
         prompt_parts = []
         if rag_context_str:
-            prompt_parts.append("=== RAG GROUNDING CONTEXT ===\n")
+            prompt_parts.append("=== CORPUS GROUNDING CONTEXT ===\n")
             prompt_parts.append(rag_context_str)
-            prompt_parts.append("\n=== END RAG CONTEXT ===\n")
+            prompt_parts.append("\n=== END CORPUS CONTEXT ===\n")
         if web_context:
             prompt_parts.append("\n=== WEB SEARCH CONTEXT (fills gaps in RAG, e.g., current-year, regional, breach statistics) ===\n")
             prompt_parts.append(web_context)
@@ -863,7 +893,7 @@ def chat():
         
         logger.info(f"[{VERSION}] Chat request from {user_id}: {user_message[:50]}...")
         
-        # Generate response using Claude with RAG grounding
+        # Generate response using Claude with currated-context grounding
         response = generate_chat_response(user_message, context, user_id)
         
         return jsonify({
@@ -877,13 +907,13 @@ def chat():
         return jsonify({'error': str(e)}), 500
 
 def generate_chat_response(user_message: str, context: Dict, user_id: str) -> str:
-    """Generate chat response using Claude with RAG grounding, optionally supplemented by web search when RAG has gaps."""
+    """Generate chat response using Claude with currated-context grounding, optionally supplemented by web search when currated-context has gaps."""
     import anthropic
     from corpus.retrieve import get_rag_engine as get_corpus_retriever
     
     client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
     
-    # Get RAG engine and retrieve grounding context
+    # Get currated-context engine and retrieve grounding context
     rag_engine = get_corpus_retriever(enable_fallback=True)
     rag_contexts = []
     
@@ -896,11 +926,11 @@ def generate_chat_response(user_message: str, context: Dict, user_id: str) -> st
                 fair_component=context.get('fair_component'),
                 max_results=3
             )
-            logger.info(f"[{VERSION}] Retrieved {len(rag_contexts)} RAG contexts")
+            logger.info(f"[{VERSION}] Retrieved {len(rag_contexts)} currated contexts")
         except Exception as e:
-            logger.warning(f"[{VERSION}] RAG retrieval failed: {e}")
+            logger.warning(f"[{VERSION}] currated-context retrieval failed: {e}")
     
-    # Analyze RAG coverage and only perform web search when there are meaningful gaps
+    # Analyze currated-context coverage and only perform web search when there are meaningful gaps
     web_context = ""
     if ai_generator is not None and getattr(ai_generator, 'enable_web_search', False):
         try:
@@ -916,7 +946,7 @@ def generate_chat_response(user_message: str, context: Dict, user_id: str) -> st
             needs_web_search = (not has_content) or (not has_current_year) or (not has_regional) or (not has_breach_stats)
 
             if needs_web_search:
-                logger.info(f"[{VERSION}] RAG gaps detected for chat (current_year={has_current_year}, regional={has_regional}, breach_stats={has_breach_stats}); performing targeted web search")
+                logger.info(f"[{VERSION}] currated-context gaps detected for chat (current_year={has_current_year}, regional={has_regional}, breach_stats={has_breach_stats}); performing targeted web search")
                 web_context, _ = ai_generator._perform_intelligent_web_search(
                     industry=industry_for_search,
                     region=region_for_search,
@@ -926,11 +956,11 @@ def generate_chat_response(user_message: str, context: Dict, user_id: str) -> st
                 if web_context:
                     logger.info(f"[{VERSION}] Web search context added to chat prompt")
             else:
-                logger.info(f"[{VERSION}] RAG coverage sufficient for chat; skipping web search")
+                logger.info(f"[{VERSION}] currated-context coverage sufficient for chat; skipping web search")
         except Exception as e:
             logger.warning(f"[{VERSION}] Web search for chat failed: {e}")
     
-    # Build system prompt with RAG grounding
+    # Build system prompt with currated-context grounding
     system_prompt = """You are a cybersecurity risk assessment coach helping users complete FAIR-based risk assessments.
 
 Your role:
@@ -943,10 +973,10 @@ When grounding context is provided, prioritize it as authoritative but supplemen
 
 Be concise, practical, and supportive."""
     
-    # Build user prompt with RAG context (and optional web search context)
+    # Build user prompt with currated-context context (and optional web search context)
     prompt_parts = []
     
-    # Add RAG grounding context if available
+    # Add currated-context grounding context if available
     if rag_contexts:
         formatted_context = rag_engine.format_context_for_prompt(rag_contexts, max_length=3000)
         prompt_parts.append(formatted_context)
@@ -955,7 +985,7 @@ Be concise, practical, and supportive."""
     # Add web search context only when gaps were detected and search succeeded
     if web_context:
         prompt_parts.append(web_context)
-        prompt_parts.append("\n---\nThese recent web search results fill gaps in the RAG corpus (e.g., current-year, regional, or breach-statistics data). Use them together with the RAG context above when coaching the user.\n---\n")
+        prompt_parts.append("\n---\nThese recent web search results fill gaps in the currated-context corpus (e.g., current-year, regional, or breach-statistics data). Use them together with the currated-context context above when coaching the user.\n---\n")
     
     prompt_parts.append(f"User question: {user_message}")
     
@@ -1346,7 +1376,7 @@ def chat_results():
         
         logger.info(f"[{VERSION}] Results chat request from {user_id}: {user_message[:50]}...")
         
-        # Generate response using Claude with RAG grounding
+        # Generate response using Claude with currated-context grounding
         response = generate_chat_response(user_message, context, user_id)
         
         return jsonify({
@@ -1472,7 +1502,7 @@ def health():
         'version': VERSION,
         'port': PORT,
         'ai_available': ai_generator is not None,
-        'approach': 'RAG + LLM with Enhanced Distributions',
+        'approach': 'currated-context + LLM with Enhanced Distributions',
         'rag_enabled': rag_engine.enabled
     })
 
@@ -1480,7 +1510,7 @@ if __name__ == '__main__':
     print("="*60)
     print(f"Starting Flask App - {VERSION}")
     print("="*60)
-    print(f"Approach: RAG + LLM with Enhanced Distributions, gaps filled with websearch")
+    print(f"Approach: currated-context + LLM with Enhanced Distributions, gaps filled with websearch")
     print(f"Port: {PORT}")
     print(f"AI Question Generator ID: v214")
     print(f"User ID Format: eval-v2-rag-websearch-enhanced-XXXXXXXXXXXX")
