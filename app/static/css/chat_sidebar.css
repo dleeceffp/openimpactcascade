@@ -223,36 +223,70 @@
     transform: scale(0.95);
 }
 
-/* Responsive Design */
+/* Backdrop overlay for tablet/mobile - click to close */
+.chat-sidebar-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.chat-sidebar-backdrop.active {
+    display: block;
+    opacity: 1;
+}
+
+/* Responsive Design - Tablet */
 @media (max-width: 1024px) {
     .chat-sidebar {
-        right: -400px;
+        width: 350px;  /* Narrower on tablets */
+        right: -350px;
         transition: right 0.3s ease-in-out;
     }
-    
+
     .chat-sidebar.open {
         right: 0;
+        box-shadow: -5px 0 25px rgba(0,0,0,0.3);  /* Stronger shadow when open */
     }
-    
+
     .chat-close-btn {
         display: block;
     }
-    
+
     .mobile-chat-toggle {
-        display: block;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
-    
+
     .mobile-chat-toggle.hidden {
         display: none;
     }
 }
 
+/* Responsive Design - Small Tablet/Large Phone */
+@media (max-width: 768px) {
+    .chat-sidebar {
+        width: 85%;  /* Take 85% of screen on smaller tablets */
+        right: -85%;
+        max-width: 350px;
+    }
+}
+
+/* Responsive Design - Mobile Phone */
 @media (max-width: 480px) {
     .chat-sidebar {
         width: 100%;
         right: -100%;
+        max-width: none;
     }
-    
+
     .quick-help-btn {
         font-size: 0.8em;
         padding: 6px 10px;
@@ -262,7 +296,8 @@
 /* Print Styles */
 @media print {
     .chat-sidebar,
-    .mobile-chat-toggle {
+    .mobile-chat-toggle,
+    .chat-sidebar-backdrop {
         display: none !important;
     }
 }

@@ -13,7 +13,7 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f7fafc;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -28,18 +28,19 @@
         
         .header {
             text-align: center;
-            color: white;
+            color: #2d3748;
             margin-bottom: 40px;
         }
-        
+
         .header h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
+            color: #667eea;
         }
-        
+
         .header p {
             font-size: 1.2em;
-            opacity: 0.9;
+            color: #4a5568;
         }
         
         .cards {
@@ -138,20 +139,22 @@
             align-items: center;
             gap: 6px;
             padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
+            background: white;
+            color: #667eea;
             text-decoration: none;
             border-radius: 8px;
             font-weight: 600;
             font-size: 0.9em;
             transition: all 0.3s;
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            border: 2px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
-        
+
         .info-link:hover {
-            background: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255, 255, 255, 0.5);
+            background: #f7fafc;
+            border-color: #667eea;
             transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.15);
         }
     </style>
 </head>
