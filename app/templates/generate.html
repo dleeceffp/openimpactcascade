@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generate Risk Questionnaire - OpenImpactCascade</title>
+    <title>Business Risk Assessment - OpenImpactCascade</title>
     <style>
         * {
             margin: 0;
@@ -103,7 +103,38 @@
         input[type="text"]:focus,
         select:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #4a5568;
+        }
+
+        /* Lucide icon styling */
+        .icon {
+            display: inline-block;
+            vertical-align: middle;
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+            margin-right: 8px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .page-header .icon {
+            width: 28px;
+            height: 28px;
+            color: #4a5568;
+        }
+
+        .panel-icon {
+            color: #4a5568;
         }
         
         .examples {
@@ -210,36 +241,48 @@
         }
         
         .loading-step.active {
-            color: #667eea;
+            color: #4a5568;
             font-weight: 600;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4a5568;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <a href="{{ url_for('home') }}" class="back-link">← Back to Home</a>
-        
-        <h1>🤖 Generate Risk Questionnaire</h1>
+        <a href="{{ url_for('home') }}" class="back-link"><i data-lucide="arrow-left" class="icon" style="width: 16px; height: 16px;"></i>Back to Home</a>
+
+        <div class="page-header">
+            <i data-lucide="shield-check" class="icon"></i>
+            <h1>Assess Business Risk Exposure</h1>
+        </div>
         <p class="subtitle">
-            Provide your organization's context and we'll use AI to create a customized risk assessment questionnaire grounded in authoritative sources.
+            Provide your organizational context to generate a tailored cybersecurity risk questionnaire grounded in industry data and authoritative sources.
         </p>
-        
+
         <div class="info-box">
-            <strong>📊 Authoritative Sources Used:</strong>
+            <strong><i data-lucide="library" class="icon panel-icon"></i>Evidence Used to Inform the Assessment</strong>
             <ul>
-                <li>MITRE ATT&CK - Threat techniques and tactics</li>
-                <li>CISA & National CERTs - Security advisories</li>
-                <li>Verizon DBIR - Breach statistics by industry</li>
+                <li>MITRE ATT&CK techniques and tactics</li>
+                <li>CISA and national CERT advisories</li>
+                <li>Verizon DBIR industry breach statistics</li>
                 <li>Industry-specific threat intelligence</li>
             </ul>
         </div>
 
         {% if pillar_grounding_enabled %}
         <div class="info-box" style="background: #f0f9ff; border-left-color: #0284c7;">
-            <strong>📈 Industry Likelihood Grounding:</strong>
+            <strong><i data-lucide="bar-chart-3" class="icon panel-icon"></i>Industry Risk Baseline</strong>
             <p style="margin: 5px 0 0 0; font-size: 0.9em;">
-                Verizon DBIR {{ dbir_edition or 'latest' }} breach statistics will be used to inform
-                threat likelihood estimates specific to your selected industry.
+                Verizon DBIR {{ dbir_edition or 'latest' }} industry statistics will help establish an initial likelihood baseline for the selected sector. You can refine assumptions during the assessment.
             </p>
         </div>
         {% endif %}
@@ -302,8 +345,8 @@
                 <label for="selected_archetype_id">Cascade Archetype (Optional)</label>
                 <select id="selected_archetype_id" name="selected_archetype_id"
                         data-view-url="{{ url_for('archetype_view', archetype_id='__ID__') }}">
-                    <option value="ai_suggest" data-scenario="AI proposes the top threats from current intelligence.">
-                        Let AI suggest threats from current intelligence
+                    <option value="ai_suggest" data-scenario="Propose the top threats from current intelligence.">
+                        Suggest threats from current intelligence
                     </option>
                     {% for c in archetypes %}
                     <option value="{{ c.id }}" data-scenario="{{ c.scenario_line }}">
@@ -311,7 +354,7 @@
                     </option>
                     {% endfor %}
                 </select>
-                <p class="help-text" id="archetypeScenario">Ground the questionnaire on a curated attack cascade, or let AI propose threats.</p>
+                <p class="help-text" id="archetypeScenario">Ground the assessment on a curated attack cascade, or propose threats from current intelligence.</p>
                 <p class="help-text">
                     <a id="viewCascadeLink" href="#" target="_blank" rel="noopener" style="display:none; font-weight:600;">View full cascade &#8599;</a>
                 </p>
@@ -323,22 +366,22 @@
                     Cancel
                 </button>
                 <button type="submit" class="btn-primary" id="submitBtn">
-                    Generate Questionnaire ✨
+                    Prepare Assessment
                 </button>
             </div>
         </form>
         
         <div id="loading" class="loading" data-max-step="{% if pillar_grounding_enabled %}5{% else %}4{% endif %}" data-step-ms="{% if pillar_grounding_enabled %}7000{% else %}8000{% endif %}">
             <div class="spinner"></div>
-            <p><strong>Generating your customized questionnaire...</strong></p>
+            <p><strong>Preparing your risk assessment...</strong></p>
             <div class="loading-steps">
                 <div class="loading-step active" id="step1">
-                    {% if pillar_grounding_enabled %}📊 Loading industry likelihood data (DBIR {{ dbir_edition or 'latest' }})...{% else %}🔍 Searching threat intelligence databases...{% endif %}
+                    {% if pillar_grounding_enabled %}Loading industry risk baseline...{% else %}Reviewing relevant threat intelligence...{% endif %}
                 </div>
-                <div class="loading-step" id="step2">{% if pillar_grounding_enabled %}� Searching threat intelligence databases...{% else %}� Verifying authoritative sources...{% endif %}</div>
-                <div class="loading-step" id="step3">{% if pillar_grounding_enabled %}📋 Verifying authoritative sources...{% else %}🎯 Building customized questions...{% endif %}</div>
-                <div class="loading-step" id="step4">{% if pillar_grounding_enabled %}🎯 Building customized questions...{% else %}✅ Finalizing questionnaire...{% endif %}</div>
-                {% if pillar_grounding_enabled %}<div class="loading-step" id="step5">✅ Finalizing questionnaire...</div>{% endif %}
+                <div class="loading-step" id="step2">{% if pillar_grounding_enabled %}Reviewing relevant threat intelligence...{% else %}Checking authoritative sources...{% endif %}</div>
+                <div class="loading-step" id="step3">{% if pillar_grounding_enabled %}Checking authoritative sources...{% else %}Building scenario-focused questions...{% endif %}</div>
+                <div class="loading-step" id="step4">{% if pillar_grounding_enabled %}Building scenario-focused questions...{% else %}Preparing the assessment...{% endif %}</div>
+                {% if pillar_grounding_enabled %}<div class="loading-step" id="step5">Preparing the assessment...</div>{% endif %}
             </div>
             <p style="font-size: 0.9em; color: #666; margin-top: 15px;">
                 This may take 90-120 seconds as we research current threats specific to your industry and region.
@@ -346,7 +389,11 @@
         </div>
     </div>
     
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
         document.getElementById('generateForm').addEventListener('submit', function(e) {
             // Show loading indicator
             document.getElementById('generateForm').style.display = 'none';
