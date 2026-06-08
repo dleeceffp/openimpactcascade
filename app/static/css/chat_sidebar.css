@@ -23,8 +23,8 @@
 
 /* Chat Header */
 .chat-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: #e2e8f0;
+    color: #2d3748;
     padding: 20px;
     display: flex;
     align-items: center;
@@ -41,7 +41,7 @@
 
 .chat-close-btn {
     display: none;
-    background: rgba(255, 255, 255, 0.2);
+    background: #4a5568;
     border: none;
     color: white;
     width: 32px;
@@ -53,7 +53,7 @@
 }
 
 .chat-close-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: #2d3748;
 }
 
 /* Chat Messages Area */
@@ -204,19 +204,20 @@
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #4a5568;
     color: white;
     border: none;
-    font-size: 1.5em;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px rgba(74, 85, 104, 0.4);
     z-index: 99;
     transition: all 0.3s;
 }
 
 .mobile-chat-toggle:hover {
     transform: scale(1.1);
-    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+    box-shadow: 0 6px 16px rgba(74, 85, 104, 0.5);
 }
 
 .mobile-chat-toggle:active {
