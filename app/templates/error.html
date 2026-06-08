@@ -88,6 +88,43 @@
         .btn-secondary:hover {
             background: #e0e0e0;
         }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 30px 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .footer-brand {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #243b53;
+            margin-bottom: 8px;
+        }
+
+        .footer-tagline {
+            font-size: 0.9em;
+            color: #627d98;
+            margin-bottom: 15px;
+        }
+
+        .footer-link {
+            color: #2563eb;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+
+        .footer-copyright {
+            font-size: 0.85em;
+            color: #a0aec0;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
@@ -104,5 +141,11 @@
             <a href="{{ url_for('home') }}" class="btn btn-primary">Return Home</a>
         </div>
     </div>
+
+    <footer class="footer">
+        <div class="footer-tagline">Beta release · Evidence-informed cyber-risk analysis</div>
+        <div class="footer-copyright">OpenImpactCascade is licensed under the Apache License, Version 2.0.</div>
+        <div class="footer-copyright">© 2026 FirstFire Productions. <a href="https://impactcascade.ca" class="footer-link" target="_blank">https://impactcascade.ca</a></div>
+    </footer>
 </body>
 </html>

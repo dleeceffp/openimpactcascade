@@ -305,6 +305,11 @@ def about_fair():
     """Information page about FAIR methodology."""
     return render_template('about_fair.html')
 
+@app.route('/about/cascade')
+def about_cascade():
+    """Information page about attack cascade archetypes."""
+    return render_template('about_cascade.html')
+
 @app.route('/about/probability-weighting')
 def about_probability_weighting():
     """Information page about probability weighting modifications for cyber risk."""
