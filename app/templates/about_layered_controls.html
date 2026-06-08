@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding Layered Security Controls</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f7fafc;
+            padding: 30px 20px;
+            line-height: 1.6;
+            color: #2d3748;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 1.8em;
+        }
+        
+        .subtitle {
+            color: #718096;
+            font-size: 1.1em;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        
+        h2 {
+            color: #2d3748;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 5px;
+        }
+        
+        p {
+            margin-bottom: 15px;
+            color: #4a5568;
+        }
+        
+        .example-box {
+            background: #edf2f7;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        
+        .example-box h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .math-demo {
+            background: #f0fff4;
+            padding: 20px;
+            border: 2px dashed #48bb78;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+        }
+        
+        .warning-box {
+            background: #fff5f5;
+            border-left: 4px solid #fc8181;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        
+        .warning-box h3 {
+            color: #c53030;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .upgrade-box {
+            background: #e2e8f0;
+            color: #2d3748;
+            padding: 30px;
+            border-radius: 12px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        
+        .upgrade-box h2 {
+            color: #2d3748;
+            border: none;
+            margin-top: 0;
+            font-size: 1.6em;
+        }
+        
+        .upgrade-box p {
+            color: #4a5568;
+            font-size: 1.05em;
+        }
+        
+        .upgrade-box ul {
+            text-align: left;
+            margin: 20px auto;
+            max-width: 500px;
+            color: #4a5568;
+        }
+        
+        .upgrade-box li {
+            margin: 10px 0;
+            padding-left: 5px;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 15px 35px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1em;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .cta-button:hover {
+            background: #f7fafc;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .diagram {
+            background: white;
+            border: 2px solid #cbd5e0;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        
+        .control-chain {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .control {
+            background: #667eea;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            min-width: 140px;
+        }
+        
+        .and-gate {
+            color: #e53e3e;
+            font-weight: bold;
+            font-size: 1.3em;
+        }
+        
+        .close-btn {
+            background: #e2e8f0;
+            color: #2d3748;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            margin-top: 20px;
+        }
+        
+        .close-btn:hover {
+            background: #cbd5e0;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 30px 20px;
+            border-top: 1px solid #e2e8f0;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .footer-brand {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #243b53;
+            margin-bottom: 8px;
+        }
+
+        .footer-tagline {
+            font-size: 0.9em;
+            color: #627d98;
+            margin-bottom: 15px;
+        }
+
+        .footer-link {
+            color: #2563eb;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+
+        .footer-copyright {
+            font-size: 0.85em;
+            color: #a0aec0;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ Understanding Layered Security Controls</h1>
+        <p class="subtitle">Why multiple control failures are less common than you think</p>
+        
+        <h2>The Defense-in-Depth Principle</h2>
+        <p>
+            Effective cybersecurity relies on <strong>multiple independent layers of defense</strong>. 
+            For a sophisticated attack to fully succeed, an attacker often must bypass several 
+            controls in sequence. This is much harder than defeating a single control.
+        </p>
+        
+        <div class="diagram">
+            <h3 style="margin-bottom: 20px; color: #2d3748;">Attack Chain Requires ALL Controls to Fail</h3>
+            <div class="control-chain">
+                <div class="control">Perimeter Firewall</div>
+                <div class="and-gate">AND</div>
+                <div class="control">Email Security</div>
+                <div class="and-gate">AND</div>
+                <div class="control">Endpoint Protection</div>
+                <div class="and-gate">AND</div>
+                <div class="control">Backup Recovery</div>
+            </div>
+            <p style="margin-top: 20px; color: #718096; font-size: 0.95em;">
+                If ANY control succeeds, the attack is disrupted or contained
+            </p>
+        </div>
+        
+        <h2>The Mathematics of Independent Failures</h2>
+        <p>
+            When controls operate independently, the probability of <strong>all of them failing</strong> 
+            is calculated by multiplying their individual failure rates. This is called an <strong>AND gate</strong> 
+            in probability theory.
+        </p>
+        
+        <div class="example-box">
+            <h3>📊 Example: Two Independent Controls</h3>
+            <p><strong>Scenario:</strong> An attacker must bypass both email filtering AND endpoint detection</p>
+            <ul style="margin-left: 25px; margin-top: 10px;">
+                <li>A poor quality email filter could have a 30% bypass rate (30% vulnerability)</li>
+                <li>A signature based anti-virus could have a 30% bypass rate (30% vulnerability)</li>
+            </ul>
+            <div class="math-demo" style="margin-top: 15px;">
+                Combined Vulnerability = 0.30 × 0.30 = <strong style="color: #48bb78;">0.09 (9%)</strong>
+            </div>
+            <p style="margin-top: 15px;">
+                Even though each control is only 70% effective, together they reduce vulnerability by <strong>70%</strong> (from 30% to 9%)!
+            </p>
+        </div>
+        
+        <div class="example-box">
+            <h3>📊 Example: Three Independent Controls</h3>
+            <p><strong>Scenario:</strong> Perimeter + Email + Endpoint protection</p>
+            <ul style="margin-left: 25px; margin-top: 10px;">
+                <li>Each control: 60% vulnerability (not very strong individually)</li>
+            </ul>
+            <div class="math-demo" style="margin-top: 15px;">
+                Combined Vulnerability = 0.60 × 0.60 × 0.60 = <strong style="color: #48bb78;">0.216 (22%)</strong>
+            </div>
+            <p style="margin-top: 15px;">
+                Three mediocre controls reduce vulnerability by <strong>64%</strong> compared to one!
+            </p>
+        </div>
+        
+        <h2>Why This Matters for Your Assessment</h2>
+        <p>
+            When you select a control level (e.g., "Basic antivirus protection"), our simplified model 
+            assigns a single vulnerability number. However, if you have <strong>additional layered controls</strong> 
+            in place, the actual combined vulnerability is lower.
+        </p>
+        
+        <p>
+            The 25% reduction toggle provides a <strong>simplified adjustment</strong> to account for this 
+            layered defense effect without requiring you to model each control individually.
+        </p>
+        
+        <div class="warning-box">
+            <h3>⚠️ Limitations of the Simplified Model</h3>
+            <p>
+                The 25% blanket reduction is a <strong>rough estimate</strong>. In reality:
+            </p>
+            <ul style="margin-left: 25px; margin-top: 10px;">
+                <li>Different controls have different effectiveness rates</li>
+                <li>Some controls are partially dependent (not fully independent)</li>
+                <li>Attack paths may bypass certain control combinations</li>
+                <li>Control effectiveness varies by threat type and attacker capability</li>
+                <li>Failure correlation matters (common mode failures)</li>
+            </ul>
+            <p style="margin-top: 15px;">
+                For critical decisions, a more precise analysis is recommended.
+            </p>
+        </div>
+        
+        <div class="upgrade-box">
+            <h2>🎯 Cascade Risk Modeling™</h2>
+            <p>Get precise, defensible risk quantification with our advanced platform:</p>
+            
+            <ul>
+                <li><strong>✓ Attack Tree Builder:</strong> Visual modeling of multi-stage attack paths</li>
+                <li><strong>✓ Per-Control Effectiveness:</strong> Individual success/failure rates for each control layer</li>
+                <li><strong>✓ AND/OR Logic Gates:</strong> Model complex control dependencies accurately</li>
+                <li><strong>✓ Monte Carlo on Attack Paths:</strong> Simulate thousands of attack scenarios</li>
+                <li><strong>✓ Control Investment ROI:</strong> Compare mitigation strategies and optimize spending</li>
+                <li><strong>✓ Compliance Mapping:</strong> Link controls to NIST, ISO 27001, and other frameworks</li>
+            </ul>
+            
+            <p style="margin-top: 25px; font-size: 1.15em;">
+                <strong>Replace guesswork with mathematics.</strong>
+            </p>
+            
+            <a href="mailto:sales@openimpactcascade.com?subject=Cascade%20Risk%20Modeling%20Inquiry" class="cta-button">
+                Contact Sales →
+            </a>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="close-btn" onclick="window.close()">Close Window</button>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-tagline">Beta release · Evidence-informed cyber-risk analysis</div>
+        <div class="footer-copyright">OpenImpactCascade is licensed under the Apache License, Version 2.0.</div>
+        <div class="footer-copyright">© 2026 FirstFire Productions. <a href="https://impactcascade.ca" class="footer-link" target="_blank">https://impactcascade.ca</a></div>
+    </footer>
+</body>
+</html>

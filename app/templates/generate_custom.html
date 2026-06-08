@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assess Specific Risk - OpenImpactCascade</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat_sidebar.css') }}">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f7fafc;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+        }
+        
+        .main-wrapper {
+            display: flex;
+            width: 100%;
+            min-height: 100vh;
+        }
+        
+        .container {
+            flex: 1;
+            max-width: 700px;
+            margin: 40px auto;
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            height: fit-content;
+        }
+        
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .info-box {
+            background: #fff5e6;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+        
+        .info-box strong {
+            color: #f59e0b;
+        }
+        
+        .info-box ul {
+            margin: 10px 0 0 20px;
+            font-size: 0.9em;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .required {
+            color: #e53e3e;
+        }
+        
+        .help-text {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        input[type="text"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .btn-refine {
+            margin-top: 15px;
+            padding: 12px 24px;
+            background: #4a5568;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-refine:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(74, 85, 104, 0.4);
+        }
+        
+        .btn-refine:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .scenario-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .scenario-option {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+        
+        .scenario-option:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .scenario-option.selected {
+            border-color: #667eea;
+            background: #f0f3ff;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+        
+        .scenario-option.recommended {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+        
+        .scenario-option.recommended::before {
+            content: "⭐ Recommended";
+            display: block;
+            color: #10b981;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        /* Selected state takes priority over recommended */
+        .scenario-option.recommended.selected {
+            border-color: #667eea;
+            background: #f0f3ff;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+        
+        .scenario-option.recommended.selected::before {
+            color: #667eea;
+        }
+        
+        .scenario-text {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 1.1em;
+            margin-bottom: 8px;
+        }
+        
+        .scenario-description {
+            color: #4a5568;
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        
+        .scenario-rationale {
+            font-size: 0.85em;
+            color: #718096;
+            font-style: italic;
+            padding-top: 8px;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .scenario-actions {
+            margin-top: 10px;
+        }
+        
+        .btn-secondary-small {
+            padding: 8px 16px;
+            background: #f3f4f6;
+            color: #333;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .btn-secondary-small:hover {
+            background: #e5e7eb;
+        }
+        
+        .refining-indicator {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .refining-indicator.active {
+            display: block;
+        }
+        
+        .refining-spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        .key-concerns {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        
+        .key-concerns h4 {
+            color: #f59e0b;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+        
+        .key-concerns ul {
+            margin-left: 20px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        input[type="text"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .examples {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        
+        .examples h3 {
+            font-size: 0.9em;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .examples ul {
+            margin-left: 20px;
+        }
+        
+        .examples li {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #4a5568;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 85, 104, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #666;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        .loading-steps {
+            text-align: left;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+        
+        .loading-step {
+            padding: 5px 0;
+            color: #666;
+        }
+        
+        .loading-step.active {
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    
+        /* Lucide icon styling */
+        .icon {
+            display: inline-block;
+            vertical-align: middle;
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+            margin-right: 8px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .page-header .icon {
+            width: 28px;
+            height: 28px;
+            color: #4a5568;
+        }
+
+        .panel-icon {
+            color: #4a5568;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: auto;
+            padding: 30px 20px;
+            border-top: 1px solid #e2e8f0;
+            background: #f7fafc;
+        }
+
+        .footer-brand {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #243b53;
+            margin-bottom: 8px;
+        }
+
+        .footer-tagline {
+            font-size: 0.9em;
+            color: #627d98;
+            margin-bottom: 15px;
+        }
+
+        .footer-link {
+            color: #2563eb;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+
+        .footer-copyright {
+            font-size: 0.85em;
+            color: #a0aec0;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-wrapper">
+        <div class="container">
+        <a href="{{ url_for('home') }}" class="back-link"><i data-lucide="arrow-left" class="icon" style="width: 16px; height: 16px;"></i>Back to Home</a>
+
+        <div class="page-header">
+            <i data-lucide="clipboard-check" class="icon"></i>
+            <h1>Assess a Specific Risk Scenario</h1>
+        </div>
+        <p class="subtitle">
+            Define your specific risk scenario to generate a tailored assessment focused on that exact threat, grounded in authoritative research.
+        </p>
+        
+        <div class="info-box">
+            <strong>How This Works</strong>
+            <ul>
+                <li>You define the specific risk scenario you want to assess</li>
+                <li>Research on that exact threat using MITRE ATT&CK and relevant industry sources</li>
+                <li>Questions are tailored to your specific scenario, not generic threats</li>
+                <li>Get scenario-specific frequency and impact estimates</li>
+            </ul>
+        </div>
+
+        {% if pillar_grounding_enabled %}
+        <div class="info-box" style="background: #f0f9ff; border-left-color: #0284c7;">
+            <strong><i data-lucide="bar-chart-3" class="icon panel-icon"></i>Industry Risk Baseline</strong>
+            <p style="margin: 5px 0 0 0; font-size: 0.9em;">
+                Verizon DBIR {{ dbir_edition or 'latest' }} industry statistics will help establish an initial likelihood baseline for the selected sector. You can refine assumptions during the assessment.
+            </p>
+        </div>
+        {% endif %}
+
+        <form id="generateForm" method="POST" action="{{ url_for('generate_custom') }}">
+            <div class="form-group">
+                <label for="industry">Industry <span class="required">*</span></label>
+                <select id="industry" name="industry" required>
+                    <option value="">Select industry...</option>
+                    <option value="Healthcare">Healthcare / Medical Services</option>
+                    <option value="Financial Services">Financial Services / Banking</option>
+                    <option value="Retail">Retail / E-commerce</option>
+                    <option value="Construction">Construction</option>
+                    <option value="Real Estate">Real Estate</option>
+                    <option value="Manufacturing">Manufacturing / Industrial</option>
+                    <option value="Technology">Technology / Software</option>
+                    <option value="Education">Education</option>
+                    <option value="Energy/Utilities">Energy / Utilities</option>
+                    <option value="Professional Services">Professional Services (Legal, Accounting, Consulting)</option>
+                    <option value="Transportation">Transportation / Logistics</option>
+                    <option value="Hospitality">Hospitality / Tourism</option>
+                    <option value="Government">Government / Public Sector</option>
+                </select>
+                <p class="help-text">Select the primary industry for your organization</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="region">Region / Country <span class="required">*</span></label>
+                <select id="region" name="region" required>
+                    <option value="">Select region...</option>
+                    <option value="Canada">Canada</option>
+                    <option value="United States">United States</option>
+                    <option value="United Kingdom">United Kingdom</option>
+                    <option value="European Union">European Union</option>
+                    <option value="Australia">Australia</option>
+                    <option value="New Zealand">New Zealand</option>
+                    <option value="Japan">Japan</option>
+                    <option value="Singapore">Singapore</option>
+                    <option value="India">India</option>
+                    <option value="Brazil">Brazil</option>
+                    <option value="Mexico">Mexico</option>
+                    <option value="South Africa">South Africa</option>
+                </select>
+                <p class="help-text">Region helps tailor threats to local adversaries and regulations</p>
+            </div>
+            
+            <!-- PHASE 1: Narrative Collection -->
+            <div class="form-group" id="narrativePhase">
+                <label for="risk_narrative">Describe Your Risk Concern <span class="required">*</span></label>
+                <textarea 
+                    id="risk_narrative" 
+                    name="risk_narrative" 
+                    placeholder="Tell us about your security concern in your own words. For example: 'We're worried about ransomware because our backups are on the same network and we heard about hospitals getting hit. We don't have great monitoring and I'm not sure if our staff would click on phishing emails...'"
+                    maxlength="2000"
+                    style="min-height: 150px;"
+                ></textarea>
+                <p class="help-text">Don't worry about being technical - just describe what concerns you (up to 2000 characters)</p>
+                
+                <div class="examples">
+                    <h3>Tips for describing your concern:</h3>
+                    <ul>
+                        <li>What type of attack or incident worries you?</li>
+                        <li>What systems or data might be affected?</li>
+                        <li>Why are you concerned about this specific risk?</li>
+                        <li>Have you heard about similar incidents?</li>
+                    </ul>
+                </div>
+                
+                <button type="button" class="btn-refine" id="refineBtn" onclick="refineScenario()">
+                    Help Me Refine This Into a Clear Scenario
+                </button>
+                
+                <div id="refiningIndicator" class="refining-indicator">
+                    <div class="refining-spinner"></div>
+                    <p><strong>Analyzing your concern...</strong></p>
+                    <p style="font-size: 0.9em; color: #666;">AI is identifying key risks and creating clear scenario options</p>
+                </div>
+            </div>
+            
+            <!-- PHASE 2: Refined Scenario Selection (hidden initially) -->
+            <div class="form-group" id="scenarioPhase" style="display: none;">
+                <label for="risk_scenario">Select Your Risk Scenario <span class="required">*</span></label>
+                
+                <div id="scenarioOptions" class="scenario-options">
+                    <!-- AI-generated options will appear here -->
+                </div>
+                
+                <input 
+                    type="hidden" 
+                    id="risk_scenario" 
+                    name="risk_scenario" 
+                    required
+                >
+                
+                <div class="scenario-actions">
+                    <button type="button" class="btn-secondary-small" onclick="backToNarrative()">
+                        ← Edit My Description
+                    </button>
+                </div>
+                
+                <p class="help-text" style="margin-top: 15px;">Select the scenario that best matches your concern, or go back to edit your description</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="scenario_description">Additional Details (Optional)</label>
+                <textarea 
+                    id="scenario_description" 
+                    name="scenario_description" 
+                    placeholder="Provide any additional context about your scenario, such as specific systems, data types, or concerns..."
+                    maxlength="500"
+                ></textarea>
+                <p class="help-text">Optional: Add more context to help AI tailor the assessment</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="organization_size">Organization Size (Optional)</label>
+                <input 
+                    type="text" 
+                    id="organization_size" 
+                    name="organization_size" 
+                    placeholder="e.g., 50 employees, 500 employees, 5000+ employees"
+                >
+                <p class="help-text">Helps calibrate risk estimates to your organization's scale</p>
+            </div>
+            
+            <div class="button-group">
+                <button type="button" class="btn-secondary" onclick="window.location.href='{{ url_for('home') }}'">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-primary" id="submitBtn">
+                    Prepare Assessment
+                </button>
+            </div>
+        </form>
+        
+        <div id="loading" class="loading" data-max-step="{% if pillar_grounding_enabled %}5{% else %}4{% endif %}" data-step-ms="{% if pillar_grounding_enabled %}7000{% else %}8000{% endif %}">
+            <div class="spinner"></div>
+            <p><strong>Preparing your risk assessment...</strong></p>
+            <div class="loading-steps">
+                <div class="loading-step active" id="step1">
+                    {% if pillar_grounding_enabled %}Loading industry risk baseline...{% else %}Reviewing relevant threat intelligence...{% endif %}
+                </div>
+                <div class="loading-step" id="step2">{% if pillar_grounding_enabled %}Reviewing relevant threat intelligence...{% else %}Checking authoritative sources...{% endif %}</div>
+                <div class="loading-step" id="step3">{% if pillar_grounding_enabled %}Checking authoritative sources...{% else %}Building scenario-focused questions...{% endif %}</div>
+                <div class="loading-step" id="step4">{% if pillar_grounding_enabled %}Building scenario-focused questions...{% else %}Preparing the assessment...{% endif %}</div>
+                {% if pillar_grounding_enabled %}<div class="loading-step" id="step5">Preparing the assessment...</div>{% endif %}
+            </div>
+            <p style="font-size: 0.9em; color: #666; margin-top: 15px;">
+                This may take 90-120 seconds as we research your specific scenario and find relevant threat intelligence.
+            </p>
+        </div>
+    </div>
+    
+    {% set chat_config = {
+        "welcome_message": "Welcome! I'm here to help you define your custom risk scenario. I can help you:<ul style=\"margin: 10px 0 0 20px; font-size: 0.95em;\"><li>Clarify your risk concerns</li><li>Identify relevant threat actors</li><li>Understand FAIR methodology</li><li>Refine your scenario description</li></ul>Feel free to ask any questions!",
+        "quick_help_buttons": [
+            {"text": "Good Scenario Tips", "question": "What makes a good risk scenario?"},
+            {"text": "Describe Concern", "question": "How should I describe my concern?"},
+            {"text": "About FAIR", "question": "What is FAIR methodology?"}
+        ],
+        "page_context": "custom_scenario_generation"
+    } %}
+    {% include 'partials/chat_sidebar.html' %}
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/chat_sidebar.js') }}"></script>
+    <script>
+        // Initialize chat sidebar with custom configuration
+        initChatSidebar({
+            apiEndpoint: '/api/chat',
+            pageContext: 'custom_scenario_generation',
+            getContextData: function() {
+                return {
+                    page: 'custom_scenario_generation',
+                    industry: document.getElementById('industry')?.value || '',
+                    region: document.getElementById('region')?.value || ''
+                };
+            },
+            onMessageReceived: function(userMessage, assistantResponse) {
+                // Add to centralized chat history
+                ChatHistory.add(userMessage, assistantResponse, {
+                    page: 'custom_scenario_generation',
+                    industry: document.getElementById('industry')?.value || '',
+                    region: document.getElementById('region')?.value || ''
+                });
+            }
+        });
+        
+        // Refine scenario using AI
+        async function refineScenario() {
+            const narrative = document.getElementById('risk_narrative').value.trim();
+            const industry = document.getElementById('industry').value;
+            const region = document.getElementById('region').value;
+            const refineBtn = document.getElementById('refineBtn');
+            
+            // Validate inputs
+            if (!narrative) {
+                alert('Please describe your risk concern first.');
+                return;
+            }
+            
+            if (!industry || !region) {
+                alert('Please select an industry and region first.');
+                return;
+            }
+            
+            // Show loading state
+            refineBtn.disabled = true;
+            refineBtn.textContent = 'Analyzing your concern...';
+            document.getElementById('refiningIndicator').classList.add('active');
+            
+            try {
+                const response = await fetch('/refine_scenario', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        narrative: narrative,
+                        industry: industry,
+                        region: region
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to refine scenario');
+                }
+                
+                const data = await response.json();
+                
+                // Display refined scenarios
+                displayScenarioOptions(data);
+                
+                // Switch to phase 2
+                document.getElementById('narrativePhase').style.display = 'none';
+                document.getElementById('scenarioPhase').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Refinement error:', error);
+                alert('Failed to refine scenario: ' + error.message);
+            } finally {
+                refineBtn.disabled = false;
+                refineBtn.textContent = '✨ Help Me Refine This Into a Clear Scenario';
+                document.getElementById('refiningIndicator').classList.remove('active');
+            }
+        }
+        
+        // Display scenario options
+        function displayScenarioOptions(data) {
+            const container = document.getElementById('scenarioOptions');
+            container.innerHTML = '';
+            
+            // Store scenarios globally for access in selectScenario
+            window.refinedScenarios = data.scenarios;
+            
+            // Show key concerns if available
+            if (data.key_concerns && data.key_concerns.length > 0) {
+                const concernsDiv = document.createElement('div');
+                concernsDiv.className = 'key-concerns';
+                concernsDiv.innerHTML = `
+                    <h4>Key Concerns Identified:</h4>
+                    <ul>
+                        ${data.key_concerns.map(c => `<li>${c}</li>`).join('')}
+                    </ul>
+                `;
+                container.appendChild(concernsDiv);
+            }
+            
+            // Display scenario options
+            data.scenarios.forEach((scenario, index) => {
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'scenario-option';
+                
+                // Mark recommended scenario
+                if (scenario.recommended === true) {
+                    optionDiv.classList.add('recommended');
+                }
+                
+                optionDiv.innerHTML = `
+                    <div class="scenario-text">${scenario.title}</div>
+                    <div class="scenario-description">${scenario.description}</div>
+                    <div class="scenario-rationale">${scenario.rationale}</div>
+                `;
+                
+                optionDiv.onclick = () => selectScenario(scenario.title, index);
+                container.appendChild(optionDiv);
+            });
+        }
+        
+        // Select a scenario
+        function selectScenario(text, index) {
+            // Update hidden input
+            document.getElementById('risk_scenario').value = text;
+            
+            // Get the scenario data to populate description
+            const scenarios = window.refinedScenarios || [];
+            if (scenarios[index]) {
+                const scenario = scenarios[index];
+                // Populate the additional details field with the scenario description
+                document.getElementById('scenario_description').value = scenario.description || '';
+            }
+            
+            // Update visual selection
+            document.querySelectorAll('.scenario-option').forEach((opt, i) => {
+                if (i === index) {
+                    opt.classList.add('selected');
+                } else {
+                    opt.classList.remove('selected');
+                }
+            });
+        }
+        
+        // Go back to narrative phase
+        function backToNarrative() {
+            document.getElementById('narrativePhase').style.display = 'block';
+            document.getElementById('scenarioPhase').style.display = 'none';
+            document.getElementById('risk_scenario').value = '';
+        }
+        
+        // Form submission handler
+        document.getElementById('generateForm').addEventListener('submit', function(e) {
+            // Validate that a scenario is selected if in phase 2
+            const scenarioPhase = document.getElementById('scenarioPhase');
+            if (scenarioPhase.style.display !== 'none') {
+                const selectedScenario = document.getElementById('risk_scenario').value;
+                if (!selectedScenario) {
+                    e.preventDefault();
+                    alert('Please select a risk scenario before generating the assessment.');
+                    return;
+                }
+            } else {
+                // If still in phase 1, require narrative
+                const narrative = document.getElementById('risk_narrative').value.trim();
+                if (!narrative) {
+                    e.preventDefault();
+                    alert('Please describe your risk concern or use the refine button.');
+                    return;
+                }
+                // Auto-populate risk_scenario with narrative if not refined
+                document.getElementById('risk_scenario').value = narrative.substring(0, 200);
+            }
+            
+            // CRITICAL: Explicitly save ChatHistory before form submission
+            // This ensures chat data persists across the page navigation
+            try {
+                ChatHistory.save();
+                console.log('[Custom Scenario] ChatHistory saved before form submission:', ChatHistory.getAll().length, 'entries');
+            } catch (error) {
+                console.error('[Custom Scenario] Failed to save ChatHistory:', error);
+            }
+            
+            // Show loading indicator
+            document.getElementById('generateForm').style.display = 'none';
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('submitBtn').disabled = true;
+            
+            // Animate through the steps
+            let currentStep = 1;
+            const maxStep = document.getElementById('loading').dataset.maxStep || 4;
+            const stepMs = document.getElementById('loading').dataset.stepMs || 8000;
+            const stepInterval = setInterval(() => {
+                if (currentStep < maxStep) {
+                    document.getElementById('step' + currentStep).classList.remove('active');
+                    currentStep++;
+                    document.getElementById('step' + currentStep).classList.add('active');
+                }
+            }, parseInt(stepMs, 10));
+            
+            // Store interval ID to clear if page unloads
+            window.stepInterval = stepInterval;
+        });
+        
+        // Clear interval on page unload
+        window.addEventListener('beforeunload', function() {
+            if (window.stepInterval) {
+                clearInterval(window.stepInterval);
+            }
+        });
+    </script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script>lucide.createIcons();</script>
+
+    <footer class="footer">
+        <div class="footer-tagline">Beta release · Evidence-informed cyber-risk analysis</div>
+        <div class="footer-copyright">OpenImpactCascade is licensed under the Apache License, Version 2.0.</div>
+        <div class="footer-copyright">© 2026 FirstFire Productions. <a href="https://impactcascade.ca" class="footer-link" target="_blank">https://impactcascade.ca</a></div>
+    </footer>
+</body>
+</html>

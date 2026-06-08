@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Attack Cascades - OpenImpactCascade</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f7fafc;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .header {
+            background: #e2e8f0;
+            color: #2d3748;
+            padding: 30px;
+            border-radius: 12px 12px 0 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header .subtitle {
+            color: #4a5568;
+            font-size: 1.2em;
+        }
+        
+        .content {
+            background: white;
+            padding: 40px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 0 0 12px 12px;
+        }
+        
+        .content h2 {
+            color: #667eea;
+            font-size: 1.8em;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        .content h3 {
+            color: #4a5568;
+            font-size: 1.3em;
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+        
+        .content p {
+            color: #4a5568;
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+        
+        .content ul, .content ol {
+            margin-left: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .content li {
+            color: #4a5568;
+            line-height: 1.8;
+            margin-bottom: 10px;
+        }
+        
+        .highlight-box {
+            background: #eef2ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .highlight-box p {
+            margin-bottom: 0;
+        }
+        
+        .citation {
+            font-size: 0.9em;
+            color: #718096;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 20px;
+            margin-top: 30px;
+        }
+        
+        .citation a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .citation a:hover {
+            text-decoration: underline;
+        }
+
+        .archetype-diagram {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+        }
+
+        .archetype-diagram .step {
+            display: inline-block;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 12px 20px;
+            margin: 5px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .archetype-diagram .arrow {
+            display: inline-block;
+            color: #a0aec0;
+            font-size: 1.5em;
+            margin: 0 10px;
+            vertical-align: middle;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 30px 20px;
+            border-top: 1px solid #e2e8f0;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .footer-brand {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #243b53;
+            margin-bottom: 8px;
+        }
+
+        .footer-tagline {
+            font-size: 0.9em;
+            color: #627d98;
+            margin-bottom: 15px;
+        }
+
+        .footer-link {
+            color: #2563eb;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+
+        .footer-copyright {
+            font-size: 0.85em;
+            color: #a0aec0;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="{{ url_for('home') }}" class="back-link">← Back to Home</a>
+        
+        <div class="header">
+            <h1>Attack Cascades</h1>
+            <p class="subtitle">Understanding the Flow of Cyber Attacks Through Archetypes</p>
+        </div>
+        
+        <div class="content">
+            <h2>What Is an Attack Cascade?</h2>
+            <p>
+                An attack cascade is a structured representation of how cyber attacks unfold across multiple stages. Rather than viewing security incidents as single events, the cascade model captures the <strong>sequence of tactics</strong> that threat actors employ to achieve their objectives—from initial access through to impact.
+            </p>
+            
+            <div class="highlight-box">
+                <p>
+                    <strong>The key insight:</strong> Most successful attacks are not single exploits. They are chains of activities, each enabling the next, forming a cascade that can be interrupted at multiple chokepoints.
+                </p>
+            </div>
+
+            <h2>Built on MITRE ATT&CK</h2>
+            <p>
+                The cascade concept is grounded in the <a href="https://attack.mitre.org/" target="_blank">MITRE ATT&CK framework</a>, the globally recognized knowledge base of adversary tactics and techniques based on real-world observations. ATT&CK categorizes attacker behavior into:
+            </p>
+            
+            <ul>
+                <li><strong>Tactics</strong> — The tactical goal an adversary is trying to achieve (e.g., Initial Access, Persistence, Exfiltration)</li>
+                <li><strong>Techniques</strong> — The methods used to accomplish those tactics</li>
+                <li><strong>Sub-techniques</strong> — More specific variations of techniques</li>
+            </ul>
+            
+            <p>
+                By mapping attack cascades to ATT&CK, we ensure that our analysis reflects documented, real-world adversary behavior—not theoretical scenarios.
+            </p>
+
+            <h2>The Cascade Archetype Approach</h2>
+            <p>
+                Traditional risk analysis often focuses on specific threats: "What if ransomware hits us?" or "Are we vulnerable to phishing?" The problem is that threat actors constantly evolve their tactics. When one technique is blocked, they adapt.
+            </p>
+            
+            <div class="archetype-diagram">
+                <div class="step">Initial Access</div>
+                <span class="arrow">→</span>
+                <div class="step">Execution</div>
+                <span class="arrow">→</span>
+                <div class="step">Persistence</div>
+                <span class="arrow">→</span>
+                <div class="step">Impact</div>
+                <br><br>
+                <p style="color: #718096; font-size: 0.9em;">Example cascade flow across ATT&CK tactics</p>
+            </div>
+
+            <h3>What Is an Archetype?</h3>
+            <p>
+                An attack cascade archetype is a <strong>pattern of attack</strong> that describes how a category of threats typically unfolds. Rather than modeling "ransomware" or "supply chain attacks" as isolated events, archetypes capture the underlying structure:
+            </p>
+            
+            <ol>
+                <li><strong>The entry path</strong> — How attackers typically gain initial access</li>
+                <li><strong>The progression</strong> — How they move through the environment</li>
+                <li><strong>The chokepoints</strong> — Critical stages where defenses can interrupt the cascade</li>
+                <li><strong>The impact</strong> — The ultimate business consequence if the cascade completes</li>
+            </ol>
+
+            <h2>Why Archetypes Matter</h2>
+            <p>
+                The archetype approach provides <strong>tactic-agnostic resilience</strong>. When threat actors change their specific tools or techniques, the underlying cascade structure often remains similar:
+            </p>
+            
+            <ul>
+                <li>Phishing may evolve from malicious attachments to credential harvesting links, but the <em>Initial Access → Credential Compromise → Lateral Movement</em> cascade remains relevant</li>
+                <li>Ransomware groups may switch encryption methods, but the <em>Access → Persistence → Data Exfiltration → Encryption</em> pattern persists</li>
+                <li>Supply chain attacks vary by vendor, but the <em>Compromise Trusted Channel → Leverage Access → Target Downstream</em> archetype endures</li>
+            </ul>
+
+            <div class="highlight-box">
+                <p>
+                    <strong>OpenImpactCascade's innovation:</strong> By assessing risk at the archetype level rather than chasing specific threats, your analysis remains valid even as adversaries evolve. The chokepoints you identify today will likely be the same chokepoints that matter tomorrow.
+                </p>
+            </div>
+
+            <h2>How Cascades Drive Assessment Questions</h2>
+            <p>
+                Each cascade archetype in OpenImpactCascade has been curated to identify the critical decision points that determine whether an attack succeeds or fails. When you select an archetype for your assessment, the system generates questions targeting:
+            </p>
+            
+            <ul>
+                <li><strong>Frequency estimates</strong> — How often does this type of cascade attempt occur in your industry/region?</li>
+                <li><strong>Vulnerability at chokepoints</strong> — What controls do you have at each critical stage?</li>
+                <li><strong>Impact if completed</strong> — What is the business consequence if the full cascade executes?</li>
+                <li><strong>Control effectiveness</strong> — How likely are your defenses to interrupt the cascade at each stage?</li>
+            </ul>
+
+            <h2>Unique to OpenImpactCascade</h2>
+            <p>
+                While MITRE ATT&CK provides the foundational tactics and techniques, OpenImpactCascade's cascade archetypes are purpose-built for <strong>quantitative risk analysis</strong>:
+            </p>
+            
+            <ul>
+                <li><strong>Structured for FAIR:</strong> Each archetype maps directly to FAIR's Threat Event Frequency and Loss Magnitude factors</li>
+                <li><strong>Industry-calibrated:</strong> Base frequencies are grounded in breach data from sources like Verizon DBIR</li>
+                <li><strong>Evidence-backed:</strong> Rationale for each archetype cites specific ATT&CK techniques and documented incidents</li>
+                <li><strong>Tactic-resilient:</strong> Analysis remains valid across technique variations because it focuses on the cascade structure</li>
+            </ul>
+
+            <div class="citation">
+                <p>
+                    <strong>References:</strong>
+                </p>
+                <p>
+                    MITRE ATT&CK® is a globally-accessible knowledge base of adversary tactics and techniques based on real-world observations. The ATT&CK knowledge base is used as a foundation for the development of specific threat models and methodologies in the private sector, in government, and in the cybersecurity product and service community. <a href="https://attack.mitre.org/" target="_blank">attack.mitre.org</a>
+                </p>
+                <p style="margin-top: 10px;">
+                    Strom, B., et al. (2018). <em>MITRE ATT&CK: Design and Philosophy.</em> MITRE Corporation. <a href="https://www.mitre.org/capabilities/cybersecurity/trustworthy-cyberinfrastructure-overview/trustworthy-cyberinfrastructure-publications" target="_blank">mitre.org</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-tagline">Beta release · Evidence-informed cyber-risk analysis</div>
+        <div class="footer-copyright">OpenImpactCascade is licensed under the Apache License, Version 2.0.</div>
+        <div class="footer-copyright">© 2026 FirstFire Productions. <a href="https://impactcascade.ca" class="footer-link" target="_blank">https://impactcascade.ca</a></div>
+    </footer>
+</body>
+</html>

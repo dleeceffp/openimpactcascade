@@ -1,0 +1,406 @@
+# OIC mitigation gloss table
+# Source: MITRE ATT&CK STIX — enterprise-attack-19.1 / ics-attack-19.1 (verbatim ids + names).
+# Generated: 2026-06-04.
+# Glosses authored against MITRE mitigation descriptions for the OIC cascade-card pipeline.
+#
+# Per mitigation:
+#   name:                  MITRE mitigation name (verbatim — join key to ATT&CK 'mitigates' relationships)
+#   control:               plain-language control phrasing — used in the card's mitigations section
+#   weakness_when_absent:  the gap the gate prose names when this control is missing or weak
+#   preventable: false     present only on the two "do not / cannot mitigate" entries; route these
+#                          to a detection/response note rather than listing them as an option
+#
+# Counts: enterprise 44, ics 52.
+schema_version: "1.0"
+attack_version: "enterprise-attack-19.1 / ics-attack-19.1"
+generated: "2026-06-04"
+
+enterprise:
+  M1013:
+    name: "Application Developer Guidance"
+    control: "secure-coding guidance and training for developers"
+    weakness_when_absent: "software is built without secure-design practices, leaving exploitable flaws in the product"
+  M1015:
+    name: "Active Directory Configuration"
+    control: "hardened Active Directory group-policy and trust configuration"
+    weakness_when_absent: "AD is left in a permissive default state, so accounts, logon policy, and trusts can be abused"
+  M1016:
+    name: "Vulnerability Scanning"
+    control: "regular vulnerability scanning with prioritized remediation"
+    weakness_when_absent: "known vulnerabilities and misconfigurations go undiscovered and unpatched"
+  M1017:
+    name: "User Training"
+    control: "security-awareness training for phishing and social engineering"
+    weakness_when_absent: "users aren't equipped to spot or report lures, so human-interaction attacks land"
+  M1018:
+    name: "User Account Management"
+    control: "lifecycle management of user accounts and their permissions"
+    weakness_when_absent: "accounts carry more access than they need and stale accounts linger"
+  M1019:
+    name: "Threat Intelligence Program"
+    control: "a threat-intelligence program informing defenses"
+    weakness_when_absent: "the org has no forewarning of the actor's tooling or TTPs and can't prioritize defenses"
+  M1020:
+    name: "SSL/TLS Inspection"
+    control: "decryption and inspection of TLS traffic"
+    weakness_when_absent: "malicious activity hidden inside encrypted traffic passes uninspected"
+  M1021:
+    name: "Restrict Web-Based Content"
+    control: "web/URL filtering with download and script restrictions"
+    weakness_when_absent: "users can reach malicious sites and pull down unsafe content unrestricted"
+  M1022:
+    name: "Restrict File and Directory Permissions"
+    control: "least-privilege file-system permissions"
+    weakness_when_absent: "sensitive files and directories are readable or writable by accounts that shouldn't have access"
+  M1024:
+    name: "Restrict Registry Permissions"
+    control: "locked-down permissions on sensitive registry keys"
+    weakness_when_absent: "the registry can be modified for persistence or privilege escalation"
+  M1025:
+    name: "Privileged Process Integrity"
+    control: "protection of privileged processes from tampering or injection"
+    weakness_when_absent: "high-privilege processes can be injected into or tampered with"
+  M1026:
+    name: "Privileged Account Management"
+    control: "tight control and monitoring of privileged (admin/SYSTEM/root) accounts"
+    weakness_when_absent: "admin rights are broadly held, so the action runs with high privilege unchecked"
+  M1027:
+    name: "Password Policies"
+    control: "strong password complexity, rotation, and reuse policy"
+    weakness_when_absent: "weak or reused passwords are easily guessed, cracked, or sprayed"
+  M1028:
+    name: "Operating System Configuration"
+    control: "OS hardening of default settings"
+    weakness_when_absent: "a permissive OS default that would block the abuse is left enabled"
+  M1029:
+    name: "Remote Data Storage"
+    control: "off-host storage of logs and critical data"
+    weakness_when_absent: "logs and critical data sit where an attacker can alter or destroy them"
+  M1030:
+    name: "Network Segmentation"
+    control: "network segmentation isolating critical systems"
+    weakness_when_absent: "a flat network lets the attacker reach and move between systems freely"
+  M1031:
+    name: "Network Intrusion Prevention"
+    control: "IDS/IPS signatures blocking malicious traffic at boundaries"
+    weakness_when_absent: "malicious traffic crosses network boundaries unblocked"
+  M1032:
+    name: "Multi-factor Authentication"
+    control: "multi-factor authentication"
+    weakness_when_absent: "a single stolen or guessed credential is enough to authenticate"
+  M1033:
+    name: "Limit Software Installation"
+    control: "restrictions on installing unapproved software"
+    weakness_when_absent: "users can install unvetted or malicious software"
+  M1034:
+    name: "Limit Hardware Installation"
+    control: "restrictions on attaching unapproved hardware or USB devices"
+    weakness_when_absent: "unapproved devices can be attached and used"
+  M1035:
+    name: "Limit Access to Resource Over Network"
+    control: "restricting network access to resources and services to those who need them"
+    weakness_when_absent: "file shares, services, and remote access are reachable by accounts with no need for them"
+  M1036:
+    name: "Account Use Policies"
+    control: "account lockout, login-time, and inactivity policies"
+    weakness_when_absent: "accounts can be hammered with login attempts or used at anomalous times without restriction"
+  M1037:
+    name: "Filter Network Traffic"
+    control: "ingress/egress/lateral traffic filtering and firewall rules"
+    weakness_when_absent: "traffic flows in, out, and across the network without protocol or destination filtering"
+  M1038:
+    name: "Execution Prevention"
+    control: "application control and script blocking"
+    weakness_when_absent: "unapproved code and scripts are allowed to execute"
+  M1039:
+    name: "Environment Variable Permissions"
+    control: "restricted permissions on environment variables"
+    weakness_when_absent: "environment variables can be altered to redirect or hijack execution"
+  M1040:
+    name: "Behavior Prevention on Endpoint"
+    control: "behavior-based endpoint prevention (heuristics/EDR)"
+    weakness_when_absent: "malicious behavior isn't caught because defenses rely only on known signatures"
+  M1041:
+    name: "Encrypt Sensitive Information"
+    control: "strong encryption of data at rest and in transit"
+    weakness_when_absent: "sensitive data is exposed in cleartext if accessed or intercepted"
+  M1042:
+    name: "Disable or Remove Feature or Program"
+    control: "removing unnecessary or vulnerable features and software"
+    weakness_when_absent: "a risky feature or program (e.g. a scripting engine) is still present and abusable"
+  M1043:
+    name: "Credential Access Protection"
+    control: "protections against credential dumping and theft"
+    weakness_when_absent: "credentials, hashes, or tokens can be harvested from memory or stores"
+  M1044:
+    name: "Restrict Library Loading"
+    control: "controls ensuring only trusted libraries load"
+    weakness_when_absent: "untrusted DLLs or shared objects can be loaded via hijacking or side-loading"
+  M1045:
+    name: "Code Signing"
+    control: "digital-signature verification of code"
+    weakness_when_absent: "unsigned or untrusted code and scripts are allowed to run"
+  M1046:
+    name: "Boot Integrity"
+    control: "secure boot and boot-process integrity verification"
+    weakness_when_absent: "the boot chain can be tampered with below the OS"
+  M1047:
+    name: "Audit"
+    control: "logging and systematic review of activity and configuration"
+    weakness_when_absent: "the action isn't recorded or reviewed, so it goes unseen"
+  M1048:
+    name: "Application Isolation and Sandboxing"
+    control: "isolating or sandboxing code execution"
+    weakness_when_absent: "code runs with full reach into the rest of the system rather than contained"
+  M1049:
+    name: "Antivirus/Antimalware"
+    control: "antivirus/antimalware using signatures, heuristics, and behavior"
+    weakness_when_absent: "AV or antimalware is absent or doesn't recognize the payload"
+  M1050:
+    name: "Exploit Protection"
+    control: "exploit-mitigation capabilities (DEP, ASLR, and similar)"
+    weakness_when_absent: "exploit conditions aren't detected or blocked, so vulnerabilities stay exploitable"
+  M1051:
+    name: "Update Software"
+    control: "timely patching of OS, applications, drivers, and firmware"
+    weakness_when_absent: "an unpatched, known-vulnerable component is left exploitable"
+  M1052:
+    name: "User Account Control"
+    control: "Windows User Account Control enforcing elevation prompts"
+    weakness_when_absent: "privileged changes proceed without an elevation check"
+  M1053:
+    name: "Data Backup"
+    control: "secure, isolated, tested backups"
+    weakness_when_absent: "backups are absent or reachable from production, so encrypted or destroyed data can't be restored"
+  M1054:
+    name: "Software Configuration"
+    control: "security-focused configuration of applications"
+    weakness_when_absent: "an application's settings are left in an insecure state"
+  M1055:
+    name: "Do Not Mitigate"
+    control: "no preventive control; the technique abuses legitimate functionality"
+    weakness_when_absent: "n/a — this link is addressed through detection and response, not prevention"
+    preventable: false
+  M1056:
+    name: "Pre-compromise"
+    control: "reducing external attack surface and exposed information"
+    weakness_when_absent: "the org's exposed assets and information let the attacker prepare freely before contact"
+  M1057:
+    name: "Data Loss Prevention"
+    control: "data-loss-prevention monitoring and control of sensitive-data movement"
+    weakness_when_absent: "sensitive data can be moved or exfiltrated without detection or blocking"
+  M1060:
+    name: "Out-of-Band Communications Channel"
+    control: "a separate, independent out-of-band communications path for incidents"
+    weakness_when_absent: "when primary comms are compromised or down, responders have no trusted channel"
+
+ics:
+  M0800:
+    name: "Authorization Enforcement"
+    control: "device/system enforcement of least-privilege authorization (e.g. RBAC)"
+    weakness_when_absent: "devices accept read, manipulate, or execute actions from users who aren't authorized for them"
+  M0801:
+    name: "Access Management"
+    control: "access-management technology enforcing auth where field devices can't"
+    weakness_when_absent: "field devices lack native auth, so access isn't authenticated or controlled"
+  M0802:
+    name: "Communication Authenticity"
+    control: "authenticated, integrity-protected protocols (MACs or signatures)"
+    weakness_when_absent: "messages aren't authenticated, so spoofed or forged commands are accepted"
+  M0803:
+    name: "Data Loss Prevention"
+    control: "DLP to spot exfiltration of operational or IP data"
+    weakness_when_absent: "operational information can be exfiltrated without detection"
+  M0804:
+    name: "Human User Authentication"
+    control: "user authentication before data access or command acceptance"
+    weakness_when_absent: "commands and data access are accepted without verifying the operator's identity"
+  M0805:
+    name: "Mechanical Protection Layers"
+    control: "physical/mechanical safeguards (interlocks, rupture disks, relief valves)"
+    weakness_when_absent: "no physical fail-safe exists to prevent damage if controls are subverted"
+  M0806:
+    name: "Minimize Wireless Signal Propagation"
+    control: "containing wireless signal beyond facility boundaries"
+    weakness_when_absent: "wireless signal leaks past the perimeter, enabling monitoring or unauthorized access"
+  M0807:
+    name: "Network Allowlists"
+    control: "allowlisting permitted connections (IP/MAC/port/protocol)"
+    weakness_when_absent: "any host can open connections because permitted endpoints aren't constrained"
+  M0808:
+    name: "Encrypt Network Traffic"
+    control: "strong encryption of network communications"
+    weakness_when_absent: "communications can be eavesdropped because traffic is unencrypted"
+  M0809:
+    name: "Operational Information Confidentiality"
+    control: "protecting confidentiality of process, config, and IP information"
+    weakness_when_absent: "operational details (configs, programs, recipes) are exposed and can be used to plan attacks"
+  M0810:
+    name: "Out-of-Band Communications Channel"
+    control: "an alternative communications path during failures or integrity attacks"
+    weakness_when_absent: "there's no fallback channel when primary communications fail or are manipulated"
+  M0811:
+    name: "Redundancy of Service"
+    control: "redundant/backup devices and hot-standbys for critical services"
+    weakness_when_absent: "loss of a single device or service halts the process with no failover"
+  M0812:
+    name: "Safety Instrumented Systems"
+    control: "an independent Safety Instrumented System as a protection layer"
+    weakness_when_absent: "no independent safety layer exists to halt a hazardous condition"
+  M0813:
+    name: "Software Process and Device Authentication"
+    control: "authentication of devices and software processes"
+    weakness_when_absent: "devices and processes connect and call APIs without proving identity, enabling spoofing"
+  M0814:
+    name: "Static Network Configuration"
+    control: "static host and device network configuration"
+    weakness_when_absent: "reliance on dynamic discovery (ARP/DHCP/DNS) lets attackers manipulate forwarding and run AiTM"
+  M0815:
+    name: "Watchdog Timers"
+    control: "watchdog timers detecting unresponsive systems"
+    weakness_when_absent: "a hung or disabled system isn't detected quickly"
+  M0816:
+    name: "Mitigation Limited or Not Effective"
+    control: "no effective preventive control; the technique abuses legitimate features"
+    weakness_when_absent: "n/a — this link can't be prevented and must be handled via detection and response"
+    preventable: false
+  M0817:
+    name: "Supply Chain Management"
+    control: "supply-chain assurance for device and component integrity"
+    weakness_when_absent: "untrusted or tampered devices and components enter the environment unverified"
+  M0818:
+    name: "Validate Program Inputs"
+    control: "validation of program inputs against safe operational ranges"
+    weakness_when_absent: "unchecked inputs or commands are accepted outside intended operational ranges"
+  M0913:
+    name: "Application Developer Guidance"
+    control: "secure-development guidance for application developers"
+    weakness_when_absent: "applications are built with exploitable weaknesses"
+  M0915:
+    name: "Active Directory Configuration"
+    control: "hardened Active Directory configuration (SID filtering, etc.)"
+    weakness_when_absent: "AD defaults allow techniques that hardening would block"
+  M0916:
+    name: "Vulnerability Scanning"
+    control: "vulnerability scanning to find exploitable flaws"
+    weakness_when_absent: "exploitable vulnerabilities go undiscovered"
+  M0917:
+    name: "User Training"
+    control: "awareness training for operators and staff"
+    weakness_when_absent: "users aren't prepared to recognize manipulation or social-engineering attempts"
+  M0918:
+    name: "User Account Management"
+    control: "management of user accounts and permissions"
+    weakness_when_absent: "user accounts carry excessive or stale permissions"
+  M0919:
+    name: "Threat Intelligence Program"
+    control: "a threat-intelligence program informing ICS defenses"
+    weakness_when_absent: "the org lacks forewarning to prioritize defenses against relevant threats"
+  M0920:
+    name: "SSL/TLS Inspection"
+    control: "inspection of encrypted web sessions"
+    weakness_when_absent: "adversary activity hidden in encrypted traffic passes uninspected"
+  M0921:
+    name: "Restrict Web-Based Content"
+    control: "web filtering and content restrictions"
+    weakness_when_absent: "users can reach malicious sites or pull unsafe content"
+  M0922:
+    name: "Restrict File and Directory Permissions"
+    control: "restrictive file and directory permissions"
+    weakness_when_absent: "files and directories are accessible to accounts that shouldn't have access"
+  M0924:
+    name: "Restrict Registry Permissions"
+    control: "restricted Windows registry permissions"
+    weakness_when_absent: "registry hives or keys can be modified to enable abuse"
+  M0926:
+    name: "Privileged Account Management"
+    control: "management of privileged (SYSTEM/root/admin) accounts"
+    weakness_when_absent: "privileged accounts are broadly available and unmonitored"
+  M0927:
+    name: "Password Policies"
+    control: "enforced secure password policy"
+    weakness_when_absent: "weak or reused passwords are easily compromised"
+  M0928:
+    name: "Operating System Configuration"
+    control: "OS hardening against techniques"
+    weakness_when_absent: "a permissive OS configuration leaves the abuse path open"
+  M0930:
+    name: "Network Segmentation"
+    control: "physical/logical segmentation isolating critical systems, with a DMZ for internet-facing services"
+    weakness_when_absent: "a flat or poorly bounded network lets attackers reach sensitive ICS systems"
+  M0931:
+    name: "Network Intrusion Prevention"
+    control: "boundary IDS/IPS tuned not to disrupt real-time protocols"
+    weakness_when_absent: "malicious traffic crosses boundaries unblocked"
+  M0932:
+    name: "Multi-factor Authentication"
+    control: "multi-factor authentication where operationally feasible"
+    weakness_when_absent: "single-factor credentials alone grant access"
+  M0934:
+    name: "Limit Hardware Installation"
+    control: "blocking unapproved hardware and USB devices"
+    weakness_when_absent: "unapproved hardware can be attached and used"
+  M0935:
+    name: "Limit Access to Resource Over Network"
+    control: "restricting remote and network access to systems and services"
+    weakness_when_absent: "shares, services, and remote access are broadly reachable"
+  M0936:
+    name: "Account Use Policies"
+    control: "account lockout and login-time policies"
+    weakness_when_absent: "accounts can be brute-forced or used at anomalous times unrestricted"
+  M0937:
+    name: "Filter Network Traffic"
+    control: "ingress/egress and application-layer (protocol) traffic filtering"
+    weakness_when_absent: "traffic — including automation protocols — flows unfiltered"
+  M0938:
+    name: "Execution Prevention"
+    control: "application control and script blocking"
+    weakness_when_absent: "unapproved code or scripts execute"
+  M0941:
+    name: "Encrypt Sensitive Information"
+    control: "strong encryption of sensitive data at rest"
+    weakness_when_absent: "sensitive data at rest is exposed in cleartext"
+  M0942:
+    name: "Disable or Remove Feature or Program"
+    control: "removing unnecessary or vulnerable software"
+    weakness_when_absent: "an unnecessary, abusable program or feature remains present"
+  M0944:
+    name: "Restrict Library Loading"
+    control: "controls preventing untrusted library loading"
+    weakness_when_absent: "untrusted libraries can be loaded into processes"
+  M0945:
+    name: "Code Signing"
+    control: "digital-signature verification of binaries and applications"
+    weakness_when_absent: "unsigned or untrusted code is allowed to run"
+  M0946:
+    name: "Boot Integrity"
+    control: "secure boot and OS integrity verification"
+    weakness_when_absent: "the boot or loading process can be tampered with"
+  M0947:
+    name: "Audit"
+    control: "audits and periodic firmware/config integrity checks"
+    weakness_when_absent: "weaknesses and unauthorized changes go undetected without auditing or integrity checks"
+  M0948:
+    name: "Application Isolation and Sandboxing"
+    control: "sandboxed or virtualized code execution"
+    weakness_when_absent: "code executes with full system reach rather than contained"
+  M0949:
+    name: "Antivirus/Antimalware"
+    control: "AV/antimalware (limited to non-real-time assets in ICS)"
+    weakness_when_absent: "malicious software isn't detected where AV is absent or unsupported"
+  M0950:
+    name: "Exploit Protection"
+    control: "exploit-detection and blocking capabilities"
+    weakness_when_absent: "exploit conditions aren't detected or blocked"
+  M0951:
+    name: "Update Software"
+    control: "regular patching scheduled around operational windows"
+    weakness_when_absent: "unpatched, known-vulnerable software remains exploitable"
+  M0953:
+    name: "Data Backup"
+    control: "hardened, network-separated backups with tested incident-response plans"
+    weakness_when_absent: "backups are absent or reachable, so lost or encrypted data can't be restored"
+  M0954:
+    name: "Software Configuration"
+    control: "security-focused application configuration"
+    weakness_when_absent: "application settings are left insecure"

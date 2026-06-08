@@ -1,0 +1,161 @@
+# =============================================================================
+# OIC reference — LIKELIHOOD side (companion to the IBM/NetDiligence impact files)
+# Verizon Data Breach Investigations Report (DBIR) 2023, by industry
+# Figures only; narrative paraphrased. Never reproduce report prose or tables.
+# Built to the SAME schema as dbir-likelihood-by-industry_2025.yaml.
+# =============================================================================
+
+publisher:          "Verizon Data Breach Investigations Report (DBIR)"
+edition:            "2023"                   # ~16th annual (p.84 notes the DBIR was "born 16 years ago"); not stated verbatim as "16th"
+published:          "2023"                   # exact month NOT stated in PDF; Appendix B references work released 2023-04-06, so publication is later
+citation_url:       "https://www.verizon.com/business/resources/reports/dbir/"
+evidence_type:      incident_corpus          # contributed incident/breach corpus (not loss, not claims, not survey)
+unit:               "incident & breach counts in the DBIR corpus; pattern/vector shares as % of breaches"
+banding:            none                     # DBIR's primary cut is INDUSTRY (NAICS verticals); size (Small <1,000 / Large 1,000+) is a separate cut
+comparable_series:  "dbir-by-industry"       # shares the series key with the 2025 file so the two editions are trendable within DBIR
+data_window:        "2021-11 .. 2022-10"     # in-scope incident window for the 2023 edition (p.5, p.80)
+review_status:      "[REVIEW]"               # transcribed from the uploaded report — verify against the published source
+
+# -----------------------------------------------------------------------------
+# HOW TO USE THIS (the critical honesty constraint) — unchanged from the 2025 file
+# -----------------------------------------------------------------------------
+# These are COUNTS in Verizon's contributed corpus, not population base rates.
+# They reflect what Verizon's contributors saw and reported, so they support:
+#   - "for your industry, the attacks that actually happen are mostly X and Y"
+#     (threat COMPOSITION / which threats are credible — frames TEF qualitatively)
+#   - relative volume between sectors WITHIN this dataset
+# They do NOT support:
+#   - "an org in your sector has an N% chance of being breached this year"
+#     (DBIR is not a denominator-based incidence study; there is no population base)
+# State likelihood as composition + credibility, never as a derived annual probability.
+
+methodology_note: >
+  Verizon DBIR 2023 analyzed 16,312 security incidents and 5,199 confirmed
+  breaches (p.7, p.49). The report does NOT state a country count for this
+  edition (the 2025 edition's "139 countries" has no 2023 analog). Data is
+  contributed by law enforcement, forensic/IR firms, cyber insurers, ISACs,
+  and Verizon's VTRAC caseload (Appendix D), for incidents occurring
+  Nov 2021–Oct 2022. "Incident" = a compromise of integrity/confidentiality/
+  availability; "breach" = an incident with confirmed data disclosure (p.4).
+  Per-sector counts depend on which contributors cover that sector, so
+  cross-sector volume comparisons are corpus-relative, not population rates.
+  Industry verticals are NAICS-based (two-digit) and do not map 1:1 to IBM's
+  industry labels — do not cross-reference; this file answers "what is likely,"
+  the impact files answer "what it costs."
+  NOTE ON DISCREPANCY: the master industry table (Table 2, p.50) and the
+  per-industry "At a glance" boxes give slightly different incident/breach
+  counts for the same sector (e.g. Finance 1,829/477 in Table 2 vs 1,832/480
+  in the section). The `figures` below use the per-industry SECTION numbers
+  where a dedicated section exists (matching how the 2025 file was built) and
+  fall back to Table 2 for sectors with no dedicated section (flagged inline).
+  NOTE ON SIZE CUT: a separate size cut exists (SMB / Small <1,000 vs Large
+  1,000+, Tables 3 & 4, p.65): SMB/small ~699 incidents / 381 breaches; large
+  ~496 incidents / 227 breaches. Not folded into the industry `figures` here.
+
+# -----------------------------------------------------------------------------
+# OVERALL ANCHORS (apply across sectors unless an industry row overrides)
+# -----------------------------------------------------------------------------
+overall:
+  incidents_total:        16312
+  breaches_total:         5199
+  countries:              null                # NOT STATED in the 2023 DBIR (no country count given for the edition)
+
+  top_breach_patterns:                        # share of confirmed breaches (NOTE: 2023 does not publish a single clean list; values below are each stated in their own section)
+    system_intrusion:     null                # NOT given as a % of breaches; counts: 3,966 incidents / 1,944 confirmed breaches (p.24). System Intrusion is the top breach pattern (Fig 26)
+    basic_web_app:        0.25                # "accounts for 25% of our breaches" (p.35)
+    social_engineering:   0.17                # "17% of our Breaches and 10% of Incidents" (p.31)
+    miscellaneous_errors: 0.09                # error-related breaches "down to 9%" (p.40); "present in 9% of breaches" (p.83)
+
+  leading_initial_vectors:                    # 2023 names the top three access methods qualitatively (p.8) but does NOT give a clean numeric initial-vector breakdown
+    # ranked order (Summary of findings, p.8): stolen credentials > phishing > exploitation of vulnerabilities
+    credential_abuse:     null                # no initial-vector %; related: 49% of breaches "involved credentials" (Fig 6); Use of stolen creds = top breach action variety at 44.7% (p.16)
+    phishing:             null                # no clean initial-vector %; phishing = 44% of Social Engineering incidents (p.32)
+    vulnerability_exploit: null               # no initial-vector %; Exploit vuln present in ~5% of breaches, down from 7% (p.16)
+
+  ransomware_share_of_breaches:  0.24         # present in 24% of breaches; held statistically steady (p.8, p.9, p.16, p.27)
+  third_party_involvement:       null         # NOT a 2023 metric (the report notes Partner/Software-update vectors were notably ABSENT this year, p.16)
+  espionage_motive_share:        null         # not stated as a clean overall figure; financial motive = 95% of breaches (p.8) / 94.6% (Fig 12, p.13)
+  smb_ransomware_share:          null         # NOT STATED for SMBs specifically in 2023
+  median_ransom_paid_usd:        10000        # median transaction PAID to threat actors, Fig 34 (p.30) — distinct from median incident cost of $26,000 (Fig 33)
+
+  # --- additional 2023 overall anchors (NOT fields in the 2025 schema; included because the 2023 report headlines them) ---
+  human_element_share:    0.74                # 74% of breaches involved the human element (p.8)
+  external_actor_share:   0.83                # 83% of breaches involved External actors (p.8, p.12)
+  internal_actor_share:   0.19                # 19% of breaches involved Internal actors (p.12)
+  financial_motive_share: 0.95                # 95% of breaches financially driven (p.8); 94.6% in Fig 12 (p.13)
+
+# -----------------------------------------------------------------------------
+# BY INDUSTRY (DBIR verticals). Counts are corpus counts, not rates.
+# Sectors WITH a dedicated 2023 section use the section "At a glance" numbers.
+# Sectors WITHOUT one use Table 2 (p.50) and are flagged. Narrative paraphrased.
+# -----------------------------------------------------------------------------
+figures:
+
+  # --- sectors with a dedicated 2023 industry section ---
+  accommodation_food:                         # NAICS 72 (p.53)
+    incidents: 254
+    breaches:  68
+    notable:   "Top patterns System Intrusion, Basic Web App Attacks, Social Engineering (~90% of breaches). All breaches financially motivated; espionage fell from ~9% last year to 0. Payment card data the leading data type (~41%); RAM scrapers on point-of-sale systems the favored tool, with ransomware in ~1/3 of cases. External 93% / Internal 9%."
+
+  education:                                  # NAICS 61 (p.54)
+    incidents: 497
+    breaches:  238
+    notable:   "Top patterns System Intrusion, Miscellaneous Errors, Social Engineering (~76% of breaches). Basic Web App Attacks dropped out of the top three; Social Engineering rose to ~21% (phishing ~18%, pretexting ~4%). Ransomware in ~30% of breaches (≈1/3). Hacking and Malware each ~40%. External 72% / Internal 29%."
+
+  financial_insurance:                        # NAICS 52 (p.55)
+    incidents: 1832
+    breaches:  480
+    notable:   "Top patterns Basic Web App Attacks, Miscellaneous Errors, System Intrusion (~77% of breaches). BWAA now leads (credential stuffing / brute force). Misdelivery the dominant error. System Intrusion fell from ~27% to ~14%; ransomware decreasing in this sector. Personal data most-stolen (~74%). External 66% / Internal 34%. (Table 2 lists 1,829/477.)"
+
+  healthcare:                                 # NAICS 62 (p.56)
+    incidents: 525
+    breaches:  436
+    notable:   "Top patterns System Intrusion, Basic Web App Attacks, Miscellaneous Errors (~68% of breaches). Heavily targeted by ransomware actors, with a multi-year rise in confirmed breaches caused by ransomware. Misdelivery errors prevalent; insider / Privilege Misuse a consistent problem. Medical data in ~54% of breaches. External 66% / Internal 35%. (Table 2 lists 522/433.)"
+
+  information:                                # NAICS 51 (p.57)
+    incidents: 2110
+    breaches:  384
+    notable:   "Top patterns System Intrusion, Basic Web App Attacks, Social Engineering (~77% of breaches). Errors declining (now #4, ~13%); Social Engineering rose to #3 (~20%; phishing ~15%, pretexting ~11%). DoS ~70% of incidents. Espionage motive fell from ~20% to ~8%. External 81% / Internal 20%. (Table 2 lists 2,105/380.)"
+
+  manufacturing:                              # NAICS 31-33 (p.58)
+    incidents: 1817
+    breaches:  262
+    notable:   "Top patterns System Intrusion (~42%), Social Engineering (~23%), Basic Web App Attacks (~17%) (~83% of breaches). Hacking and Malware roughly equal; ransomware trending up for a 3rd year. DoS ~67% of incidents. Mostly financially motivated external actors (financial ~96%, external ~90%); espionage ~4%. (Table 2 lists 1,814/259.)"
+
+  mining_oilgas_utilities:                    # NAICS 21 + 22 COMBINED (p.59); rough 2023 equivalent of the 2025 scaffold's energy_utilities
+    incidents: 143
+    breaches:  47
+    notable:   "Combines NAICS 21 (Mining/Quarrying/Oil & Gas) + 22 (Utilities); small sample, some motives given as RANGES (Financial 63%-93%, Espionage 4%-32%). Top patterns System Intrusion, Basic Web App Attacks, Miscellaneous Errors (~81% of breaches). Ransomware ~32% of breaches (≈1/3). Social Engineering dropped out of the top five. Internal data rose to ~33% (from ~9%). Critical-infrastructure sector. External 80% / Internal 20%. (Table 2 splits these: Mining(21) 25/13, Utilities(22) 117/33.)"
+
+  professional_services:                      # NAICS 54 (p.61)
+    incidents: 1398
+    breaches:  423
+    notable:   "Top patterns System Intrusion (~47%), Basic Web App Attacks (~25%), Social Engineering (~18%) (~90% of breaches). Ransomware rose to ~23% of incidents (from ~14%). Breaches entered via Web apps (~55%), Email (~25%), Desktop sharing software (~17%). External 92%; financial motive 96%. (Table 2 lists 1,396/421.)"
+
+  public_administration:                      # NAICS 92 (p.62)
+    incidents: 3273
+    breaches:  584
+    notable:   "Top patterns System Intrusion, Lost and Stolen Assets, Social Engineering (~76% of breaches). Highest espionage motive of any sector (~30%; financial ~68%). Collusion (multiple actors) in ~16% of breaches (vs ~2% in 2020). Slight decrease in ransomware as a tactic. External 85% / Internal 30%. (Table 2 lists 3,270/582.)"
+
+  retail:                                     # NAICS 44-45 (p.63)
+    incidents: 406
+    breaches:  193
+    notable:   "Top patterns System Intrusion, Social Engineering, Basic Web App Attacks (~88% of breaches). Payment card data a leading target (~37%); Magecart-style web-skimming ~18% of breaches. Among payment-card breaches, ~70% originated from Web apps, ~17% gas terminals, ~8% PoS servers. All financially motivated; External 94%. (Table 2 lists 404/191.)"
+
+  # --- sectors WITHOUT a dedicated 2023 section: counts from Table 2 (p.50) only ---
+  # --- per-pattern / actor / motive / data detail is NOT provided for these in 2023. ---
+  administrative:          { incidents: 38,   breaches: 32,  notable: "NAICS 56. No dedicated 2023 industry section; counts from Table 2 (p.50). No pattern/actor breakdown published." }
+  agriculture:             { incidents: 66,   breaches: 33,  notable: "NAICS 11. No dedicated 2023 industry section; counts from Table 2 (p.50). No pattern/actor breakdown published." }
+  construction:            { incidents: 87,   breaches: 66,  notable: "NAICS 23. No dedicated 2023 industry section; counts from Table 2 (p.50). No pattern/actor breakdown published." }
+  entertainment:           { incidents: 432,  breaches: 93,  notable: "NAICS 71. No dedicated 2023 industry section; counts from Table 2 (p.50). No pattern/actor breakdown published." }
+  management:              { incidents: 9,    breaches: 9,   notable: "NAICS 55. No dedicated 2023 industry section; counts from Table 2 (p.50). Sample too small to analyze (<5 to ~9)." }
+  other_services:          { incidents: 143,  breaches: 100, notable: "NAICS 81. No dedicated 2023 industry section; counts from Table 2 (p.50). No pattern/actor breakdown published." }
+  real_estate:             { incidents: 83,   breaches: 59,  notable: "NAICS 53. No dedicated 2023 industry section; counts from Table 2 (p.50). No pattern/actor breakdown published." }
+  transportation:          { incidents: 349,  breaches: 106, notable: "NAICS 48-49. No dedicated 2023 industry section; counts from Table 2 (p.50). No pattern/actor breakdown published." }
+  wholesale_trade:         { incidents: 96,   breaches: 53,  notable: "NAICS 42. No dedicated 2023 industry section; counts from Table 2 (p.50). No pattern/actor breakdown published." }
+
+# -----------------------------------------------------------------------------
+# UNMAPPED / UNKNOWN (Table 2, p.50): 2,777 incidents / 1,553 breaches were not
+# attributable to a NAICS industry. Recorded here for completeness; not a sector.
+# -----------------------------------------------------------------------------
+# unknown_industry: { incidents: 2777, breaches: 1553 }

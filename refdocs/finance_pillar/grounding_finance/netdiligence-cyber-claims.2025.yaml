@@ -1,0 +1,232 @@
+# =============================================================================
+# OIC financial pillar
+# NetDiligence Cyber Claims Study 2025 (SME + large-company claims series)
+# Extracted by AI from source PDF using pdfplumber. Tables 3–7, Figures 4, 40–45.
+# =============================================================================
+
+publisher:          "NetDiligence Cyber Claims Study"
+edition:            "2025"
+published:          "2025"
+citation_url:       "https://netdiligence.com/cyber-claims-study"
+evidence_type:      claims                    # actual paid cyber insurance claims; NOT survey, NOT benchmark
+unit:               "USD, average total incident cost per claim"
+banding:            revenue                   # NetDiligence segments by annual revenue band (see bands below)
+comparable_series:  "netdiligence-cyber-claims"
+review_status:      "[AI-EXTRACTED]"          # extracted by AI from source PDF — verify figures against original
+
+# Why banding is `revenue`:
+#   NetDiligence segments claims by 7 annual-revenue bands. OIC uses headcount bands.
+#   Band-mapping guidance: Nano (<$50M) → OIC 1–50 / 51–250; Micro ($50M–$300M) → OIC 251–500 / 501–2500;
+#   Small ($300M–$2B) → OIC 2501–5000 / 5000+. Mid/Large/Mega map to large-enterprise only.
+#   Treat Nano + Micro as the primary SME grounding bands for most OIC assessments.
+#   Do NOT blend SME and large-company averages; the 10x–1000x magnitude difference makes
+#   blending misleading. Select the band that best matches the assessed organization's revenue.
+
+# Revenue band definitions (from report page 54 / Table 3):
+#   nano:   annual revenue < $50M          (41% of claims; 12% of total cost)
+#   micro:  annual revenue $50M–$300M      (19% of claims; 14% of total cost)
+#   small:  annual revenue $300M–$2B       ( 6% of claims; 21% of total cost)
+#   mid:    annual revenue $2B–$10B        ( 2% of claims; 20% of total cost)     [large company]
+#   large:  annual revenue $10B–$100B      (<1% of claims; 27% of total cost)     [large company]
+#   mega:   annual revenue > $100B         (<1% of claims;  3% of total cost)     [large company]
+#   unknown: 31% of claims; $47K avg
+#
+# SME threshold: < $2B annual revenue (nano + micro + small)
+# Large company: >= $2B annual revenue (mid + large + mega)
+
+methodology_note: >
+  NetDiligence fifteenth annual study. Based on 10,402 cyber insurance claims from incidents
+  occurring 2020–2024 (five-year pooled window). 4,108 new/updated claims collected in 2025
+  from incidents occurring 2022–2024; 1,691 claims from 2024 incidents.
+  98% of claims by count from SMEs (<$2B annual revenue); 2% from large companies (>=$2B).
+  SMEs account for 49% of total incident cost; large companies 51%.
+  Incident cost = aggregate total of all cost types including SIR (self-insured retention).
+  Crisis services cost = breach coach, forensics, notification, credit/ID monitoring, PR.
+  "Recordless" events included — report uses "incident" not "breach."
+  Cost figures are AVERAGES (not medians); heavily influenced by outlier claims.
+  Largest SME claim: >$100M (manufacturing, ransomware, 2022). Largest large-company claim: >$500M.
+  Five-year average incident cost at SMEs: $264K (up ~29% from $205K in prior edition).
+  Five-year average incident cost at large companies: $10.3M (down 19% from $12.7M).
+  Dataset covers 18 business sectors, 7 revenue bands, 25 causes of loss, 13 data types.
+  Payout covered 32% of total incident cost overall; 69% at SMEs, 27% at large companies.
+  All cost figures in USD. Data source: participating cyber insurers (see report page 50).
+
+trend_note: >
+  SME average incident cost rose to $264K (five-year) from $205K in last year's study (+29%).
+  Large-company average fell to $10.3M from $12.7M (-19%). Business interruption and recovery
+  costs continue rising at SMEs. Healthcare incident costs appear to have stabilised.
+  Manufacturing losses remain at five-year lows. Ransomware and BEC together account for
+  ~50% of SME claims ≥$1K (five-year), rising to ~55% in 2024 specifically.
+  Ransoms reached new record levels. ~15–20% of ransomware victims opted to pay the demand.
+
+# =============================================================================
+# OVERALL AVERAGES (all sectors combined)
+# =============================================================================
+overall_averages:
+  sme:
+    incident_cost:      { value: 264000,   basis: avg, n: 8936  }   # Figure 2; five-year 2020-2024
+    crisis_services:    { value: 152000,   basis: avg, n: 4712  }   # Figure 11; where crisis svcs > 0
+  large_company:
+    incident_cost:      { value: 10300000, basis: avg, n: 235   }   # Figure 2 / Figure 10
+    crisis_services:    { value: 3000000,  basis: avg, n: 115   }   # Figure 2
+
+# =============================================================================
+# INCIDENT COST BY REVENUE BAND (Table 3, all sectors, claims >= $1K, 2020-2024)
+# This is the primary banded grounding table for OIC magnitude estimation.
+# =============================================================================
+figures:
+  _all_sectors:
+    nano:   { value: 142000,    basis: avg, n: 4009,  unit: "USD avg incident cost", note: "max 10.4M"  }
+    micro:  { value: 374000,    basis: avg, n: 1775,  unit: "USD avg incident cost", note: "max 25.0M"  }
+    small:  { value: 2000000,   basis: avg, n: 508,   unit: "USD avg incident cost", note: "max 108.0M" }
+    mid:    { value: 5100000,   basis: avg, n: 187,   unit: "USD avg incident cost", note: "max 268.0M" }
+    large:  { value: 30500000,  basis: avg, n: 43,    unit: "USD avg incident cost", note: "max 503.5M" }
+    mega:   { value: 38300000,  basis: avg, n: 4,     unit: "USD avg incident cost", note: "max 75.0M"  }
+
+# =============================================================================
+# INCIDENT COST BY SECTOR — SMEs (Table 5, claims >= $1K, 2020-2024)
+# Schema: figures.<sector>.sme.{ value, basis, n }
+# =============================================================================
+
+  professional_services:
+    sme:    { value: 271000,    basis: avg, n: 1604,  note: "law, accounting, consulting, real estate; max 30M; avg rev $59M" }
+    large:  { value: 3300000,   basis: avg, n: 13,    note: "max 13.2M" }
+
+  manufacturing:
+    sme:    { value: 395000,    basis: avg, n: 773,   note: "avg rev $123M; max 108M; spike 2022 from outlier" }
+    large:  { value: 8500000,   basis: avg, n: 23,    note: "max 55.0M" }
+
+  healthcare:
+    sme:    { value: 566000,    basis: avg, n: 599,   note: "avg rev $116M; max 105M; costs appear stabilised" }
+    large:  { value: 17900000,  basis: avg, n: 37,    note: "max 165.0M" }
+
+  retail:
+    sme:    { value: 219000,    basis: avg, n: 623,   note: "avg rev $139M; max 7.5M" }
+    large:  { value: 12100000,  basis: avg, n: 16,    note: "max 111.0M" }
+
+  financial_services:
+    sme:    { value: 329000,    basis: avg, n: 579,   note: "avg rev $113M; max 11.5M; top causes BEC, ransomware, hacker" }
+    large:  { value: 1700000,   basis: avg, n: 91,    note: "max 50.0M" }
+
+  technology:
+    sme:    { value: 876000,    basis: avg, n: 450,   note: "max 26.0M" }
+    large:  { value: 8200000,   basis: avg, n: 21,    note: "max 60.0M" }
+
+  education:
+    sme:    { value: 172000,    basis: avg, n: 277,   note: "max 12.0M" }
+    large:  { value: 1100000,   basis: avg, n: 5,     note: "max 2.4M" }
+
+  energy:
+    sme:    { value: 431000,    basis: avg, n: 62,    note: "max 15.0M" }
+    large:  { value: 1900000,   basis: avg, n: 4,     note: "max 5.0M" }
+
+  nonprofit:
+    sme:    { value: 108000,    basis: avg, n: 370,   note: "max 2.9M" }
+
+  public_entity:
+    sme:    { value: 180000,    basis: avg, n: 300,   note: "max 4.0M" }
+
+  transportation:
+    sme:    { value: 531000,    basis: avg, n: 142,   note: "max 15.0M" }
+    large:  { value: 351000,    basis: avg, n: 5,     note: "max 598K — small large-co sample" }
+
+  hospitality:
+    sme:    { value: 182000,    basis: avg, n: 119,   note: "max 3.2M" }
+    large:  { value: 268000000, basis: avg, n: 1,     note: "single outlier claim 268M — treat as anecdotal" }
+
+  media:
+    sme:    { value: 722000,    basis: avg, n: 57,    note: "max 11.0M" }
+
+  entertainment:
+    sme:    { value: 318000,    basis: avg, n: 52,    note: "max 2.6M" }
+
+  telecommunications:
+    sme:    { value: 1600000,   basis: avg, n: 21,    note: "max 8.7M — small sample" }
+    large:  { value: 503500000, basis: avg, n: 1,     note: "single outlier claim 503.5M — treat as anecdotal" }
+
+  restaurant:
+    sme:    { value: 646000,    basis: avg, n: 18,    note: "max 5.2M — very small sample" }
+
+  gaming_casino:
+    sme:    { value: 1600000,   basis: avg, n: 5,     note: "max 4.3M — very small sample" }
+    large:  { value: 63300000,  basis: avg, n: 2,     note: "max 100.0M — very small sample" }
+
+  agriculture:
+    sme:    { value: 112000,    basis: avg, n: 55,    note: "max 490K" }
+
+# =============================================================================
+# CRISIS SERVICES COST BY SECTOR — SMEs (Table 6, 2020-2024)
+# Separate from incident cost; included for completeness.
+# =============================================================================
+crisis_services_by_sector_sme:
+  professional_services: { total_crisis: 171000, forensics: 57000,  monitoring: 79000,  notification: 17000,  legal_guidance: 187000 }
+  manufacturing:         { total_crisis: 138000, forensics: 71000,  monitoring: 7000,   notification: 2000,   legal_guidance: 98000  }
+  healthcare:            { total_crisis: 290000, forensics: 134000, monitoring: 195000, notification: 34000,  legal_guidance: 113000 }
+  retail:                { total_crisis: 112000, forensics: 52000,  monitoring: 34000,  notification: 6000,   legal_guidance: 104000 }
+  financial_services:    { total_crisis: 168000, forensics: 70000,  monitoring: 145000, notification: 74000,  legal_guidance: 118000 }
+  technology:            { total_crisis: 211000, forensics: 83000,  monitoring: 109000, notification: 54000,  legal_guidance: 102000 }
+  education:             { total_crisis: 101000, forensics: 62000,  monitoring: 13000,  notification: 10000,  legal_guidance: 103000 }
+  energy:                { total_crisis: 188000, forensics: 143000, monitoring: 3000,   notification: 1000,   legal_guidance: 118000 }
+  transportation:        { total_crisis: 241000, forensics: 60000,  monitoring: 7000,   notification: 4000,   legal_guidance: 164000 }
+  nonprofit:             { total_crisis: 81000,  forensics: 57000,  monitoring: 22000,  notification: 5000,   legal_guidance: 71000  }
+  public_entity:         { total_crisis: 123000, forensics: 65000,  monitoring: 54000,  notification: 27000,  legal_guidance: 131000 }
+  hospitality:           { total_crisis: 86000,  forensics: 47000,  monitoring: 12000,  notification: 3000,   legal_guidance: 78000  }
+  media:                 { total_crisis: 143000, forensics: 53000,  monitoring: 10000,  notification: 1000,   legal_guidance: 139000 }
+  entertainment:         { total_crisis: 119000, forensics: 42000,  monitoring: 54000,  notification: 4000,   legal_guidance: 152000 }
+  restaurant:            { total_crisis: 225000, forensics: 105000, monitoring: 138000, notification: 18000,  legal_guidance: 84000  }
+
+# =============================================================================
+# CAUSE-OF-LOSS AVERAGES — SMEs (Figure 5, 2020-2024 top 5)
+# For OIC threat-vector grounding; not a banded figure.
+# =============================================================================
+cause_of_loss_sme_top5:
+  ransomware:
+    value: 631000
+    basis: avg
+    n: 2571
+    share_of_claims: "25%"
+  business_email_compromise:
+    value: 171000
+    basis: avg
+    n: 1864
+    share_of_claims: "18%"
+  hacker:
+    value: 135000
+    basis: avg
+    n: 1191
+    share_of_claims: "11%"
+  theft_of_money:
+    value: 98000
+    basis: avg
+    n: 834
+    share_of_claims: "8%"
+  wire_transfer_fraud:
+    value: 38000
+    basis: avg
+    n: 438
+    share_of_claims: "4%"
+
+# =============================================================================
+# SIBLING-FILE NOTES
+# =============================================================================
+#
+# Trend partner:
+#   netdiligence-cyber-claims.2024.yaml
+#     comparable_series: "netdiligence-cyber-claims"
+#     overall_averages.sme.incident_cost: 205K (five-year 2019-2023)
+#
+# Pairing guidance:
+#   - IBM Cost of a Data Breach (ibm-cost-by-industry.2025.yaml): use for INDUSTRY-level
+#     magnitude grounding where org is mid-large. IBM figures are MUCH higher than NetDiligence
+#     because IBM captures mid-size+ breaches only (2,960–113,620 records).
+#   - NetDiligence: use for SME magnitude grounding; revenue-band selection is critical.
+#     Nano/Micro bands are most representative for OIC's typical assessed organizations.
+#   - Never blend IBM and NetDiligence averages. Select one as primary, note the other.
+#
+# OIC headcount-to-revenue band mapping (approximate):
+#   OIC band  1–50    → nano   (<$50M)
+#   OIC band  51–250  → nano / micro boundary
+#   OIC band  251–500 → micro  ($50M–$300M)
+#   OIC band  501–2500→ micro / small boundary
+#   OIC band  2501–5000 → small ($300M–$2B)
+#   OIC band  5000+   → small / mid boundary

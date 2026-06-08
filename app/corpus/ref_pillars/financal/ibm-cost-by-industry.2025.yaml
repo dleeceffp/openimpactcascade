@@ -1,0 +1,82 @@
+# =============================================================================
+# OIC financial pillar — worked example
+# IBM Cost of a Data Breach 2025 (industry series)
+# Transcribed from the uploaded 2025 report. Figures only; narrative paraphrased.
+# =============================================================================
+
+publisher:          "IBM Cost of a Data Breach"
+edition:            "2025"
+published:          "2025-07"
+citation_url:       "https://www.ibm.com/reports/data-breach"
+evidence_type:      incurred_loss          # benchmark of realized breach costs (not claims, not survey)
+unit:               "USD millions, average total breach cost"
+basis_default:      avg                      # report uses activity-based average cost (no medians by industry)
+banding:            none                     # IMPORTANT: IBM segments by INDUSTRY and COUNTRY, not org size
+comparable_series:  "ibm-cost-by-industry"   # trend only against other IBM editions of THIS series
+review_status:      "[REVIEW]"               # transcribed from source PDF — verify before production use
+
+# Why banding is `none`:
+#   This report does not break costs out by organization size (headcount or revenue).
+#   There is therefore no size band to map onto OIC's headcount bands. Do NOT invent one.
+#   For size-scaled magnitude, pair this with NetDiligence (claims, revenue-banded).
+
+methodology_note: >
+  Ponemon/IBM benchmark of 600 organizations across 16 countries/regions and 17 industries,
+  for breaches occurring Mar 2024–Feb 2025. Costs are AVERAGE total cost via activity-based
+  costing, in USD millions; FX as of 1 Mar 2025. Breach sizes ranged 2,960–113,620 records
+  (very small and very large breaches excluded), so figures reflect mid-size breaches, NOT an
+  SME-scaled cost. The sample is NONSTATISTICAL (no margins of error / confidence intervals)
+  and is described by the authors as biased toward organizations with more mature security
+  programs. Per-record cost cannot be extrapolated to large breaches. Each annual edition is a
+  DIFFERENT sample matched on characteristics (industry, headcount, geography, breach size) —
+  methodology is consistent year over year, so within-IBM trend comparison is legitimate, but it
+  is a matched-sample series, not a fixed panel. Figure 3 label "Services" = professional services
+  per the report's industry definitions.
+
+trend_note: >
+  Global average fell to 4.44 from 4.88 in 2024 (-9%), the first decline in five years, driven by
+  faster detection/containment. The US bucked the trend at a record 10.22. Healthcare remained the
+  costliest industry for the 14th consecutive year despite a sharp drop (7.42 from 9.77). Trend is
+  computed at runtime against the prior IBM edition file (see sibling-file note at the end).
+
+global_average:
+  "2025": { value: 4.44, basis: avg }        # context anchor; full global series lives in its own edition rows
+
+# --- INDUSTRY SERIES (2025, average total cost, USD millions) -----------------
+figures:
+  healthcare:           { value: 7.42, basis: avg }
+  financial:            { value: 5.56, basis: avg }
+  industrial:           { value: 5.00, basis: avg }   # chemical, engineering, manufacturing
+  energy:               { value: 4.83, basis: avg }   # oil & gas, utilities, alt energy
+  technology:           { value: 4.79, basis: avg }
+  pharmaceuticals:      { value: 4.61, basis: avg }
+  professional_services: { value: 4.56, basis: avg }   # report chart label: "Services"
+  entertainment:        { value: 4.43, basis: avg }
+  media:                { value: 4.22, basis: avg }
+  hospitality:          { value: 4.03, basis: avg }
+  transportation:       { value: 3.98, basis: avg }
+  education:            { value: 3.80, basis: avg }
+  research:             { value: 3.79, basis: avg }
+  communications:       { value: 3.75, basis: avg }
+  consumer:             { value: 3.72, basis: avg }
+  retail:               { value: 3.54, basis: avg }
+  public:               { value: 2.86, basis: avg }
+
+# =============================================================================
+# SIBLING-FILE NOTES (not part of this file — shown to illustrate the pattern)
+# =============================================================================
+#
+# Trend partner (same publisher + series, prior edition):
+#   ibm-cost-by-industry.2024.yaml
+#     edition: "2024"; comparable_series: "ibm-cost-by-industry"
+#     figures: { healthcare: {value: 9.77, basis: avg}, financial: {value: 6.08, ...}, ... }
+#   The app computes the trend at runtime by matching `comparable_series` + `publisher`
+#   across editions — never by blending publishers.
+#
+# Region series (same report, different cut) lives in its own file/series:
+#   ibm-cost-by-region.2025.yaml
+#     comparable_series: "ibm-cost-by-region"; banding: none
+#     figures: { united_states: {value: 10.22}, canada: {value: 4.84}, benelux: {value: 6.24},
+#                united_kingdom: {value: 4.14}, germany: {value: 4.03}, ... }
+#   Keep industry and region as SEPARATE series so the app selects the right cut per assessment
+#   (industry for the sector view, region for the geography view).
