@@ -1,0 +1,150 @@
+# =============================================================================
+# OIC financial pillar — AI-extracted test file
+# IBM Cost of a Data Breach 2025 (industry series)
+# Extracted by Windsurf AI from source PDF using pdfplumber coordinate analysis.
+# Figure 3 values read from word-coordinate proximity to industry labels (page 7).
+# Prior-year (2024) values read from same figure for trend validation.
+# =============================================================================
+
+publisher:          "IBM Cost of a Data Breach"
+edition:            "2025"
+published:          "2025-07"
+citation_url:       "https://www.ibm.com/reports/data-breach"
+evidence_type:      incurred_loss          # benchmark of realized breach costs (not claims, not survey)
+unit:               "USD millions, average total breach cost"
+basis_default:      avg                    # report uses activity-based average cost (no medians by industry)
+banding:            none                   # IBM segments by INDUSTRY and COUNTRY, not org size
+comparable_series:  "ibm-cost-by-industry" # trend only against other IBM editions of THIS series
+review_status:      "[AI-EXTRACTED]"       # extracted by AI from source PDF — verify figures against original
+
+# Why banding is `none`:
+#   This report does not break costs out by organization size (headcount or revenue).
+#   There is therefore no size band to map onto OIC's headcount bands. Do NOT invent one.
+#   For size-scaled magnitude, pair this with NetDiligence (claims, revenue-banded).
+
+# Extraction method note:
+#   Figure 3 (industry bar chart) is a graphic — values were not directly in the PDF text stream.
+#   Extracted via pdfplumber word-coordinate analysis: numeric tokens were matched to industry
+#   label positions by proximity on page 7. 2025 values appear immediately right of each label;
+#   2024 values appear on the next line at a slightly lower y-coordinate. All 17 industries
+#   and both years are confirmed present. Figures cross-checked against narrative text:
+#   - "Healthcare remained the costliest industry for the 14th consecutive year" -> 7.42 ✓
+#   - "global average fell to USD 4.44 million" -> global_average confirmed ✓
+#   - "US bucked the trend at a record 10.22" -> region data confirmed ✓
+
+methodology_note: >
+  Ponemon/IBM benchmark of 600 organizations across 16 countries/regions and 17 industries,
+  for breaches occurring Mar 2024–Feb 2025. Costs are AVERAGE total cost via activity-based
+  costing, in USD millions; FX as of 1 Mar 2025 (Federal Reserve rates). Breach sizes ranged
+  2,960–113,620 records (very small and very large breaches excluded), so figures reflect
+  mid-size breaches, NOT an SME-scaled cost. The sample is NONSTATISTICAL (no margins of
+  error / confidence intervals) and is described by the authors as biased toward organizations
+  with more mature security programs. Per-record cost cannot be extrapolated to large breaches.
+  Each annual edition is a DIFFERENT sample matched on characteristics (industry, headcount,
+  geography, breach size) — methodology is consistent year over year, so within-IBM trend
+  comparison is legitimate, but it is a matched-sample series, not a fixed panel.
+  Figure 3 label "Services" = professional services per the report's industry definitions.
+  "Industrial" covers chemical, engineering, and manufacturing.
+  "Energy" covers oil & gas, utilities, and alternative energy producers.
+
+trend_note: >
+  Global average fell to 4.44 from 4.88 in 2024 (-9%), the first decline in five years,
+  driven by faster detection/containment aided by AI and automation. The US bucked the
+  trend at a record 10.22 (up 9% from 9.36). Healthcare remained the costliest industry
+  for the 14th consecutive year despite a sharp drop (7.42 from 9.77, -24%). Detection
+  and escalation costs fell ~10% to USD 1.47M. 50% of breaches were now identified by
+  internal security teams (up from 42% in 2024). Trend is computed at runtime against
+  the prior IBM edition file (see sibling-file note at the end).
+
+global_average:
+  "2025":
+    value: 4.44
+    basis: avg
+  "2024":
+    value: 4.88
+    basis: avg
+
+# --- INDUSTRY SERIES (Figure 3, average total cost, USD millions) -------------
+figures:
+  healthcare:           { value: 7.42, basis: avg }   # costliest 14th consecutive year
+  financial:            { value: 5.56, basis: avg }   # banking, insurance, investment
+  industrial:           { value: 5.00, basis: avg }   # chemical, engineering, manufacturing
+  energy:               { value: 4.83, basis: avg }   # oil & gas, utilities, alt energy
+  technology:           { value: 4.79, basis: avg }
+  pharmaceuticals:      { value: 4.61, basis: avg }   # pharma, biomedical, life sciences
+  professional_services: { value: 4.56, basis: avg }  # report chart label: "Services"
+  entertainment:        { value: 4.43, basis: avg }
+  media:                { value: 4.22, basis: avg }   # TV, satellite, social, internet
+  hospitality:          { value: 4.03, basis: avg }   # hotels, restaurant chains, cruises
+  transportation:       { value: 3.98, basis: avg }
+  education:            { value: 3.80, basis: avg }
+  research:             { value: 3.79, basis: avg }   # market research, think tanks, R&D
+  communications:       { value: 3.75, basis: avg }
+  consumer:             { value: 3.72, basis: avg }   # manufacturers & distributors of consumer products
+  retail:               { value: 3.54, basis: avg }   # brick-and-mortar and e-commerce
+  public:               { value: 2.86, basis: avg }   # federal, state, local govt; NGOs
+
+# --- PRIOR-YEAR VALUES (2024, from same Figure 3) for runtime trend computation
+figures_prior:
+  healthcare:           { value: 9.77, basis: avg }
+  financial:            { value: 6.08, basis: avg }
+  industrial:           { value: 5.56, basis: avg }
+  energy:               { value: 5.29, basis: avg }
+  technology:           { value: 5.45, basis: avg }
+  pharmaceuticals:      { value: 5.10, basis: avg }
+  professional_services: { value: 5.08, basis: avg }
+  entertainment:        { value: 4.09, basis: avg }
+  media:                { value: 3.94, basis: avg }
+  hospitality:          { value: 3.82, basis: avg }
+  transportation:       { value: 4.43, basis: avg }
+  education:            { value: 3.50, basis: avg }
+  research:             { value: 3.54, basis: avg }
+  communications:       { value: 4.09, basis: avg }
+  consumer:             { value: 3.91, basis: avg }
+  retail:               { value: 3.48, basis: avg }
+  public:               { value: 2.55, basis: avg }
+
+# --- REGION SERIES (Figure 2, same report — kept here for reference only) -----
+# For production use, promote to ibm-cost-by-region.2025.yaml with comparable_series: "ibm-cost-by-region"
+region_figures_reference_only:
+  united_states:  { value: 10.22, basis: avg }  # record high; all-time high for any region; 2024: 9.36
+  middle_east:    { value: 7.29,  basis: avg }  # 2024: 8.75
+  benelux:        { value: 6.24,  basis: avg }  # Belgium, Netherlands, Luxembourg; 2024: 5.90
+  canada:         { value: 4.84,  basis: avg }  # 2024: 4.66
+  united_kingdom: { value: 4.14,  basis: avg }  # 2024: 4.53
+  germany:        { value: 4.03,  basis: avg }  # 2024: 5.31
+  latin_america:  { value: 3.81,  basis: avg }  # Mexico, Argentina, Chile, Colombia; 2024: 4.16
+  france:         { value: 3.73,  basis: avg }  # 2024: 4.17
+  asean:          { value: 3.67,  basis: avg }  # Singapore, Indonesia, Philippines, Malaysia, Thailand, Vietnam; 2024: 3.23
+  japan:          { value: 3.65,  basis: avg }  # 2024: 4.19
+  italy:          { value: 3.44,  basis: avg }  # 2024: 4.73
+  south_korea:    { value: 2.84,  basis: avg }  # 2024: 3.62
+  australia:      { value: 2.55,  basis: avg }  # 2024: 2.78
+  india:          { value: 2.51,  basis: avg }  # 2024: 2.35
+  south_africa:   { value: 2.37,  basis: avg }  # 2024: 2.78
+  brazil:         { value: 1.22,  basis: avg }  # 2024: 1.36
+
+# =============================================================================
+# SIBLING-FILE NOTES
+# =============================================================================
+#
+# Trend partner (same publisher + series, prior edition):
+#   ibm-cost-by-industry.2024.yaml
+#     edition: "2024"; comparable_series: "ibm-cost-by-industry"
+#     figures: { healthcare: {value: 9.77, basis: avg}, financial: {value: 6.08, ...}, ... }
+#   The app computes the trend at runtime by matching `comparable_series` + `publisher`
+#   across editions — never by blending publishers.
+#
+# Region series (same report, different cut) should live in its own file/series:
+#   ibm-cost-by-region.2025.yaml
+#     comparable_series: "ibm-cost-by-region"; banding: none
+#     (promote region_figures_reference_only block above into that file)
+#   Keep industry and region as SEPARATE series so the app selects the right cut per
+#   assessment (industry for the sector view, region for the geography view).
+#
+# Cost-category breakdown (Figure 5, global averages, USD millions, 2025):
+#   detection_and_escalation: 1.47   (down ~10% from prior year)
+#   notification:             0.37
+#   post_breach_response:     1.14   (ex-post response)
+#   lost_business:            1.47
+#   (sum = 4.45, rounding to 4.44 global average)

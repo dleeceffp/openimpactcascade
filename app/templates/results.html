@@ -14,6 +14,8 @@
             background: #f7fafc;
             margin: 0;
             display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
         
         /* Results page specific chat styles */
@@ -98,25 +100,34 @@
             .chat-sidebar { display: none; }
         }
         
+        /* Responsive for tablet - remove margin when sidebar is hidden */
+        @media (max-width: 1024px) {
+            .main-content {
+                margin-right: 0;
+            }
+        }
+        
         /* Results Page Layout and Styling */
         .page-wrapper {
             display: flex;
             width: 100%;
-            min-height: 100vh;
+            flex: 1;
         }
         
         .main-content {
             flex: 1;
             overflow-y: auto;
             padding: 20px;
+            display: flex;
+            justify-content: center;
             margin-right: 400px;
         }
         
         .container { max-width: 1200px; margin: 0 auto; }
         
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: #e2e8f0;
+            color: #2d3748;
             padding: 40px;
             border-radius: 12px;
             margin-bottom: 30px;
@@ -251,7 +262,7 @@
         }
         
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4a5568;
             color: white;
         }
         
@@ -335,6 +346,44 @@
                 transform-origin: top left;
                 width: 166%; /* 1 / 0.6 to keep scaled content within page width */
             }
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: auto;
+            padding: 30px 20px;
+            border-top: 1px solid #e2e8f0;
+            background: #f7fafc;
+        }
+
+        .footer-brand {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #243b53;
+            margin-bottom: 8px;
+        }
+
+        .footer-tagline {
+            font-size: 0.9em;
+            color: #627d98;
+            margin-bottom: 15px;
+        }
+
+        .footer-link {
+            color: #2563eb;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+
+        .footer-copyright {
+            font-size: 0.85em;
+            color: #a0aec0;
+            margin-top: 15px;
         }
     </style>
 </head>
@@ -1001,5 +1050,11 @@
             }
         });
     </script>
+
+    <footer class="footer">
+        <div class="footer-tagline">Beta release · Evidence-informed cyber-risk analysis</div>
+        <div class="footer-copyright">OpenImpactCascade is licensed under the Apache License, Version 2.0.</div>
+        <div class="footer-copyright">© 2026 FirstFire Productions. <a href="https://impactcascade.ca" class="footer-link" target="_blank">https://impactcascade.ca</a></div>
+    </footer>
 </body>
 </html>

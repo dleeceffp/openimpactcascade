@@ -21,13 +21,13 @@
 <!-- Chat Sidebar -->
 <div class="chat-sidebar" id="chatSidebar">
     <div class="chat-header">
-        <h3>💬 AI Assistant</h3>
+        <h3>Risk Assessment Coach</h3>
         <button class="chat-close-btn" id="chatCloseBtn" onclick="toggleChat()" aria-label="Close chat">✕</button>
     </div>
     
     <div class="chat-messages" id="chatMessages">
         <div class="chat-message assistant">
-            <div class="message-label">AI Assistant</div>
+            <div class="message-label">Coach</div>
             <div class="message-bubble">
                 {{ chat_config.welcome_message | safe }}
             </div>
@@ -62,5 +62,5 @@
 
 <!-- Mobile Chat Toggle Button -->
 <button class="mobile-chat-toggle" id="mobileChatToggle" onclick="toggleChat()" aria-label="Toggle chat">
-    💬
+    Chat
 </button>

@@ -1,60 +1,35 @@
 # Test all the components of the docker container locally
 
-# need a some directories for the app to run Static stuff is future
-
+# Need some directories for the app to run
 mkdir -p static/js static/css static/images
 mkdir -p templates logs generated
 
 python -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
-export ANTHROPIC_API_KEY="sk-ant-api03-jWtc4sz2kzyJLl93kkLJOw8Aq6T....vGYXKTIdwJFTmwTwUQvI5kZIGg-pFZzwgAA"
-export SECRET_KEY="test-...42"
-export GOOGLE_CLOUD_PROJECT=your-project-id
-export GCS_BUCKET_NAME=dev-oicv21-appdata
-export VERTEX_RAG_CORPUS=dev-oic-rakb-rag
-export VERTEX_AI_LOCATION=us-central1
+pip install -r app/requirements.txt
 
-export GOOGLE_APPLICATION_CREDENTIALS="/home/oic/v21/keys/oicsbx-17a...4dd.json"
-export GOOGLE_CLOUD_PROJECT=oicsbx
+# IMPORTANT: Never hardcode API keys here! Export these locally or use an .env file.
+# export ANTHROPIC_API_KEY="your-anthropic-key-here"
+# export SECRET_KEY="your-secret-key-here"
+export GOOGLE_CLOUD_PROJECT="your-gcp-project-id"
+export GCS_BUCKET_NAME="your-app-bucket-name"
+export VERTEX_RAG_CORPUS="your-corpus-id"
+export VERTEX_AI_LOCATION="us-central1"
+
+# Use your ADC or a securely stored SA key
+# export GOOGLE_APPLICATION_CREDENTIALS="/path/to/secure/service-account.json"
 
 # Build the Docker image
 docker build -t openimpactcascade:local .
 
 # Run locally (test mode)
 docker run -p 8080:8080 \
-    -e ANTHROPIC_API_KEY="your-key-here" \
-    -e SECRET_KEY="test-secret-key" \
-    -e GOOGLE_CLOUD_PROJECT="your-project-id" \
+    -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}" \
+    -e SECRET_KEY="${SECRET_KEY}" \
+    -e GOOGLE_CLOUD_PROJECT="${GOOGLE_CLOUD_PROJECT}" \
+    -v ~/.config/gcloud/application_default_credentials.json:/app/service-account-key.json:ro \
     -e GOOGLE_APPLICATION_CREDENTIALS="/app/service-account-key.json" \
-    -v $(pwd)/service-account-key.json:/app/service-account-key.json \
     openimpactcascade:local
 
 # Test in browser
-open http://localhost:8080
-
-
-
-
-
-
-# Create service account
-export PROJECT_ID="oicsbx"
-export SERVICE_NAME="dev-oicv21-cr-sa"
-export SERVICE_ACCOUNT="dev-oicv21-cr-sa@$PROJECT_ID.iam.gserviceaccount.com"
-
-
-gcloud run deploy  oicv21test0 \
-    --project oicsbx \
-    --image gcr.io/oicsbx/oicv21test0:v1 \
-    --platform managed \
-    --region us-central1 \
-    --allow-unauthenticated \
-    --service-account dev-oicv21-cr-sa@oicsbx.iam.gserviceaccount.com \
-    --memory 2Gi \
-    --cpu 2 \
-    --timeout 300 \
-    --max-instances 3 \
-    --min-instances 1 \
-    --set-env-vars "GOOGLE_CLOUD_PROJECT=oicsbx,VERTEX_RAG_CORPUS=dev-oic-rakb-rag,GCS_BUCKET_NAME=dev-oicv21-appdata,VERTEX_AI_LOCATION=us-central1," \
-    --set-secrets "ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,SECRET_KEY=SECRET_KEY:latest"
+# open http://localhost:8080

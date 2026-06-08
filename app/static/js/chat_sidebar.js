@@ -62,7 +62,7 @@ const ChatSidebar = {
                 }
             });
         }
-        
+
         // Mobile chat toggle
         const mobileToggle = document.getElementById('mobileChatToggle');
         if (mobileToggle) {
@@ -70,13 +70,99 @@ const ChatSidebar = {
                 ChatSidebar.toggleChat();
             });
         }
-        
+
         // Close button
         const closeBtn = document.getElementById('chatCloseBtn');
         if (closeBtn) {
             closeBtn.addEventListener('click', function() {
                 ChatSidebar.toggleChat();
             });
+        }
+
+        // Setup backdrop for tablet/mobile
+        this.setupBackdrop();
+
+        // Setup swipe-to-close on touch devices
+        this.setupSwipeToClose();
+    },
+
+    /**
+     * Setup backdrop overlay for tablet/mobile - click outside to close
+     */
+    setupBackdrop: function() {
+        // Create backdrop element if it doesn't exist
+        let backdrop = document.getElementById('chatSidebarBackdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'chatSidebarBackdrop';
+            backdrop.className = 'chat-sidebar-backdrop';
+            document.body.appendChild(backdrop);
+        }
+
+        // Click backdrop to close sidebar
+        backdrop.addEventListener('click', function() {
+            ChatSidebar.closeChat();
+        });
+
+        // Escape key to close
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                ChatSidebar.closeChat();
+            }
+        });
+    },
+
+    /**
+     * Setup swipe-to-close gesture for touch devices
+     */
+    setupSwipeToClose: function() {
+        const sidebar = document.getElementById('chatSidebar');
+        if (!sidebar) return;
+
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        sidebar.addEventListener('touchstart', function(e) {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+
+        sidebar.addEventListener('touchend', function(e) {
+            touchEndX = e.changedTouches[0].screenX;
+            ChatSidebar.handleSwipe(touchStartX, touchEndX);
+        }, { passive: true });
+    },
+
+    /**
+     * Handle swipe gesture - close if swiping right
+     */
+    handleSwipe: function(startX, endX) {
+        const swipeThreshold = 100;  // Minimum pixels to count as swipe
+        const swipeDistance = endX - startX;
+
+        // Swiping right (positive distance) closes the sidebar
+        if (swipeDistance > swipeThreshold) {
+            this.closeChat();
+        }
+    },
+
+    /**
+     * Close chat sidebar and hide backdrop
+     */
+    closeChat: function() {
+        const sidebar = document.getElementById('chatSidebar');
+        const toggle = document.getElementById('mobileChatToggle');
+        const backdrop = document.getElementById('chatSidebarBackdrop');
+
+        if (sidebar) {
+            sidebar.classList.remove('open');
+        }
+
+        if (toggle) {
+            toggle.classList.remove('hidden');
+        }
+
+        if (backdrop) {
+            backdrop.classList.remove('active');
         }
     },
     
@@ -149,7 +235,7 @@ const ChatSidebar = {
     /**
      * Add a message to the chat display
      * @param {string} role - 'user' or 'assistant'
-     * @param {string} content - Message content (can include HTML)
+     * @param {string} content - Message content (plain text only)
      */
     addMessageToChat: function(role, content) {
         const messagesDiv = document.getElementById('chatMessages');
@@ -157,16 +243,34 @@ const ChatSidebar = {
             console.error('[ChatSidebar] chatMessages element not found');
             return;
         }
-        
+
         const messageDiv = document.createElement('div');
         messageDiv.className = `chat-message ${role}`;
-        
-        const label = role === 'user' ? 'You' : 'AI Assistant';
-        messageDiv.innerHTML = `
-            <div class="message-label">${label}</div>
-            <div class="message-bubble">${content}</div>
-        `;
-        
+
+        const label = role === 'user' ? 'You' : 'Coach';
+
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'message-label';
+        labelDiv.textContent = label;
+
+        const bubbleDiv = document.createElement('div');
+        bubbleDiv.className = 'message-bubble';
+
+        // For user messages, always use textContent to prevent XSS
+        if (role === 'user') {
+            bubbleDiv.textContent = content;
+        } else {
+            // For assistant messages, use textContent for safety
+            // Basic formatting: convert newlines to <br> after escaping HTML
+            const escaped = content
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            bubbleDiv.innerHTML = escaped.replace(/\n/g, '<br>');
+        }
+
+        messageDiv.appendChild(labelDiv);
+        messageDiv.appendChild(bubbleDiv);
         messagesDiv.appendChild(messageDiv);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     },
@@ -184,19 +288,44 @@ const ChatSidebar = {
     },
     
     /**
-     * Toggle chat sidebar visibility (mobile)
+     * Toggle chat sidebar visibility (desktop/mobile/tablet)
      */
     toggleChat: function() {
         const sidebar = document.getElementById('chatSidebar');
         const toggle = document.getElementById('mobileChatToggle');
-        
+        const backdrop = document.getElementById('chatSidebarBackdrop');
+
         if (sidebar) {
-            sidebar.classList.toggle('open');
-        }
-        
-        // Hide toggle button when chat is open
-        if (toggle) {
-            toggle.classList.toggle('hidden');
+            // Check if desktop (min-width: 1025px)
+            const isDesktop = window.innerWidth >= 1025;
+            
+            if (isDesktop) {
+                // Desktop: toggle 'closed' class (default is open)
+                const isClosed = sidebar.classList.toggle('closed');
+                
+                // Show/hide backdrop based on sidebar state (closed = backdrop active)
+                if (backdrop) {
+                    backdrop.classList.toggle('active', isClosed);
+                }
+                
+                // Show toggle button when chat is closed
+                if (toggle) {
+                    toggle.classList.toggle('hidden', !isClosed);
+                }
+            } else {
+                // Mobile/Tablet: toggle 'open' class (default is closed)
+                const isOpen = sidebar.classList.toggle('open');
+                
+                // Show/hide backdrop based on sidebar state
+                if (backdrop) {
+                    backdrop.classList.toggle('active', isOpen);
+                }
+                
+                // Hide toggle button when chat is open, show when closed
+                if (toggle) {
+                    toggle.classList.toggle('hidden', isOpen);
+                }
+            }
         }
     },
     
@@ -278,6 +407,10 @@ function sendQuickHelp(question) {
 
 function toggleChat() {
     ChatSidebar.toggleChat();
+}
+
+function closeChat() {
+    ChatSidebar.closeChat();
 }
 
 function addMessageToChat(role, content) {

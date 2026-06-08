@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Custom Risk Scenario - OpenImpactCascade</title>
+    <title>Assess Specific Risk - OpenImpactCascade</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chat_sidebar.css') }}">
     <style>
         * {
@@ -14,9 +14,10 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f7fafc;
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             margin: 0;
         }
         
@@ -119,7 +120,7 @@
         .btn-refine {
             margin-top: 15px;
             padding: 12px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4a5568;
             color: white;
             border: none;
             border-radius: 6px;
@@ -127,10 +128,10 @@
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
         }
-        
+
         .btn-refine:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 12px rgba(74, 85, 104, 0.4);
         }
         
         .btn-refine:disabled {
@@ -322,13 +323,13 @@
         }
         
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4a5568;
             color: white;
         }
-        
+
         .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 15px rgba(74, 85, 104, 0.4);
         }
         
         .btn-primary:disabled {
@@ -388,28 +389,109 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+    
+        /* Lucide icon styling */
+        .icon {
+            display: inline-block;
+            vertical-align: middle;
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+            margin-right: 8px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .page-header .icon {
+            width: 28px;
+            height: 28px;
+            color: #4a5568;
+        }
+
+        .panel-icon {
+            color: #4a5568;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: auto;
+            padding: 30px 20px;
+            border-top: 1px solid #e2e8f0;
+            background: #f7fafc;
+        }
+
+        .footer-brand {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #243b53;
+            margin-bottom: 8px;
+        }
+
+        .footer-tagline {
+            font-size: 0.9em;
+            color: #627d98;
+            margin-bottom: 15px;
+        }
+
+        .footer-link {
+            color: #2563eb;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+
+        .footer-copyright {
+            font-size: 0.85em;
+            color: #a0aec0;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
     <div class="main-wrapper">
         <div class="container">
-        <a href="{{ url_for('home') }}" class="back-link">← Back to Home</a>
-        
-        <h1>🎯 Custom Risk Scenario Assessment</h1>
+        <a href="{{ url_for('home') }}" class="back-link"><i data-lucide="arrow-left" class="icon" style="width: 16px; height: 16px;"></i>Back to Home</a>
+
+        <div class="page-header">
+            <i data-lucide="clipboard-check" class="icon"></i>
+            <h1>Assess a Specific Risk Scenario</h1>
+        </div>
         <p class="subtitle">
-            Define your specific risk scenario and we'll create a tailored questionnaire focused on that exact threat, grounded in authoritative research.
+            Define your specific risk scenario to generate a tailored assessment focused on that exact threat, grounded in authoritative research.
         </p>
         
         <div class="info-box">
-            <strong>🎯 How This Works:</strong>
+            <strong>How This Works</strong>
             <ul>
                 <li>You define the specific risk scenario you want to assess</li>
-                <li>AI researches that exact threat using MITRE ATT&CK, CISA, and industry sources</li>
+                <li>Research on that exact threat using MITRE ATT&CK and relevant industry sources</li>
                 <li>Questions are tailored to your specific scenario, not generic threats</li>
                 <li>Get scenario-specific frequency and impact estimates</li>
             </ul>
         </div>
-        
+
+        {% if pillar_grounding_enabled %}
+        <div class="info-box" style="background: #f0f9ff; border-left-color: #0284c7;">
+            <strong><i data-lucide="bar-chart-3" class="icon panel-icon"></i>Industry Risk Baseline</strong>
+            <p style="margin: 5px 0 0 0; font-size: 0.9em;">
+                Verizon DBIR {{ dbir_edition or 'latest' }} industry statistics will help establish an initial likelihood baseline for the selected sector. You can refine assumptions during the assessment.
+            </p>
+        </div>
+        {% endif %}
+
         <form id="generateForm" method="POST" action="{{ url_for('generate_custom') }}">
             <div class="form-group">
                 <label for="industry">Industry <span class="required">*</span></label>
@@ -418,7 +500,8 @@
                     <option value="Healthcare">Healthcare / Medical Services</option>
                     <option value="Financial Services">Financial Services / Banking</option>
                     <option value="Retail">Retail / E-commerce</option>
-                    <option value="Construction">Construction / Real Estate</option>
+                    <option value="Construction">Construction</option>
+                    <option value="Real Estate">Real Estate</option>
                     <option value="Manufacturing">Manufacturing / Industrial</option>
                     <option value="Technology">Technology / Software</option>
                     <option value="Education">Education</option>
@@ -464,7 +547,7 @@
                 <p class="help-text">Don't worry about being technical - just describe what concerns you (up to 2000 characters)</p>
                 
                 <div class="examples">
-                    <h3>💡 Tips for describing your concern:</h3>
+                    <h3>Tips for describing your concern:</h3>
                     <ul>
                         <li>What type of attack or incident worries you?</li>
                         <li>What systems or data might be affected?</li>
@@ -474,7 +557,7 @@
                 </div>
                 
                 <button type="button" class="btn-refine" id="refineBtn" onclick="refineScenario()">
-                    ✨ Help Me Refine This Into a Clear Scenario
+                    Help Me Refine This Into a Clear Scenario
                 </button>
                 
                 <div id="refiningIndicator" class="refining-indicator">
@@ -535,19 +618,22 @@
                     Cancel
                 </button>
                 <button type="submit" class="btn-primary" id="submitBtn">
-                    Generate Assessment 🎯
+                    Prepare Assessment
                 </button>
             </div>
         </form>
         
-        <div id="loading" class="loading">
+        <div id="loading" class="loading" data-max-step="{% if pillar_grounding_enabled %}5{% else %}4{% endif %}" data-step-ms="{% if pillar_grounding_enabled %}7000{% else %}8000{% endif %}">
             <div class="spinner"></div>
-            <p><strong>Researching your specific scenario...</strong></p>
+            <p><strong>Preparing your risk assessment...</strong></p>
             <div class="loading-steps">
-                <div class="loading-step active" id="step1">🔍 Searching for scenario-specific threat intelligence...</div>
-                <div class="loading-step" id="step2">📋 Verifying documented incidents and sources...</div>
-                <div class="loading-step" id="step3">🎯 Building scenario-tailored questions...</div>
-                <div class="loading-step" id="step4">✅ Finalizing custom assessment...</div>
+                <div class="loading-step active" id="step1">
+                    {% if pillar_grounding_enabled %}Loading industry risk baseline...{% else %}Reviewing relevant threat intelligence...{% endif %}
+                </div>
+                <div class="loading-step" id="step2">{% if pillar_grounding_enabled %}Reviewing relevant threat intelligence...{% else %}Checking authoritative sources...{% endif %}</div>
+                <div class="loading-step" id="step3">{% if pillar_grounding_enabled %}Checking authoritative sources...{% else %}Building scenario-focused questions...{% endif %}</div>
+                <div class="loading-step" id="step4">{% if pillar_grounding_enabled %}Building scenario-focused questions...{% else %}Preparing the assessment...{% endif %}</div>
+                {% if pillar_grounding_enabled %}<div class="loading-step" id="step5">Preparing the assessment...</div>{% endif %}
             </div>
             <p style="font-size: 0.9em; color: #666; margin-top: 15px;">
                 This may take 90-120 seconds as we research your specific scenario and find relevant threat intelligence.
@@ -556,11 +642,11 @@
     </div>
     
     {% set chat_config = {
-        "welcome_message": "👋 Hi! I am here to help you define your custom risk scenario. I can help you:<ul style=\"margin: 10px 0 0 20px; font-size: 0.95em;\"><li>Clarify your risk concerns</li><li>Identify relevant threat actors</li><li>Understand FAIR methodology</li><li>Refine your scenario description</li></ul>Feel free to ask any questions!",
+        "welcome_message": "Welcome! I'm here to help you define your custom risk scenario. I can help you:<ul style=\"margin: 10px 0 0 20px; font-size: 0.95em;\"><li>Clarify your risk concerns</li><li>Identify relevant threat actors</li><li>Understand FAIR methodology</li><li>Refine your scenario description</li></ul>Feel free to ask any questions!",
         "quick_help_buttons": [
-            {"text": "📝 Good Scenario Tips", "question": "What makes a good risk scenario?"},
-            {"text": "💡 Describe Concern", "question": "How should I describe my concern?"},
-            {"text": "📊 About FAIR", "question": "What is FAIR methodology?"}
+            {"text": "Good Scenario Tips", "question": "What makes a good risk scenario?"},
+            {"text": "Describe Concern", "question": "How should I describe my concern?"},
+            {"text": "About FAIR", "question": "What is FAIR methodology?"}
         ],
         "page_context": "custom_scenario_generation"
     } %}
@@ -610,7 +696,7 @@
             
             // Show loading state
             refineBtn.disabled = true;
-            refineBtn.textContent = '🔄 Analyzing your concern...';
+            refineBtn.textContent = 'Analyzing your concern...';
             document.getElementById('refiningIndicator').classList.add('active');
             
             try {
@@ -663,7 +749,7 @@
                 const concernsDiv = document.createElement('div');
                 concernsDiv.className = 'key-concerns';
                 concernsDiv.innerHTML = `
-                    <h4>🎯 Key Concerns Identified:</h4>
+                    <h4>Key Concerns Identified:</h4>
                     <ul>
                         ${data.key_concerns.map(c => `<li>${c}</li>`).join('')}
                     </ul>
@@ -761,13 +847,15 @@
             
             // Animate through the steps
             let currentStep = 1;
+            const maxStep = document.getElementById('loading').dataset.maxStep || 4;
+            const stepMs = document.getElementById('loading').dataset.stepMs || 8000;
             const stepInterval = setInterval(() => {
-                if (currentStep < 4) {
+                if (currentStep < maxStep) {
                     document.getElementById('step' + currentStep).classList.remove('active');
                     currentStep++;
                     document.getElementById('step' + currentStep).classList.add('active');
                 }
-            }, 8000); // Change step every 8 seconds
+            }, parseInt(stepMs, 10));
             
             // Store interval ID to clear if page unloads
             window.stepInterval = stepInterval;
@@ -780,5 +868,13 @@
             }
         });
     </script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script>lucide.createIcons();</script>
+
+    <footer class="footer">
+        <div class="footer-tagline">Beta release · Evidence-informed cyber-risk analysis</div>
+        <div class="footer-copyright">OpenImpactCascade is licensed under the Apache License, Version 2.0.</div>
+        <div class="footer-copyright">© 2026 FirstFire Productions. <a href="https://impactcascade.ca" class="footer-link" target="_blank">https://impactcascade.ca</a></div>
+    </footer>
 </body>
 </html>

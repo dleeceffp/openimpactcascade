@@ -1,0 +1,378 @@
+# =============================================================================
+# OIC reference — LIKELIHOOD side (companion to the IBM/NetDiligence impact files)
+# Verizon Data Breach Investigations Report (DBIR) 2024, by industry
+# Figures only; narrative paraphrased. Never reproduce report prose or tables.
+# =============================================================================
+
+publisher:          "Verizon Data Breach Investigations Report (DBIR)"
+edition:            "2024"                   # 17th annual
+published:          "2024-05"
+citation_url:       "https://www.verizon.com/business/resources/reports/dbir/"
+evidence_type:      incident_corpus          # contributed incident/breach corpus (not loss, not claims, not survey)
+unit:               "incident & breach counts in the DBIR corpus; pattern/vector shares as % of breaches"
+banding:            none                     # DBIR's primary cut is INDUSTRY (NAICS verticals); size is a separate cut
+comparable_series:  "dbir-by-industry"
+data_window:        "2022-11 .. 2023-10"     # in-scope incident window for the 2024 edition
+review_status:      "[AI-EXTRACTED]"         # extracted by AI from source PDF — verify figures against original
+
+# -----------------------------------------------------------------------------
+# HOW TO USE THIS (the critical honesty constraint)
+# -----------------------------------------------------------------------------
+# These are COUNTS in Verizon's contributed corpus, not population base rates.
+# They reflect what Verizon's contributors saw and reported, so they support:
+#   - "for your industry, the attacks that actually happen are mostly X and Y"
+#     (threat COMPOSITION / which threats are credible — frames TEF qualitatively)
+#   - relative volume between sectors WITHIN this dataset
+# They do NOT support:
+#   - "an org in your sector has an N% chance of being breached this year"
+#     (DBIR is not a denominator-based incidence study; there is no population base)
+# State likelihood as composition + credibility, never as a derived annual probability.
+
+methodology_note: >
+  Verizon DBIR 2024 analyzed 30,458 security incidents and 10,626 confirmed
+  breaches across 94 countries. Data is contributed by law enforcement, forensic
+  and IR firms, cyber insurers, ISACs, and Verizon's own VTRAC caseload, for
+  incidents occurring Nov 2022–Oct 2023 (primary analytical focus). "Incident" =
+  a compromise of integrity/confidentiality/availability; "breach" = an incident
+  with confirmed data disclosure. Per-sector counts depend on which contributors
+  cover that sector, so cross-sector volume comparisons are corpus-relative, not
+  population rates. Industry verticals are NAICS-based and do not map 1:1 to
+  IBM's industry labels — do not cross-reference the two. This file answers
+  "what is likely"; the impact files answer "what it costs."
+  Size split: Small = 1–1,000 employees; Large = 1,000+ employees.
+
+# -----------------------------------------------------------------------------
+# OVERALL ANCHORS (apply across sectors unless an industry row overrides)
+# -----------------------------------------------------------------------------
+overall:
+  incidents_total:        30458
+  breaches_total:         10626
+  ransomware_share_of_breaches:  0.32    # present in ~32% of breaches; declining from 2021 peak
+  third_party_involvement:       0.15    # noted in report narrative
+  espionage_motive_share:        0.09
+  pretexting_surpassed_phishing: true    # pretexting overtook phishing as top social action in 2024
+  top_breach_patterns:
+    system_intrusion:     0.36
+    social_engineering:   0.17
+    miscellaneous_errors: 0.14
+    basic_web_app:        0.13
+  leading_initial_vectors:
+    credential_abuse:     0.24
+    vulnerability_exploit: 0.14
+    phishing:             0.13
+    pretexting:           0.13            # surpassed phishing this edition
+
+# -----------------------------------------------------------------------------
+# BY INDUSTRY (DBIR verticals). All counts from Table 2 (page 57).
+# Pattern/actor/motive from per-sector deep-dive sidebars (pages 60–73).
+# Sectors without a dedicated section use Table 2 counts only with general note.
+# Size splits: Small = 1–1,000 employees; Large = 1,000+ employees.
+# -----------------------------------------------------------------------------
+figures:
+
+  # ---- SECTORS WITH DEDICATED DEEP-DIVE SECTIONS IN THE REPORT ---------------
+
+  accommodation_food:                # NAICS 72 (hotels, restaurants)
+    incidents:      220
+    breaches:       106
+    incidents_small: 16
+    incidents_large: 9
+    breaches_small:  16
+    breaches_large:  9
+    top_patterns:   "System Intrusion, Social Engineering, Basic Web Application Attacks — represent 92% of breaches"
+    threat_actors:  "External 92%, Internal 9%, Multiple 1% (breaches)"
+    actor_motives:  "Financial 100% (breaches)"
+    data_compromised: "Credentials 50%, Personal 28%, Payment 19%, System 19%, Other 16% (breaches)"
+    notable: >
+      Social engineering attacks rose sharply, with Pretexting more than doubling YoY
+      and now accounting for 20% of incidents. Payment card data compromised dropped
+      from 41% to 19% of breaches — shift toward credential theft. Ransomware holds
+      steady at 16% of incidents for the third consecutive year.
+
+  education:                         # NAICS 61
+    incidents:      1780
+    breaches:       1537
+    incidents_small: 82
+    incidents_large: 630
+    breaches_small:  56
+    breaches_large:  618
+    top_patterns:   "System Intrusion, Social Engineering, Basic Web Application Attacks"
+    threat_actors:  "External 91%, Internal 9% (breaches)"
+    actor_motives:  "Financial 93%, Espionage 6% (breaches)"
+    data_compromised: "Personal, Credentials, Other (breaches)"
+    notable: >
+      Very high large-organization incident share (630 incidents at large vs 82 at small)
+      reflecting university and large school district exposure. Ransomware continues
+      to disrupt academic institutions with large attack surfaces and constrained
+      security budgets. Credential abuse via phishing/pretexting is a leading vector.
+
+  financial_insurance:               # NAICS 52
+    incidents:      3348
+    breaches:       1115
+    incidents_small: 75
+    incidents_large: 122
+    breaches_small:  54
+    breaches_large:  87
+    top_patterns:   "System Intrusion, Basic Web Application Attacks, Social Engineering"
+    threat_actors:  "External 87%, Internal 13% (breaches)"
+    actor_motives:  "Financial 96%, Espionage 4% (breaches)"
+    data_compromised: "Credentials, Personal, Other (breaches)"
+    notable: >
+      Highest absolute incident count after Public Administration. Credential theft and
+      web-app attacks are primary initial access vectors for internet-facing banking and
+      insurance portals. Insider threat remains notable at 13%. Pretexting surpassed
+      phishing as the top social action in this sector this year.
+
+  healthcare:                        # NAICS 62
+    incidents:      1378
+    breaches:       1220
+    incidents_small: 54
+    incidents_large: 21
+    breaches_small:  41
+    breaches_large:  18
+    top_patterns:   "System Intrusion, Basic Web Application Attacks, Miscellaneous Errors"
+    threat_actors:  "External 75%, Internal 25% (breaches)"
+    actor_motives:  "Financial 95%, Espionage 3% (breaches)"
+    data_compromised: "Medical, Personal, Credentials (breaches)"
+    notable: >
+      Very high breach-to-incident ratio (89%). Medical and personal records are the
+      primary target. Ransomware remains highly disruptive due to patient-care urgency.
+      Internal errors (misdelivery, misconfiguration) are a persistent secondary cause.
+      Basic web-app attacks have risen in prominence.
+
+  information:                       # NAICS 51 (media, telecom, tech services, data)
+    incidents:      1367
+    breaches:       602
+    incidents_small: 79
+    incidents_large: 62
+    breaches_small:  49
+    breaches_large:  19
+    top_patterns:   "System Intrusion, Basic Web Application Attacks, Social Engineering"
+    threat_actors:  "External 83%, Internal 17% (breaches)"
+    actor_motives:  "Financial 78%, Espionage 31% (breaches)"
+    data_compromised: "Other, Credentials, Internal, Secrets (breaches)"
+    notable: >
+      Elevated espionage motive (31%). Tech, media, and telecom organisations hold IP and
+      infrastructure access attractive to nation-state actors. System Intrusion (including
+      ransomware) and credential abuse dominate. Secrets data type prominent alongside
+      general credentials.
+
+  manufacturing:                     # NAICS 31-33
+    incidents:      2305
+    breaches:       849
+    incidents_small: 102
+    incidents_large: 81
+    breaches_small:  62
+    breaches_large:  49
+    top_patterns:   "System Intrusion, Social Engineering, Basic Web Application Attacks"
+    threat_actors:  "External 96%, Internal 4% (breaches)"
+    actor_motives:  "Financial 89%, Espionage 11% (breaches)"
+    data_compromised: "Internal, Credentials, Other (breaches)"
+    notable: >
+      Espionage motive at 11% — nation-state interest in industrial IP. Ransomware is the
+      dominant System Intrusion sub-pattern; OT/ICS environment disruption amplifies impact.
+      Majority of breached orgs are SMBs. Social engineering (pretexting/BEC) rising.
+
+  professional_services:             # NAICS 54
+    incidents:      2599
+    breaches:       1314
+    incidents_small: 205
+    incidents_large: 102
+    breaches_small:  124
+    breaches_large:  73
+    top_patterns:   "System Intrusion, Social Engineering, Basic Web Application Attacks"
+    threat_actors:  "External 90%, Internal 10% (breaches)"
+    actor_motives:  "Financial 97%, Espionage 4% (breaches)"
+    data_compromised: "Credentials, Personal, Other (breaches)"
+    notable: >
+      SMB-skewed sector with high claim frequency. Law firms, accountants, consultants,
+      and real estate firms hold sensitive client data making them attractive ransomware
+      and BEC targets. Pretexting overtook phishing as the top social vector. Credential
+      abuse is the leading initial access mechanism.
+
+  public_administration:             # NAICS 92
+    incidents:      12217
+    breaches:       1085
+    incidents_small: 56
+    incidents_large: 115
+    breaches_small:  39
+    breaches_large:  27
+    top_patterns:   "Miscellaneous Errors, System Intrusion, Social Engineering — Errors surged to top spot"
+    threat_actors:  "External 67%, Internal 33% (breaches)"
+    actor_motives:  "Financial 71%, Espionage 29% (breaches)"
+    data_compromised: "Personal 72%, Internal 37%, Other 31%, Credentials 17% (breaches)"
+    notable: >
+      Largest incident count of any sector (12,217) driven by Public Administration's broad
+      attack surface and mandatory reporting. Miscellaneous Errors (especially Misdelivery)
+      surged to the top breach pattern — overtaking System Intrusion — reflecting
+      internal mistakes. Espionage motive at 29% is among the highest of any sector.
+      State-affiliated actors (29% of external actors) target government data.
+
+  retail:                            # NAICS 44-45
+    incidents:      725
+    breaches:       369
+    incidents_small: 90
+    incidents_large: 47
+    breaches_small:  55
+    breaches_large:  32
+    top_patterns:   "System Intrusion, Social Engineering, Basic Web Application Attacks — represent 92% of breaches"
+    threat_actors:  "External 96%, Internal 4% (breaches)"
+    actor_motives:  "Financial 99%, Espionage 1% (breaches)"
+    data_compromised: "Credentials 38%, Other 31%, Payment 25%, System 20% (breaches)"
+    notable: >
+      Almost entirely financially motivated. Payment card data dropped from 37% to 25%
+      of breached data — attackers shifting to credential theft. Pretexting surpassed
+      phishing in social attacks. DoS attacks remain a significant disruption threat
+      (not captured in breach count). Ransomware declining in this sector since 2021.
+
+  # ---- SECTORS FROM TABLE 2 (page 57) — no dedicated section in the report ----
+  # Pattern/motive notes are inferred from sector type and overall corpus trends.
+
+  transportation:                    # NAICS 48-49
+    incidents:      260
+    breaches:       138
+    incidents_small: 21
+    incidents_large: 38
+    breaches_small:  17
+    breaches_large:  12
+    top_patterns:   "System Intrusion, Social Engineering, Basic Web Application Attacks"
+    threat_actors:  "External dominant (breaches)"
+    actor_motives:  "Financial dominant, Espionage minority (breaches)"
+    data_compromised: "Personal, Credentials, Other (breaches)"
+    notable: >
+      Moderate volume. Logistics operators face ransomware risk from operational dependency
+      on transport management systems. Critical infrastructure designation attracts
+      some nation-state probing (espionage share minor but non-zero).
+
+  energy_utilities:                  # NAICS 22 (Utilities) — Mining (21) very small (n=30/20)
+    incidents:      191              # utilities only; mining: 30 incidents, 20 breaches
+    breaches:       130
+    incidents_small: 17
+    incidents_large: 11
+    breaches_small:  12
+    breaches_large:  6
+    top_patterns:   "System Intrusion, Social Engineering, Basic Web Application Attacks"
+    threat_actors:  "External dominant, Internal minority (breaches)"
+    actor_motives:  "Financial majority, Espionage elevated (breaches)"
+    data_compromised: "Internal, Secrets, Other (breaches)"
+    notable: >
+      Espionage motive elevated vs. most sectors due to critical infrastructure status.
+      OT/ICS environments add operational disruption risk beyond data loss.
+      Small absolute corpus for utilities — interpret with caution.
+
+  construction:                      # NAICS 23
+    incidents:      249
+    breaches:       220
+    incidents_small: 17
+    incidents_large: 6
+    top_patterns:   "System Intrusion, Social Engineering, Basic Web Application Attacks"
+    threat_actors:  "External dominant (breaches)"
+    actor_motives:  "Financial majority, Espionage minority (breaches)"
+    data_compromised: "Internal, Credentials, Other (breaches)"
+    notable: >
+      High breach-to-incident ratio (88%). Project IP, subcontractor data, and payment
+      information are targets. BEC targeting high-value construction payments is a known risk.
+
+  entertainment:                     # NAICS 71
+    incidents:      447
+    breaches:       306
+    incidents_small: 16
+    incidents_large: 2
+    breaches_small:  10
+    breaches_large:  1
+    top_patterns:   "System Intrusion, Social Engineering, Miscellaneous Errors"
+    threat_actors:  "External majority, Internal minority (breaches)"
+    actor_motives:  "Financial dominant, Espionage minor (breaches)"
+    data_compromised: "Personal, Other, Internal (breaches)"
+    notable: >
+      SMB-dominated in incident count. High breach-to-incident ratio. Personal subscriber/
+      fan data is the primary target. Internal actor share notable for creative/media orgs.
+
+  real_estate:                       # NAICS 53
+    incidents:      432
+    breaches:       399
+    incidents_small: 35
+    incidents_large: 5
+    breaches_small:  29
+    breaches_large:  2
+    top_patterns:   "System Intrusion, Social Engineering, Basic Web Application Attacks"
+    threat_actors:  "External dominant (breaches)"
+    actor_motives:  "Financial dominant (breaches)"
+    data_compromised: "Personal, Credentials (breaches)"
+    notable: >
+      Very high breach-to-incident ratio (92%). BEC (wire/payment fraud via email
+      compromise) is a particular risk given high-value transactions processed by email.
+
+  other_services:                    # NAICS 81 (repair, personal services, religious orgs, etc.)
+    incidents:      462
+    breaches:       417
+    incidents_small: 13
+    incidents_large: 5
+    top_patterns:   "System Intrusion, Social Engineering, Basic Web Application Attacks"
+    threat_actors:  "External dominant (breaches)"
+    actor_motives:  "Financial dominant (breaches)"
+    data_compromised: "Personal, Credentials, Other (breaches)"
+    notable: >
+      Very high breach-to-incident ratio (90%). Diverse sector — small service businesses
+      with limited security maturity are opportunistic ransomware and credential-theft targets.
+
+  wholesale:                         # NAICS 42
+    incidents:      76
+    breaches:       54
+    incidents_small: 22
+    incidents_large: 21
+    top_patterns:   "System Intrusion, Social Engineering, Basic Web Application Attacks"
+    threat_actors:  "External dominant (breaches)"
+    actor_motives:  "Financial dominant (breaches)"
+    data_compromised: "Credentials, Internal, Personal (breaches)"
+    notable: >
+      Small corpus — interpret with caution. Supply-chain position makes wholesale
+      distributors attractive ransomware targets.
+
+  agriculture:                       # NAICS 11
+    incidents:      79
+    breaches:       56
+    incidents_small: 5
+    incidents_large: 0
+    top_patterns:   "System Intrusion, Basic Web Application Attacks, Social Engineering"
+    threat_actors:  "External dominant (breaches)"
+    actor_motives:  "Financial dominant, Espionage minority (breaches)"
+    data_compromised: "Internal, Other, Secrets (breaches)"
+    notable: >
+      Very small corpus — interpret with caution. Food supply chain may attract
+      occasional nation-state espionage interest alongside opportunistic ransomware.
+
+  administrative:                    # NAICS 56
+    incidents:      28
+    breaches:       21
+    incidents_small: 7
+    incidents_large: 7
+    top_patterns:   "System Intrusion, Social Engineering, Miscellaneous Errors"
+    threat_actors:  "External dominant (breaches)"
+    actor_motives:  "Financial dominant (breaches)"
+    data_compromised: "Internal, Credentials, Personal (breaches)"
+    notable: >
+      Very small corpus — interpret with caution. BPO and MSP firms in this category
+      create supply-chain risk for their downstream clients.
+
+  management:                        # NAICS 55 (holding companies, corporate HQ)
+    incidents:      22
+    breaches:       19
+    top_patterns:   "System Intrusion, Social Engineering, Privilege Misuse"
+    threat_actors:  "External dominant (breaches)"
+    actor_motives:  "Financial dominant (breaches)"
+    data_compromised: "Internal, Credentials (breaches)"
+    notable: >
+      Very small corpus (n=22) — interpret with caution. Corporate HQ structures hold
+      sensitive cross-subsidiary data making them high-value ransomware targets.
+
+  # ---- CROSS-EDITION TREND ANCHOR ----------------------------------------
+  # Comparable series partner: dbir-likelihood-by-industry.2025.yaml
+  #   data_window: 2023-11..2024-10; incidents_total: 22,052; breaches_total: 12,195
+  # Key YoY shifts (2024→2025):
+  #   - Manufacturing espionage motive rose sharply (11%→20%)
+  #   - Healthcare: System Intrusion overtook Errors as top pattern
+  #   - Public Admin: incident count dropped (12,217→1,422) due to contributor change;
+  #     breach count held (1,085→946) — confirmed attack pressure unchanged
+  #   - Ransomware share of breaches: rose from ~32% (2024) to 44% (2025)
+  #   - Pretexting: entrenched as top social action in both editions

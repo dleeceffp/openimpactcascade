@@ -13,11 +13,11 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(180deg, #eef4ff 0%, #f5f7fa 40%, #f5f7fa 100%);
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
             padding: 20px;
         }
         
@@ -28,18 +28,32 @@
         
         .header {
             text-align: center;
-            color: white;
+            color: #243b53;
             margin-bottom: 40px;
+            position: relative;
         }
-        
+
+        .header::before {
+            content: '';
+            display: block;
+            width: 60px;
+            height: 4px;
+            background: #2563eb;
+            margin: 0 auto 20px;
+            border-radius: 2px;
+        }
+
         .header h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
+            color: #243b53;
+            font-weight: 700;
         }
-        
+
         .header p {
-            font-size: 1.2em;
-            opacity: 0.9;
+            font-size: 1.15em;
+            color: #627d98;
+            font-weight: 400;
         }
         
         .cards {
@@ -52,17 +66,25 @@
             background: white;
             border-radius: 12px;
             padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             text-decoration: none;
             color: inherit;
             display: block;
             position: relative;
         }
-        
+
         .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
+
+        .card-guided {
+            border-left: 5px solid #2563eb;
+        }
+
+        .card-custom {
+            border-left: 5px solid #d97706;
         }
         
         .card.disabled {
@@ -75,36 +97,63 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
         
-        .card-icon {
-            font-size: 3em;
-            margin-bottom: 15px;
+        .icon-wrap {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            margin-bottom: 20px;
         }
-        
+
+        .icon-wrap-guided {
+            background: #eef4ff;
+            color: #2563eb;
+        }
+
+        .icon-wrap-custom {
+            background: #fffbeb;
+            color: #d97706;
+        }
+
+        .icon-wrap svg {
+            width: 28px;
+            height: 28px;
+        }
+
         .card h2 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 1.5em;
+            color: #243b53;
+            margin-bottom: 12px;
+            font-size: 1.4em;
+            font-weight: 600;
         }
-        
+
         .card p {
-            color: #666;
+            color: #627d98;
             line-height: 1.6;
             margin-bottom: 20px;
+            font-weight: 400;
         }
         
         .card-tag {
             display: inline-block;
-            background: #f0f0f0;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.85em;
-            color: #666;
-            margin-top: 10px;
+            background: #f0f4f8;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            color: #627d98;
+            margin-top: 8px;
+            font-weight: 500;
         }
-        
-        .ai-tag {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+
+        .tag-guided {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .tag-custom {
+            background: #fef3c7;
+            color: #b45309;
         }
         
         .warning-tag {
@@ -138,67 +187,174 @@
             align-items: center;
             gap: 6px;
             padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
+            background: white;
+            color: #627d98;
             text-decoration: none;
             border-radius: 8px;
-            font-weight: 600;
+            font-weight: 500;
             font-size: 0.9em;
             transition: all 0.3s;
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid #d9e2ec;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
-        
+
         .info-link:hover {
-            background: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255, 255, 255, 0.5);
+            background: white;
+            border-color: #2563eb;
+            color: #2563eb;
             transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(37, 99, 235, 0.1);
+        }
+
+        /* CTA Buttons */
+        .card-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.95em;
+            transition: all 0.2s;
+        }
+
+        .cta-primary {
+            background: #2563eb;
+            color: white;
+        }
+
+        .cta-primary:hover {
+            background: #1d4ed8;
+            transform: translateX(4px);
+        }
+
+        .cta-secondary {
+            background: white;
+            color: #d97706;
+            border: 1px solid #fbbf24;
+        }
+
+        .cta-secondary:hover {
+            background: #fffbeb;
+            border-color: #d97706;
+            transform: translateX(4px);
+        }
+
+        .cta-arrow {
+            transition: transform 0.2s;
+        }
+
+        .card:hover .cta-arrow {
+            transform: translateX(4px);
+        }
+
+        /* Lucide icon styling */
+        .icon {
+            display: inline-block;
+            vertical-align: middle;
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+            margin-right: 6px;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: auto;
+            padding: 30px 20px;
+            border-top: 1px solid #e2e8f0;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .footer-brand {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #243b53;
+            margin-bottom: 8px;
+        }
+
+        .footer-tagline {
+            font-size: 0.9em;
+            color: #627d98;
+            margin-bottom: 15px;
+        }
+
+        .footer-link {
+            color: #2563eb;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+
+        .footer-copyright {
+            font-size: 0.85em;
+            color: #a0aec0;
+            margin-top: 15px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎯 OpenImpactCascade</h1>
-            <p>AI-Powered Quantitative Risk Analysis with FAIR Methodology</p>
+            <h1>OpenImpactCascade</h1>
+            <p>Evidence-Informed Cyber Risk Quantification with FAIR Methodology</p>
         </div>
-        
+
         <div class="info-links">
+            <a href="{{ url_for('about_cascade') }}" class="info-link">
+                <i data-lucide="workflow" class="icon"></i>About Attack Cascades
+            </a>
             <a href="{{ url_for('about_mitre') }}" class="info-link">
-                🛡️ About MITRE ATT&CK
+                <i data-lucide="shield" class="icon"></i>About MITRE ATT&CK
             </a>
             <a href="{{ url_for('about_fair') }}" class="info-link">
-                📊 About FAIR Methodology
+                <i data-lucide="bar-chart-2" class="icon"></i>About FAIR Methodology
             </a>
         </div>
-        
+
         <div class="cards">
             {% if ai_available %}
-            <a href="{{ url_for('generate') }}" class="card">
-                <div class="card-icon">🤖</div>
-                <h2>AI-Generated Questionnaire</h2>
-                <p>Describe your industry and region, and let AI create a customized risk assessment questionnaire with top 3-5 relevant threat scenarios grounded in authoritative sources like MITRE ATT&CK, CISA advisories, and current threat intelligence.</p>
-                <span class="card-tag ai-tag">✨ AI-Powered</span>
-                <span class="card-tag">MITRE ATT&CK</span>
+            <a href="{{ url_for('generate') }}" class="card card-guided">
+                <div class="icon-wrap icon-wrap-guided"><i data-lucide="clipboard-check"></i></div>
+                <h2>Guided Risk Assessment</h2>
+                <p>Build an evidence-informed cyber-risk assessment using your industry, region and a curated attack cascade. Questions are tailored to likely attack paths and supported by current authoritative sources.</p>
+                <span class="card-tag tag-guided">Evidence-Informed</span>
+                <span class="card-tag">Cascade Archetypes</span>
                 <span class="card-tag">FAIR Methodology</span>
+                <div class="card-cta cta-primary">
+                    Start Guided Assessment <span class="cta-arrow">→</span>
+                </div>
             </a>
-            
-            <a href="{{ url_for('generate_custom') }}" class="card">
-                <div class="card-icon">🎯</div>
-                <h2>Custom Risk Scenario Assessment</h2>
-                <p>Define your own specific risk scenario (e.g., "Ransomware attack on ERP system") and get a tailored questionnaire focused on that exact threat. AI will research the scenario and provide industry-specific guidance.</p>
-                <span class="card-tag ai-tag">✨ AI-Powered</span>
+
+            <a href="{{ url_for('generate_custom') }}" class="card card-custom">
+                <div class="icon-wrap icon-wrap-custom"><i data-lucide="target"></i></div>
+                <h2>Assess a Specific Risk Scenario</h2>
+                <p>Define a specific concern in your own words and receive a fast, directional assessment focused on that scenario. Use this when no existing cascade archetype is a good fit.</p>
+                <span class="card-tag tag-custom">Fast Assessment</span>
                 <span class="card-tag">Custom Scenario</span>
-                <span class="card-tag">FAIR Methodology</span>
+                <div class="card-cta cta-secondary">
+                    Assess a Specific Scenario <span class="cta-arrow">→</span>
+                </div>
             </a>
             {% else %}
-            <div class="card disabled">
-                <div class="card-icon">🤖</div>
-                <h2>AI-Generated Questionnaire</h2>
-                <p>Describe your industry and region, and let AI create a customized risk assessment questionnaire grounded in authoritative sources like MITRE ATT&CK, CISA advisories, and current threat intelligence.</p>
-                <span class="card-tag warning-tag">⚠️ API Key Required</span>
-                
+            <div class="card disabled card-guided">
+                <div class="icon-wrap icon-wrap-guided"><i data-lucide="clipboard-check"></i></div>
+                <h2>Guided Risk Assessment</h2>
+                <p>Build an evidence-informed cyber-risk assessment using your industry, region and a curated attack cascade.</p>
+                <span class="card-tag warning-tag">API Key Required</span>
+
                 <div class="warning-message">
-                    <strong>Configuration Required:</strong> Set the ANTHROPIC_API_KEY environment variable to enable AI-powered question generation.
+                    <strong>Configuration Required:</strong> Set the ANTHROPIC_API_KEY environment variable to enable assessment generation.
                     <br><br>
                     <code>export ANTHROPIC_API_KEY='your-api-key-here'</code>
                 </div>
@@ -206,6 +362,9 @@
             {% endif %}
         </div>
     </div>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script>lucide.createIcons();</script>
     
     <script>
         // Clear chat history when starting a new session from home page
@@ -219,5 +378,11 @@
         sessionStorage.removeItem('oic_session_active');
         console.log('[Home] Ready for new assessment session');
     </script>
+
+    <footer class="footer">
+        <div class="footer-tagline">Beta release · Evidence-informed cyber-risk analysis</div>
+        <div class="footer-copyright">OpenImpactCascade is licensed under the Apache License, Version 2.0.</div>
+        <div class="footer-copyright">© 2026 FirstFire Productions. <a href="https://impactcascade.ca" class="footer-link" target="_blank">https://impactcascade.ca</a></div>
+    </footer>
 </body>
 </html>

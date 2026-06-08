@@ -20,6 +20,9 @@ scipy>=1.11.4,<1.13
 # --- Utilities ---
 python-dotenv>=1.0.0,<2.0
 typing-extensions>=4.8.0,<5.0
+requests>=2.31.0,<3.0
+markdown>=3.5,<4.0          # render cascade-archetype cards to HTML
+PyYAML>=6.0.1,<7.0          # pillar reference data (DBIR, NetDiligence, IBM) - nested YAML parsing
 
 # --- Python Version ---
 # Requires: Python 3.8 - 3.11 (3.11 recommended for production)
