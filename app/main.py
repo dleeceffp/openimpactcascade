@@ -32,7 +32,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 
 # Version identifier
-VERSION = "v221-context-aware"
+VERSION = "v3.0.2-casade and curated context"
 PORT = 8080
 # Right after line 27 in flask_app_chat_v2_rag.py
 logger.info(f"========== STARTING {VERSION} on PORT {PORT} ==========")
@@ -1173,6 +1173,7 @@ def analyze():
     try:
         # Import ENHANCED simulation module
         from simulation import run_monte_carlo
+        from config import OIC_MC_COMPOUND
         
         # Get form data with better error handling
         try:
@@ -1232,10 +1233,11 @@ def analyze():
         
         # Run ENHANCED simulation with lognormal for LM (default)
         results = run_monte_carlo(
-            **original_inputs, 
+            **original_inputs,
             n_simulations=n_simulations,
             lef_distribution='pert',
-            lm_distribution='lognormal'
+            lm_distribution='lognormal',
+            compound_mode=OIC_MC_COMPOUND,
         )
         
         # Validate results structure

@@ -247,91 +247,50 @@ def generate_pert_samples(min_val, mode_val, max_val, n_samples, lambda_param=4)
 
 def generate_lognormal_samples(min_val, mode_val, max_val, n_samples):
     """
-    Generate samples from a Lognormal distribution with fat tails for cyber risk.
-    
-    Lognormal is MORE REALISTIC for cyber risk losses because:
-    1. Right-skewed (many small losses, few large ones)
-    2. Fat tails (captures catastrophic events beyond user's max input)
-    3. Used in insurance and financial risk modeling
-    4. Supported by research (Eling & Jung 2018)
-    
-    Real-world pattern:
-    - 80% of incidents: Below mode (small losses)
-    - 15% of incidents: Near mode to 85th percentile (moderate losses)
-    - 4% of incidents: 85th to 99th percentile (large losses, may exceed max_val)
-    - 1% of incidents: Above 99th percentile (catastrophic losses, often 2-5x max_val)
-    
-    IMPORTANT: Catastrophic tail events (P95, P99) will typically EXCEED max_val.
-    This is intentional and realistic for cyber losses. The max_val represents
-    roughly the 85th percentile, allowing fat tails to capture rare severe events.
-    
+    Generate lognormal severity samples calibrated from a 90% confidence interval.
+
+    Method: Hubbard/Seiersen calibrated-estimate approach, standard in cyber-risk
+    quantification and consistent with actuarial loss-severity fitting. The
+    expert's low/high estimates are read as the 5th and 95th percentiles:
+
+        mu    = (ln(min_val) + ln(max_val)) / 2
+        sigma = (ln(max_val) - ln(min_val)) / 3.29      # 3.29 = 2 * 1.645
+
+    Properties, by construction:
+      - min_val  -> ~5th percentile  (SOFT floor, not a hard bound)
+      - max_val  -> ~95th percentile
+      - median   = geometric mean of min_val and max_val
+      - tail is controlled: p99 ~= 2x max_val for typical spreads (not unbounded)
+
+    mode_val (most-likely) is ADVISORY ONLY and intentionally does NOT enter the
+    calibration. The min/max interval drives the fit. This preserves the familiar
+    small/medium/large input model for users while producing a defensible severity
+    curve. (A future revision may warn when mode_val and the fitted median diverge
+    beyond a threshold; out of scope here.)
+
     Args:
-        min_val: Minimum value (treated as floor, not hard bound)
-        mode_val: Most likely value (peak of distribution)
-        max_val: Target for ~85th percentile (tail events will exceed this)
+        min_val:  Low estimate, treated as ~5th percentile (dollars per event)
+        mode_val: Most-likely estimate. ADVISORY — not used in calibration.
+        max_val:  High estimate, treated as ~95th percentile (dollars per event)
         n_samples: Number of samples to generate
-    
+
     Returns:
-        numpy.ndarray: Array of samples from the Lognormal distribution
+        numpy.ndarray: Lognormal severity samples (dollars per event)
     """
-    
-    # Handle edge case: all values are the same
-    if min_val == mode_val == max_val:
-        return np.full(n_samples, min_val)
-    
-    # Shift to work with positive values
-    shift = min_val
-    mode_shifted = mode_val - shift
-    max_shifted = max_val - shift
-    
-    # Prevent degenerate cases
-    if mode_shifted <= 0:
-        mode_shifted = (max_val - min_val) * 0.1
-    if max_shifted <= mode_shifted:
-        max_shifted = mode_shifted * 3
-    
-    # For lognormal: mode = exp(μ - σ²)
-    # We need to find μ and σ such that:
-    # 1. Mode is at mode_shifted
-    # 2. ~85th-90th percentile is near max_shifted (allows fat tail beyond)
-    
-    # Use quantile matching approach
-    # Assume max is approximately the 85th percentile for cyber losses
-    # This allows catastrophic tail events to exceed user's max input
-    # For lognormal: P85 ≈ exp(μ + 1.036σ)
-    # Mode = exp(μ - σ²)
-    
-    # Initial estimate: use mode and max to estimate parameters
-    # log(mode) = μ - σ²
-    # log(P85) = μ + 1.036σ
-    
-    # Solve for σ and μ
-    # This approach calibrates for realistic cyber risk fat tails
-    log_mode = np.log(mode_shifted)
-    log_p85 = np.log(max_shifted)
-    
-    # Estimate sigma from the spread
-    # For cyber risk, we want fatter tails, so use a more aggressive multiplier
-    # This ensures catastrophic losses can exceed the user's max input
-    sigma = (log_p85 - log_mode) / 1.2  # More aggressive for fat tails
-    
-    # Solve for mu
-    mu = log_mode + sigma**2
-    
-    # Ensure reasonable parameters (allow fat tails for cyber risk)
-    # Research shows cyber losses need sigma of 1.5-3.0 for realistic catastrophic events
-    sigma = np.clip(sigma, 0.5, 3.5)  # Expanded range for cyber risk fat tails
-    
-    # Generate lognormal samples
-    lognormal_samples = np.random.lognormal(mu, sigma, n_samples)
-    
-    # Shift back to original scale
-    samples = lognormal_samples + shift
-    
-    # Apply soft floor (rarely goes below min_val)
-    samples = np.maximum(samples, shift)
-    
-    return samples
+    # Degenerate case: no spread to calibrate against.
+    if min_val == max_val:
+        return np.full(n_samples, float(max_val))
+
+    # Lognormal domain is strictly positive; floor inputs at $1 so ln() is
+    # defined. Magnitude inputs are dollars, so this is a no-op in practice.
+    lo = max(float(min_val), 1.0)
+    hi = max(float(max_val), lo * (1.0 + 1e-9))
+
+    mu = (np.log(lo) + np.log(hi)) / 2.0
+    sigma = (np.log(hi) - np.log(lo)) / 3.29   # 3.29 = 2 * 1.645 (90% CI z-span)
+    sigma = max(sigma, 1e-6)                   # guard against degenerate spread
+
+    return np.random.lognormal(mu, sigma, n_samples)
 
 
 def generate_poisson_samples(min_val, mode_val, max_val, n_samples):
