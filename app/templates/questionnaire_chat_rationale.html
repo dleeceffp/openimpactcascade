@@ -17,13 +17,14 @@
             background: #f7fafc;
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
         }
         
         /* Main Layout: Questionnaire + Chat Sidebar */
         .main-container {
             display: flex;
             width: 100%;
-            min-height: 100vh;
+            flex: 1;
         }
         
         .questionnaire-section {
@@ -31,11 +32,22 @@
             padding: 20px;
             overflow-y: auto;
             margin-right: 400px; /* Space for the fixed sidebar */
+            display: flex;
+            justify-content: center;
+        }
+        
+        .questionnaire-section .container {
+            max-width: 700px;
+            width: 100%;
         }
         
         @media (max-width: 1024px) {
             .questionnaire-section {
                 margin-right: 0;
+            }
+            
+            .questionnaire-section .container {
+                max-width: 100%;
             }
         }
         
@@ -397,9 +409,10 @@
         /* Footer */
         .footer {
             text-align: center;
-            margin-top: 50px;
+            margin-top: auto;
             padding: 30px 20px;
             border-top: 1px solid #e2e8f0;
+            background: #f7fafc;
         }
 
         .footer-brand {
@@ -507,6 +520,9 @@
             </div>
         </div>
     </div>
+    
+    <!-- Backdrop overlay for closing sidebar -->
+    <div class="chat-sidebar-backdrop" id="chatSidebarBackdrop" onclick="toggleChat()"></div>
     
     <!-- Mobile chat toggle button -->
     <button class="mobile-chat-toggle" id="mobileChatToggle" onclick="toggleChat()" aria-label="Toggle chat">Chat</button>

@@ -288,7 +288,7 @@ const ChatSidebar = {
     },
     
     /**
-     * Toggle chat sidebar visibility (mobile/tablet)
+     * Toggle chat sidebar visibility (desktop/mobile/tablet)
      */
     toggleChat: function() {
         const sidebar = document.getElementById('chatSidebar');
@@ -296,16 +296,35 @@ const ChatSidebar = {
         const backdrop = document.getElementById('chatSidebarBackdrop');
 
         if (sidebar) {
-            const isOpen = sidebar.classList.toggle('open');
-
-            // Show/hide backdrop based on sidebar state
-            if (backdrop) {
-                backdrop.classList.toggle('active', isOpen);
-            }
-
-            // Hide toggle button when chat is open, show when closed
-            if (toggle) {
-                toggle.classList.toggle('hidden', isOpen);
+            // Check if desktop (min-width: 1025px)
+            const isDesktop = window.innerWidth >= 1025;
+            
+            if (isDesktop) {
+                // Desktop: toggle 'closed' class (default is open)
+                const isClosed = sidebar.classList.toggle('closed');
+                
+                // Show/hide backdrop based on sidebar state (closed = backdrop active)
+                if (backdrop) {
+                    backdrop.classList.toggle('active', isClosed);
+                }
+                
+                // Show toggle button when chat is closed
+                if (toggle) {
+                    toggle.classList.toggle('hidden', !isClosed);
+                }
+            } else {
+                // Mobile/Tablet: toggle 'open' class (default is closed)
+                const isOpen = sidebar.classList.toggle('open');
+                
+                // Show/hide backdrop based on sidebar state
+                if (backdrop) {
+                    backdrop.classList.toggle('active', isOpen);
+                }
+                
+                // Hide toggle button when chat is open, show when closed
+                if (toggle) {
+                    toggle.classList.toggle('hidden', isOpen);
+                }
             }
         }
     },

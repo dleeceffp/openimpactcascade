@@ -19,6 +19,24 @@
     top: 0;
     height: 100vh;
     z-index: 100;
+    transition: right 0.3s ease-in-out;
+}
+
+/* Desktop: Allow closing sidebar */
+@media (min-width: 1025px) {
+    .chat-sidebar {
+        right: 0; /* Default open on desktop */
+    }
+    
+    .chat-sidebar.closed {
+        right: -400px;
+    }
+    
+    /* Show toggle button when sidebar is closed on desktop */
+    .chat-sidebar.closed ~ .mobile-chat-toggle,
+    .chat-sidebar:not(.open) ~ .mobile-chat-toggle {
+        display: flex;
+    }
 }
 
 /* Chat Header */
@@ -40,7 +58,7 @@
 }
 
 .chat-close-btn {
-    display: none;
+    display: block;
     background: #4a5568;
     border: none;
     color: white;
