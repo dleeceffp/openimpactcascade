@@ -136,25 +136,47 @@
         }
         
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: white;
+            color: #2d3748;
             padding: 30px;
             border-radius: 12px 12px 0 0;
+            border-bottom: 3px solid #4a5568;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        
+
         .header h1 {
             font-size: 1.8em;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
+            color: #2d3748;
         }
-        
+
+        .header-subtitle {
+            color: #4a5568;
+            font-size: 0.95em;
+            margin-bottom: 15px;
+        }
+
         .metadata {
             display: flex;
             gap: 20px;
             flex-wrap: wrap;
             font-size: 0.9em;
-            opacity: 0.95;
-            margin-top: 15px;
+            color: #718096;
+            margin-top: 10px;
+        }
+
+        .metadata strong {
+            color: #4a5568;
+        }
+
+        .evidence-badge {
+            background: #e2e8f0;
+            color: #4a5568;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 600;
+            float: right;
         }
         
         .content {
@@ -379,14 +401,11 @@
         <div class="questionnaire-section">
             <div class="container">
                 <div class="header">
-                    <h1>🎯 Risk Assessment Questionnaire</h1>
+                    <span class="evidence-badge">Evidence-informed assessment</span>
+                    <h1>Risk Assessment Questionnaire</h1>
+                    <div class="header-subtitle">FAIR-informed scenario assessment</div>
                     <div class="metadata">
-                        <div>📍 Industry: <strong>{{ questions.metadata.industry }}</strong></div>
-                        <div>🌍 Region: <strong>{{ questions.metadata.region }}</strong></div>
-                        <div>📊 Version: <strong>{{ questions.version }}</strong></div>
-                        {% if questions.metadata.rag_grounding_enabled %}
-                        <div>✅ Grounded in <strong>{{ questions.metadata.rag_sources_count }}</strong> authoritative sources</div>
-                        {% endif %}
+                        {{ questions.metadata.industry }} · {{ questions.metadata.region }}
                     </div>
                 </div>
                 
@@ -415,26 +434,20 @@
         <!-- Chat Sidebar with dynamic context -->
         <div class="chat-sidebar" id="chatSidebar">
             <div class="chat-header">
-                <h3>💬 Risk Reduction Assistant</h3>
+                <h3>Risk Assessment Coach</h3>
                 <button class="chat-close-btn" onclick="toggleChat()" aria-label="Close chat">✕</button>
             </div>
-            
+
             <div class="chat-context">
                 <div class="chat-context-title">Current Question</div>
                 <div class="chat-context-text" id="contextText">Loading...</div>
             </div>
-            
+
             <div class="chat-messages" id="chatMessages">
                 <div class="chat-message assistant">
-                    <div class="message-label">AI Assistant</div>
+                    <div class="message-label">Coach</div>
                     <div class="message-bubble">
-                        👋 Hi! I'm here to help you with your risk assessment. Ask me anything about:
-                        <ul style="margin-top: 10px; padding-left: 20px;">
-                            <li>Understanding threats and attack vectors</li>
-                            <li>Estimating frequencies and impacts</li>
-                            <li>Security controls and best practices</li>
-                            <li>FAIR methodology and PERT estimates</li>
-                        </ul>
+                        I can help you understand threats, estimate ranges, and interpret FAIR methodology. What would you like to know?
                     </div>
                 </div>
             </div>
@@ -459,7 +472,7 @@
     </div>
     
     <!-- Mobile chat toggle button -->
-    <button class="mobile-chat-toggle" id="mobileChatToggle" onclick="toggleChat()" aria-label="Toggle chat">💬</button>
+    <button class="mobile-chat-toggle" id="mobileChatToggle" onclick="toggleChat()" aria-label="Toggle chat">Chat</button>
     
     <script src="{{ url_for('static', filename='js/chat_sidebar.js') }}"></script>
     <script>
@@ -562,7 +575,6 @@
                             ${choice.rationale_summary ? `
                                 <div class="rationale-container">
                                     <div class="rationale-header">
-                                        <span class="rationale-icon">📚</span>
                                         Source-Backed Rationale
                                     </div>
                                     <div class="rationale-text">

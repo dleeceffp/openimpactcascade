@@ -235,7 +235,7 @@ const ChatSidebar = {
     /**
      * Add a message to the chat display
      * @param {string} role - 'user' or 'assistant'
-     * @param {string} content - Message content (can include HTML)
+     * @param {string} content - Message content (plain text only)
      */
     addMessageToChat: function(role, content) {
         const messagesDiv = document.getElementById('chatMessages');
@@ -243,16 +243,34 @@ const ChatSidebar = {
             console.error('[ChatSidebar] chatMessages element not found');
             return;
         }
-        
+
         const messageDiv = document.createElement('div');
         messageDiv.className = `chat-message ${role}`;
-        
-        const label = role === 'user' ? 'You' : 'AI Assistant';
-        messageDiv.innerHTML = `
-            <div class="message-label">${label}</div>
-            <div class="message-bubble">${content}</div>
-        `;
-        
+
+        const label = role === 'user' ? 'You' : 'Coach';
+
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'message-label';
+        labelDiv.textContent = label;
+
+        const bubbleDiv = document.createElement('div');
+        bubbleDiv.className = 'message-bubble';
+
+        // For user messages, always use textContent to prevent XSS
+        if (role === 'user') {
+            bubbleDiv.textContent = content;
+        } else {
+            // For assistant messages, use textContent for safety
+            // Basic formatting: convert newlines to <br> after escaping HTML
+            const escaped = content
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            bubbleDiv.innerHTML = escaped.replace(/\n/g, '<br>');
+        }
+
+        messageDiv.appendChild(labelDiv);
+        messageDiv.appendChild(bubbleDiv);
         messagesDiv.appendChild(messageDiv);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     },
