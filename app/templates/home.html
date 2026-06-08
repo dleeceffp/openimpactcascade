@@ -35,7 +35,7 @@
         .header h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
-            color: #667eea;
+            color: #2d3748;
         }
 
         .header p {
@@ -82,7 +82,7 @@
         }
         
         .card h2 {
-            color: #667eea;
+            color: #2d3748;
             margin-bottom: 15px;
             font-size: 1.5em;
         }
@@ -102,8 +102,8 @@
             color: #666;
             margin-top: 10px;
         }
-        
-        .ai-tag {
+
+        .primary-tag {
             background: #4a5568;
             color: white;
         }
@@ -140,7 +140,7 @@
             gap: 6px;
             padding: 10px 20px;
             background: white;
-            color: #667eea;
+            color: #4a5568;
             text-decoration: none;
             border-radius: 8px;
             font-weight: 600;
@@ -152,56 +152,76 @@
 
         .info-link:hover {
             background: #f7fafc;
-            border-color: #667eea;
+            border-color: #4a5568;
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.15);
+            box-shadow: 0 4px 8px rgba(74, 85, 104, 0.15);
+        }
+
+        /* Lucide icon styling */
+        .icon {
+            display: inline-block;
+            vertical-align: middle;
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+            margin-right: 6px;
+        }
+
+        .card-icon svg {
+            width: 48px;
+            height: 48px;
+            color: #4a5568;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎯 OpenImpactCascade</h1>
-            <p>AI-Powered Quantitative Risk Analysis with FAIR Methodology</p>
+            <h1>OpenImpactCascade</h1>
+            <p>Evidence-Informed Cyber Risk Quantification with FAIR Methodology</p>
         </div>
-        
+
         <div class="info-links">
             <a href="{{ url_for('about_mitre') }}" class="info-link">
-                🛡️ About MITRE ATT&CK
+                <i data-lucide="shield" class="icon"></i>About MITRE ATT&CK
             </a>
             <a href="{{ url_for('about_fair') }}" class="info-link">
-                📊 About FAIR Methodology
+                <i data-lucide="bar-chart-2" class="icon"></i>About FAIR Methodology
             </a>
         </div>
-        
+
         <div class="cards">
             {% if ai_available %}
             <a href="{{ url_for('generate') }}" class="card">
-                <div class="card-icon">🤖</div>
-                <h2>AI-Generated Questionnaire</h2>
-                <p>Structured, grounded analysis. Pick your industry and region, then optionally ground the assessment on a curated attack cascade (archetype). Questions are built from the cascade's chokepoints and enriched with current intelligence from MITRE ATT&CK, CISA advisories, and web search.</p>
-                <span class="card-tag ai-tag">✨ Grounded Analysis</span>
+                <div class="card-icon"><i data-lucide="clipboard-check"></i></div>
+                <h2>Guided Risk Assessment</h2>
+                <p>Structured, grounded analysis. Pick your industry and region, then optionally ground the assessment on a curated attack cascade (archetype). Questions are built from the cascade's chokepoints and enriched with current intelligence from MITRE ATT&CK, CISA advisories, and authoritative sources.</p>
+                <span class="card-tag primary-tag">Evidence-Informed</span>
                 <span class="card-tag">Cascade Archetypes</span>
                 <span class="card-tag">FAIR Methodology</span>
             </a>
-            
+
             <a href="{{ url_for('generate_custom') }}" class="card">
-                <div class="card-icon">🎯</div>
-                <h2>Custom Risk Scenario Assessment</h2>
-                <p>Quick, directional view. Define any threat scenario in your own words and get a fast questionnaire focused on that exact threat — best when no grounded attack pattern fits. For credible, structured analysis, use the AI-Generated Questionnaire with a cascade archetype.</p>
-                <span class="card-tag ai-tag">✨ AI-Powered</span>
-                <span class="card-tag">Directional</span>
+                <div class="card-icon"><i data-lucide="target"></i></div>
+                <h2>Assess a Specific Risk Scenario</h2>
+                <p>Quick, directional view. Define any threat scenario in your own words and get a fast assessment focused on that exact threat — best when no grounded attack pattern fits. For credible, structured analysis, use the Guided Risk Assessment with a cascade archetype.</p>
+                <span class="card-tag primary-tag">Directional Analysis</span>
                 <span class="card-tag">Custom Scenario</span>
+                <span class="card-tag">Rapid Assessment</span>
             </a>
             {% else %}
             <div class="card disabled">
-                <div class="card-icon">🤖</div>
-                <h2>AI-Generated Questionnaire</h2>
-                <p>Describe your industry and region, and let AI create a customized risk assessment questionnaire grounded in authoritative sources like MITRE ATT&CK, CISA advisories, and current threat intelligence.</p>
-                <span class="card-tag warning-tag">⚠️ API Key Required</span>
-                
+                <div class="card-icon"><i data-lucide="clipboard-check"></i></div>
+                <h2>Guided Risk Assessment</h2>
+                <p>Describe your industry and region to generate a customized risk assessment questionnaire grounded in authoritative sources like MITRE ATT&CK, CISA advisories, and current threat intelligence.</p>
+                <span class="card-tag warning-tag">API Key Required</span>
+
                 <div class="warning-message">
-                    <strong>Configuration Required:</strong> Set the ANTHROPIC_API_KEY environment variable to enable AI-powered question generation.
+                    <strong>Configuration Required:</strong> Set the ANTHROPIC_API_KEY environment variable to enable assessment generation.
                     <br><br>
                     <code>export ANTHROPIC_API_KEY='your-api-key-here'</code>
                 </div>
@@ -209,6 +229,9 @@
             {% endif %}
         </div>
     </div>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script>lucide.createIcons();</script>
     
     <script>
         // Clear chat history when starting a new session from home page
