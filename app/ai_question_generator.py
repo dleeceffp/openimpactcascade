@@ -1,7 +1,7 @@
 """
 Enhanced AI Question Generator with currated-context informed Intelligent Web Search.
 
-Version 2.2.1 - Analyzes currated-context content to identify gaps, then performs targeted
+Version 3.1.0 - Analyzes currated-context content to identify gaps, then performs targeted
 web searches only for missing information. Avoids duplication.
 
 This is a DROP-IN REPLACEMENT for v213 with identical interface.

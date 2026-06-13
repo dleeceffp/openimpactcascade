@@ -1,6 +1,6 @@
 """
 Flask web application for AI-powered risk assessment questionnaire generation.
-VERSION 3.0.2: currated-context + LLM with Assessment Context Tracking
+VERSION 3.1.0: currated-context + LLM with Assessment Context Tracking
 
 Port: 8080
 Code Generator ID: v221-context-aware
