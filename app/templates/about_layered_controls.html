@@ -93,57 +93,53 @@
             margin-bottom: 10px;
             font-size: 1.1em;
         }
-        
-        .upgrade-box {
-            background: #e2e8f0;
-            color: #2d3748;
+
+        /* Replaces the former upgrade/sales box */
+        .feedback-box {
+            background: #ebf4ff;
+            border-left: 4px solid #4299e1;
             padding: 30px;
             border-radius: 12px;
             margin: 30px 0;
-            text-align: center;
         }
-        
-        .upgrade-box h2 {
-            color: #2d3748;
+
+        .feedback-box h2 {
+            color: #2b6cb0;
             border: none;
             margin-top: 0;
-            font-size: 1.6em;
+            font-size: 1.4em;
+            padding-bottom: 0;
         }
-        
-        .upgrade-box p {
+
+        .feedback-box p {
+            color: #2d3748;
+            font-size: 1.0em;
+        }
+
+        .feedback-box ul {
+            margin: 15px 0 20px 25px;
             color: #4a5568;
-            font-size: 1.05em;
         }
-        
-        .upgrade-box ul {
-            text-align: left;
-            margin: 20px auto;
-            max-width: 500px;
-            color: #4a5568;
+
+        .feedback-box li {
+            margin: 8px 0;
         }
-        
-        .upgrade-box li {
-            margin: 10px 0;
-            padding-left: 5px;
-        }
-        
-        .cta-button {
+
+        .feedback-button {
             display: inline-block;
-            background: white;
-            color: #667eea;
-            padding: 15px 35px;
+            background: #4299e1;
+            color: white;
+            padding: 12px 28px;
             border-radius: 8px;
             text-decoration: none;
             font-weight: 600;
-            font-size: 1.1em;
-            margin-top: 20px;
-            transition: all 0.3s ease;
+            font-size: 1.0em;
+            margin-top: 10px;
+            transition: background 0.2s ease;
         }
-        
-        .cta-button:hover {
-            background: #f7fafc;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+        .feedback-button:hover {
+            background: #3182ce;
         }
         
         .diagram {
@@ -276,33 +272,47 @@
             <p><strong>Scenario:</strong> An attacker must bypass both email filtering AND endpoint detection</p>
             <ul style="margin-left: 25px; margin-top: 10px;">
                 <li>A poor quality email filter could have a 30% bypass rate (30% vulnerability)</li>
-                <li>A signature based anti-virus could have a 30% bypass rate (30% vulnerability)</li>
+                <li>A basic endpoint solution might have a 50% bypass rate (50% vulnerability)</li>
             </ul>
-            <div class="math-demo" style="margin-top: 15px;">
-                Combined Vulnerability = 0.30 × 0.30 = <strong style="color: #48bb78;">0.09 (9%)</strong>
-            </div>
-            <p style="margin-top: 15px;">
-                Even though each control is only 70% effective, together they reduce vulnerability by <strong>70%</strong> (from 30% to 9%)!
+        </div>
+
+        <div class="math-demo">
+            <p><strong>Combined Vulnerability = Email Failure × Endpoint Failure</strong></p>
+            <p style="margin-top: 10px;">= 30% × 50% = <strong>15%</strong></p>
+            <p style="margin-top: 10px; font-size: 0.9em; font-family: sans-serif; color: #4a5568;">
+                Two mediocre controls together are more effective than either one alone
             </p>
         </div>
-        
+
+        <h2>Real-World Control Stacking</h2>
+        <p>
+            Organizations rarely rely on a single control. A typical SMB security stack might include several 
+            layers, each with its own failure rate. When an attacker must defeat all of them to succeed, 
+            the combined probability of success drops significantly.
+        </p>
+
         <div class="example-box">
-            <h3>📊 Example: Three Independent Controls</h3>
-            <p><strong>Scenario:</strong> Perimeter + Email + Endpoint protection</p>
-            <ul style="margin-left: 25px; margin-top: 10px;">
-                <li>Each control: 60% vulnerability (not very strong individually)</li>
-            </ul>
-            <div class="math-demo" style="margin-top: 15px;">
-                Combined Vulnerability = 0.60 × 0.60 × 0.60 = <strong style="color: #48bb78;">0.216 (22%)</strong>
-            </div>
-            <p style="margin-top: 15px;">
-                Three mediocre controls reduce vulnerability by <strong>64%</strong> compared to one!
+            <h3>📊 Example: Ransomware Attack Path</h3>
+            <p>For ransomware to succeed, it typically needs to:</p>
+            <ol style="margin-left: 25px; margin-top: 10px;">
+                <li>Get past email/web filtering (e.g., 40% bypass rate)</li>
+                <li>Execute on the endpoint without detection (e.g., 50% bypass rate)</li>
+                <li>Spread laterally before containment (e.g., 60% success given execution)</li>
+                <li>Encrypt enough data before backup recovery kicks in (e.g., 70% success)</li>
+            </ol>
+        </div>
+
+        <div class="math-demo">
+            <p><strong>Combined Probability = 40% × 50% × 60% × 70%</strong></p>
+            <p style="margin-top: 10px;">= <strong>8.4% overall vulnerability</strong></p>
+            <p style="margin-top: 10px; font-size: 0.9em; font-family: sans-serif; color: #4a5568;">
+                Even with mediocre individual controls, the layered effect is substantial
             </p>
         </div>
-        
+
         <h2>Why This Matters for Your Assessment</h2>
         <p>
-            When you select a control level (e.g., "Basic antivirus protection"), our simplified model 
+            When you select a control level (e.g., "Basic antivirus protection"), the simplified model 
             assigns a single vulnerability number. However, if you have <strong>additional layered controls</strong> 
             in place, the actual combined vulnerability is lower.
         </p>
@@ -325,29 +335,35 @@
                 <li>Failure correlation matters (common mode failures)</li>
             </ul>
             <p style="margin-top: 15px;">
-                For critical decisions, a more precise analysis is recommended.
+                For decisions where precision matters, a per-control analysis would give you 
+                a more defensible number. The toggle is a useful starting point, not a final answer.
             </p>
         </div>
         
-        <div class="upgrade-box">
-            <h2>🎯 Cascade Risk Modeling™</h2>
-            <p>Get precise, defensible risk quantification with our advanced platform:</p>
-            
-            <ul>
-                <li><strong>✓ Attack Tree Builder:</strong> Visual modeling of multi-stage attack paths</li>
-                <li><strong>✓ Per-Control Effectiveness:</strong> Individual success/failure rates for each control layer</li>
-                <li><strong>✓ AND/OR Logic Gates:</strong> Model complex control dependencies accurately</li>
-                <li><strong>✓ Monte Carlo on Attack Paths:</strong> Simulate thousands of attack scenarios</li>
-                <li><strong>✓ Control Investment ROI:</strong> Compare mitigation strategies and optimize spending</li>
-                <li><strong>✓ Compliance Mapping:</strong> Link controls to NIST, ISO 27001, and other frameworks</li>
-            </ul>
-            
-            <p style="margin-top: 25px; font-size: 1.15em;">
-                <strong>Replace guesswork with mathematics.</strong>
+        <div class="feedback-box">
+            <h2>💬 Help Shape What Comes Next</h2>
+            <p>
+                This tool currently uses a single fixed adjustment (25%) to represent layered controls. 
+                A more precise model would score each control layer individually — assigning its own 
+                failure rate, modeling the dependencies between layers, and propagating those probabilities 
+                through the FAIR calculation.
             </p>
-            
-            <a href="mailto:sales@openimpactcascade.com?subject=Cascade%20Risk%20Modeling%20Inquiry" class="cta-button">
-                Contact Sales →
+            <p style="margin-top: 12px;">
+                We're in early development and genuinely want to know whether that level of detail 
+                would be useful to you. If you're working through a scenario where per-control 
+                precision matters, we'd like to hear about it:
+            </p>
+            <ul>
+                <li>What controls are you trying to model?</li>
+                <li>Is the 25% adjustment enough for your current purpose, or does it feel too coarse?</li>
+                <li>What would a more useful version of this feature look like?</li>
+            </ul>
+            <p style="margin-top: 15px; font-size: 0.95em; color: #4a5568;">
+                Your feedback goes directly to the people building this tool. We appreciate you 
+                taking the time.
+            </p>
+            <a href="mailto:info@impactcascade.ca?subject=Feature%20Request%3A%20Per-Control%20Effectiveness%20Scoring&body=I%20was%20using%20the%20layered%20controls%20toggle%20and%20wanted%20to%20share%20some%20feedback%3A%0A%0A" class="feedback-button">
+                Share Feedback →
             </a>
         </div>
         

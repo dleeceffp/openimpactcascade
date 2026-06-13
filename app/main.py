@@ -1522,5 +1522,5 @@ if __name__ == '__main__':
     print(f"AI Question Generator ID: v214")
     print(f"User ID Format: eval-v2-rag-websearch-enhanced-XXXXXXXXXXXX")
     print("="*60)
-    app.run(debug=True, host='0.0.0.0', port=PORT)
+    app.run(debug=False, host='0.0.0.0', port=PORT)
 

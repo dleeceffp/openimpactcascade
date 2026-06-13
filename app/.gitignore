@@ -1,16 +1,12 @@
-# GCP Service Account Keys
+# GCP Service Account Keys (never commit credentials)
 service-account-key.json
-*.json
+*-service-account*.json
+*-key.json
 
 # Environment Files
-.env.gcp
+.env
 .env.*
-
-# Terraform State
-terraform.tfstate
-terraform.tfstate.backup
-.terraform/
-.terraform.lock.hcl
+.env.gcp
 
 # Backup Files
 *.bak
