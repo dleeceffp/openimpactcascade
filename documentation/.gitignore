@@ -1,0 +1,20 @@
+# documentation/.gitignore
+#
+# Only the public/ subdirectory and INDEX.md are tracked on the main branch.
+# Everything else in this folder (historical/, project/, and any future working
+# documents at the root level) is local-only.
+#
+# To publish a document, move or copy it into documentation/public/.
+
+# Exclude everything by default
+*
+
+# Re-include the index (GitHub Pages entry point)
+!INDEX.md
+
+# Re-include the public subfolder and its contents
+!public/
+!public/**
+
+# Re-include this file itself
+!.gitignore
