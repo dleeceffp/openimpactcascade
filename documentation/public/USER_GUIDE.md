@@ -2,7 +2,8 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | Beta |
+| **Version** | 3.1.0 Beta |
+| **Document ID** | OIC-DOC-USRG-001 |
 | **Date** | 2026-06-13 |
 | **Product** | OpenImpactCascade (OIC) |
 

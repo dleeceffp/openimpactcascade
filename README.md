@@ -1,6 +1,6 @@
 # OpenImpactCascade - AI-Powered Risk Assessment Platform
 
-**Version:** v3.0.0 ( Filetree Context, enhanced LEF Decomposition with TEF × Vulnerability scoring control credits)  
+**Version:** v3.1.0 ( file tree Context, enhanced LEF Decomposition with TEF × Vulnerability scoring control credits, doc clean up and refactoring)  
 **Port:** 8080  
 **Python:** 3.8 - 3.11 (3.11 recommended)
 

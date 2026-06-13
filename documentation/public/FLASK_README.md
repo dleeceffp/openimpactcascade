@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 3.0.2 |
+| **Version** | 3.1.0 |
 | **Entry point** | `app/main.py` |
 | **Default port** | 8080 |
 | **Date** | 2026-06-13 |

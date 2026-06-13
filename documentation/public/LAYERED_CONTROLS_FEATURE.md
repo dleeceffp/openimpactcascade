@@ -2,6 +2,7 @@
 
 | Field | Value |
 |-------|-------|
+| **Document ID** | OIC-DOC-LCTL-001 |
 | **Status** | Implemented (beta) |
 | **Date** | 2026-06-13 |
 | **Supersedes** | `documentation/historical/LAYERED_CONTROLS_FEATURE.md` |

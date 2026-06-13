@@ -3,6 +3,7 @@
 | Field | Value |
 |-------|-------|
 | **Date** | 2026-06-13 |
+| **Document ID** | OIC-DOC-DPLY-001 |
 | **Repository** | https://github.com/dleeceffp/openimpactcascade |
 | **Default deployment target** | GCP Cloud Run |
 | **Deploy script** | `deployment/gcp/deploy_infrastructure.sh` |
