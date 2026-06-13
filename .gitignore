@@ -1,4 +1,4 @@
-# Byte-compiled / optimized / DLL files
+﻿# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -17,22 +17,55 @@ app/logs/*
 !app/logs/.gitkeep
 *.log
 *.sqlite3
+*.db
+logs/api_calls/
 
-# Generated -- 
+# Test cache
+.pytest_cache/
+
+# Generated --
 generated/*
 !generated/.gitkeep
 app/generated/*
 !app/generated/.gitkeep
 !app/generated/cascade_archetypes/
 
+# Documentation --
+documentation/historical/
+documentation/project/
+refdocs/code_agent_instructions_arch/
+
+# Archives -- never ship archive directories
+archives/
+tools/archives/
+
+# refdocs -- exclude source PDFs and dev instruction markdowns; keep grounding data
+refdocs/breach_pillar/source_reports_breach/
+refdocs/finance_pillar/source_reports_finance/
+refdocs/oic-pillar-likelihood-wiring-spec_updated.md
+refdocs/oic-severity-recalibration-instruction.md
+
 # OS/IDE
 .DS_Store
 .vscode/
 .idea/
 .windsurf/
+Thumbs.db
 
 # Security
 *.pem
 *.key
 service-account-key.json
 keys/
+
+# Deployment internal docs
+deployment/docs/
+
+# Dev-note / implementation markdown files (not deployed assets)
+app/static/js/*_IMPLEMENTATION.md
+app/static/js/*_QUICK_REFERENCE.md
+app/static/js/*_USAGE.md
+app/templates/partials/*_USAGE.md
+
+# Placeholder / scratch files
+removeme.txt
