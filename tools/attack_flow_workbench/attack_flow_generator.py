@@ -321,203 +321,127 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
         region: str,
         organization_size: str
     ) -> Dict[str, Any]:
-        """Format the generated data as a proper MITRE Attack Flow."""
-
-        # Generate STIX IDs
-        bundle_id = f"bundle--{uuid.uuid4()}"
-        flow_id = f"attack-flow--{uuid.uuid4()}"
-        identity_id = f"identity--{uuid.uuid4()}"
-
-        # Current timestamp for all objects
-        created_timestamp = datetime.now().isoformat() + "Z"
-
-        objects = []
+        """Format the generated data as a proper MITRE Attack Flow (.afb format)."""
 
         # Check if this is a fallback stub
         is_stub = flow_data.get("generation_status") == "fallback_stub"
         scope = flow_data.get("scope", "incident")
 
-        # Create identity object for author (required for created_by_ref)
-        identity_obj = {
-            "type": "identity",
-            "id": identity_id,
-            "spec_version": "2.1",
-            "name": "OIC Attack Flow Workbench",
-            "identity_class": "organization",
-            "contact_information": "oic@sandbox.local",
-            "created": created_timestamp,
-            "modified": created_timestamp
-        }
-        objects.append(identity_obj)
+        # Current timestamp
+        created_timestamp = datetime.now().isoformat() + "Z"
 
-        # Create the attack-flow object
-        attack_flow = {
-            "type": "attack-flow",
-            "id": flow_id,
-            "spec_version": "2.1",
-            "created": created_timestamp,
-            "modified": created_timestamp,
-            "created_by_ref": identity_id,
-            "name": flow_data.get("name", f"Attack Flow - {industry}"),
-            "description": flow_data.get("description", ""),
-            "scope": scope,
-            "start_refs": [],
-            "extensions": {
-                "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
-                    "extension_type": "new-sdo"
-                }
+        # Build author property array
+        author_properties = [
+            ["name", "OIC Attack Flow Workbench"],
+            ["identity_class", "organization"],
+            ["contact_information", "oic@sandbox.local"]
+        ]
+
+        # Build flow properties
+        description = flow_data.get("description", "")
+        if is_stub:
+            description = "[FALLBACK STUB - generation failed, not grounded] " + description
+
+        flow_properties = [
+            ["name", flow_data.get("name", f"Attack Flow - {industry}")],
+            ["description", description],
+            ["author", author_properties],
+            ["scope", scope],
+            ["external_references", []],  # Could populate from web results
+            ["created", created_timestamp]
+        ]
+
+        # Generate instance UUIDs for all objects
+        actions = flow_data.get("attack_actions", [])
+        assets = flow_data.get("assets", [])
+
+        # Map internal IDs to instance UUIDs
+        instance_map: Dict[str, str] = {}
+        for action in actions:
+            internal_id = action.get("id", f"action-{len(instance_map)}")
+            if internal_id not in instance_map:
+                instance_map[internal_id] = str(uuid.uuid4())
+
+        # Create action objects
+        action_objects = []
+        for action in actions:
+            internal_id = action.get("id", f"action-{len(action_objects)}")
+            instance_id = instance_map.get(internal_id, str(uuid.uuid4()))
+
+            tactic = action.get("tactic", "")
+            technique_id = action.get("technique_id", "")
+            technique = self.mitre.get_technique(technique_id) if technique_id else None
+
+            # Build action properties in .afb format
+            action_props = [
+                ["name", action.get("name", "Unknown Action")],
+                ["tactic_id", tactic],
+                ["tactic_ref", None],  # Could look up from MITRE data
+                ["technique_id", technique_id],
+                ["technique_ref", technique["stix_id"] if technique else None],
+                ["description", action.get("description", "")],
+                ["confidence", action.get("confidence", "unspecified")],
+                ["execution_start", None],
+                ["execution_end", None],
+                ["ttp", [
+                    ["tactic", tactic],
+                    ["technique", technique_id]
+                ]]
+            ]
+
+            action_obj = {
+                "id": "action",
+                "instance": instance_id,
+                "properties": action_props
             }
+            action_objects.append(action_obj)
+
+        # Create asset objects
+        asset_objects = []
+        for asset_name in assets:
+            asset_instance = str(uuid.uuid4())
+            asset_props = [
+                ["name", asset_name],
+                ["description", None]
+            ]
+            asset_obj = {
+                "id": "asset",
+                "instance": asset_instance,
+                "properties": asset_props
+            }
+            asset_objects.append(asset_obj)
+            # Add asset to instance map for reference
+            instance_map[f"asset-{asset_name}"] = asset_instance
+
+        # Build the flow object with references to all actions/assets
+        all_object_instances = [obj["instance"] for obj in action_objects + asset_objects]
+
+        flow_obj = {
+            "id": "flow",
+            "instance": str(uuid.uuid4()),
+            "properties": flow_properties,
+            "objects": all_object_instances
         }
 
-        # Add OIC metadata
-        attack_flow["x_oic_context"] = {
+        # Build final .afb format
+        afb_flow = {
+            "schema": "attack_flow_v2",
+            "theme": "dark_theme",
+            "objects": [flow_obj] + action_objects + asset_objects
+        }
+
+        # Store metadata for formatter reference
+        afb_flow["x_oic_context"] = {
             "industry": industry,
             "region": region,
             "organization_size": organization_size,
             "generated_at": created_timestamp,
             "generator": "OIC Attack Flow Workbench v0.1.0",
-            "generation_status": flow_data.get("generation_status", "generated")
+            "generation_status": flow_data.get("generation_status", "generated"),
+            "original_flow": flow_data
         }
 
-        # Add warning for stub flows
-        if is_stub:
-            attack_flow["description"] = "[FALLBACK STUB - generation failed, not grounded] " + attack_flow["description"]
-
-        objects.append(attack_flow)
-
-        # Create attack-action objects
-        actions = flow_data.get("attack_actions", [])
-
-        # Map internal IDs to STIX IDs
-        id_map: Dict[str, str] = {}
-        for action in actions:
-            internal_id = action.get("id", f"action-{len(id_map)}")
-            if internal_id not in id_map:
-                id_map[internal_id] = f"attack-action--{uuid.uuid4()}"
-
-        # Build reverse map for effect_refs (which actions come after this one)
-        successors: Dict[str, List[str]] = {action["id"]: [] for action in actions if action.get("id")}
-
-        for action in actions:
-            action_id = action.get("id")
-            depends_on = action.get("depends_on", [])
-            for dep_id in depends_on:
-                if dep_id in successors:
-                    successors[dep_id].append(action_id)
-
-        # Create attack-action objects
-        for action in actions:
-            internal_id = action.get("id", f"action-{len(objects)}")
-            action_id = id_map.get(internal_id, f"attack-action--{uuid.uuid4()}()")
-
-            tactic = action.get("tactic", "")
-            tactic_shortname = self._tactic_name_to_shortname(tactic)
-
-            technique_id = action.get("technique_id", "")
-            technique = self.mitre.get_technique(technique_id) if technique_id else None
-
-            attack_action = {
-                "type": "attack-action",
-                "id": action_id,
-                "spec_version": "2.1",
-                "created": created_timestamp,
-                "modified": created_timestamp,
-                "created_by_ref": identity_id,
-                "name": action.get("name", "Unknown Action"),
-                "description": action.get("description", ""),
-                "tactic_id": tactic_shortname,
-                "technique_id": technique_id if technique_id else None,
-                "technique_ref": technique["stix_id"] if technique else None,
-                "extensions": {
-                    "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
-                        "extension_type": "new-sdo"
-                    }
-                },
-                "x_oic_metadata": {
-                    "confidence": action.get("confidence", "unspecified"),
-                    "internal_id": internal_id
-                }
-            }
-
-            # Add effect_refs based on successors (which actions depend on this one)
-            if internal_id in successors and successors[internal_id]:
-                effect_refs = [id_map.get(sid) for sid in successors[internal_id] if sid in id_map]
-                if effect_refs:
-                    attack_action["effect_refs"] = effect_refs
-
-            objects.append(attack_action)
-
-        # Update start_refs from entry_points
-        entry_points = flow_data.get("entry_points", [])
-        start_refs = [id_map.get(ep) for ep in entry_points if ep in id_map]
-        if start_refs:
-            attack_flow["start_refs"] = start_refs
-        elif id_map:
-            # Fallback: find nodes with no dependencies
-            entry_ids = [a["id"] for a in actions if not a.get("depends_on")]
-            if entry_ids:
-                attack_flow["start_refs"] = [id_map.get(eid) for eid in entry_ids if eid in id_map]
-
-        # Create logic gates (AND/OR operators) if present
-        logic_gates = flow_data.get("logic", [])
-        for gate in logic_gates:
-            gate_id = f"attack-operator--{uuid.uuid4()}"
-            gate_type = gate.get("type", "AND")
-            output_id = gate.get("output")
-
-            operator_obj = {
-                "type": "attack-operator",
-                "id": gate_id,
-                "spec_version": "2.1",
-                "created": created_timestamp,
-                "modified": created_timestamp,
-                "created_by_ref": identity_id,
-                "operator": gate_type,
-                "extensions": {
-                    "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
-                        "extension_type": "new-sdo"
-                    }
-                }
-            }
-            objects.append(operator_obj)
-
-            # Connect inputs to operator
-            inputs = gate.get("inputs", [])
-            for inp_id in inputs:
-                if inp_id in id_map:
-                    # Find the action and add effect_ref to operator
-                    # This is a simplified approach
-                    pass
-
-        # Create attack-asset objects
-        assets = flow_data.get("assets", [])
-        for asset_name in assets:
-            asset_id = f"attack-asset--{uuid.uuid4()}"
-            asset_obj = {
-                "type": "attack-asset",
-                "id": asset_id,
-                "spec_version": "2.1",
-                "created": created_timestamp,
-                "modified": created_timestamp,
-                "created_by_ref": identity_id,
-                "name": asset_name,
-                "extensions": {
-                    "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
-                        "extension_type": "new-sdo"
-                    }
-                }
-            }
-            objects.append(asset_obj)
-
-        # Build final bundle with original data preserved for formatting
-        attack_flow_bundle = {
-            "type": "bundle",
-            "id": bundle_id,
-            "objects": objects,
-            "x_original_flow": flow_data  # Preserve original for formatter
-        }
-
-        return attack_flow_bundle
+        return afb_flow
 
     def _tactic_name_to_shortname(self, tactic_name: str) -> str:
         """Convert tactic name to MITRE shortname."""

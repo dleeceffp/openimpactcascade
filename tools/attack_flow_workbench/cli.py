@@ -134,27 +134,31 @@ def main() -> int:
             include_web_search=not args.no_web_search
         )
 
-        # Generate filename
+        # Generate filename (without extension - save_to_file will add appropriate one)
         filename_base = AttackFlowFormatter.generate_filename(
-            args.industry, args.region, args.org_size
+            args.industry, args.region, args.org_size, suffix=""
         )
 
         saved_files = []
+
+        # Debug: Log the flow format being used
+        is_afb_format = flow_data.get("schema") == "attack_flow_v2"
+        logger.info(f"Flow format detected: {'AFB (.afb)' if is_afb_format else 'STIX (.json)'}")
 
         # Save in requested formats
         if args.format in ("json", "both"):
             json_path = AttackFlowFormatter.save_to_file(
                 flow_data,
-                args.output / f"{filename_base}.json",
+                args.output / filename_base,
                 format="json"
             )
             saved_files.append(json_path)
-            logger.info(f"JSON saved: {json_path}")
+            logger.info(f"Attack Flow saved: {json_path}")
 
         if args.format in ("md", "markdown", "both"):
             md_path = AttackFlowFormatter.save_to_file(
                 flow_data,
-                args.output / f"{filename_base}.md",
+                args.output / filename_base,
                 format="md"
             )
             saved_files.append(md_path)

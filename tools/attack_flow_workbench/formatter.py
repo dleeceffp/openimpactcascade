@@ -102,11 +102,24 @@ class AttackFlowFormatter:
         }
 
     @staticmethod
+    def _get_property(props: List[List], name: str) -> Any:
+        """Extract a property value from .afb property array format."""
+        for prop in props:
+            if prop and prop[0] == name:
+                return prop[1] if len(prop) > 1 else None
+        return None
+
+    @staticmethod
     def to_summary_markdown(flow_data: Dict[str, Any]) -> str:
         """Format as a human-readable Markdown summary."""
         lines = []
 
-        # Get the attack-flow object
+        # Detect format: .afb (native) vs STIX bundle
+        if flow_data.get("schema") == "attack_flow_v2":
+            # .afb format
+            return AttackFlowFormatter._to_markdown_afb(flow_data)
+
+        # Legacy STIX bundle format (for backward compatibility)
         flow_obj = None
         if flow_data.get("type") == "bundle":
             for obj in flow_data.get("objects", []):
@@ -297,6 +310,117 @@ class AttackFlowFormatter:
         return "\n".join(lines)
 
     @staticmethod
+    def _to_markdown_afb(flow_data: Dict[str, Any]) -> str:
+        """Format .afb native format as Markdown summary."""
+        lines = []
+
+        # Get flow object
+        flow_obj = None
+        for obj in flow_data.get("objects", []):
+            if obj.get("id") == "flow":
+                flow_obj = obj
+                break
+
+        if not flow_obj:
+            return "# Error: No flow object found in .afb format"
+
+        props = flow_obj.get("properties", [])
+        name = AttackFlowFormatter._get_property(props, "name") or "Untitled Attack Flow"
+        description = AttackFlowFormatter._get_property(props, "description") or ""
+        scope = AttackFlowFormatter._get_property(props, "scope") or "incident"
+
+        # Get context from x_oic_context
+        context = flow_data.get("x_oic_context", {})
+        is_stub = context.get("generation_status") == "fallback_stub"
+
+        # Header
+        if is_stub:
+            lines.append("# ⚠️ FALLBACK STUB — generation failed, not grounded")
+            lines.append("")
+            lines.append(f"## {name}")
+        else:
+            lines.append(f"# {name}")
+
+        lines.append("")
+
+        # Context
+        if context:
+            lines.append("## Context")
+            lines.append(f"- **Industry:** {context.get('industry', 'Unknown')}")
+            lines.append(f"- **Region:** {context.get('region', 'Unknown')}")
+            lines.append(f"- **Organization Size:** {context.get('organization_size', 'Unknown')}")
+            lines.append(f"- **Generated:** {context.get('generated_at', 'Unknown')}")
+            lines.append("")
+
+        # Description
+        if description:
+            lines.append("## Description")
+            if description.startswith("[FALLBACK STUB"):
+                lines.append(f"**⚠️ {description}**")
+            else:
+                lines.append(description)
+            lines.append("")
+
+        # Scope
+        if is_stub:
+            lines.append(f"**Scope:** {scope} (stub - not a real incident)")
+        else:
+            lines.append(f"**Scope:** {scope}")
+        lines.append("")
+
+        # Get actions from .afb objects
+        actions = []
+        for obj in flow_data.get("objects", []):
+            if obj.get("id") == "action":
+                actions.append(obj)
+
+        if actions:
+            lines.append("## Attack Actions (MITRE ATT&CK Techniques)")
+            lines.append("")
+            lines.append("| # | Tactic | Technique | Name | Confidence |")
+            lines.append("|---|--------|-----------|------|------------|")
+
+            for i, action in enumerate(actions, 1):
+                props = action.get("properties", [])
+                name = AttackFlowFormatter._get_property(props, "name") or "Unknown"
+                tactic = AttackFlowFormatter._get_property(props, "tactic_id") or "Unknown"
+                tech_id = AttackFlowFormatter._get_property(props, "technique_id") or ""
+                confidence = AttackFlowFormatter._get_property(props, "confidence") or "unspecified"
+
+                conf_marker = {
+                    "observed": "✓ observed",
+                    "reported": "~ reported",
+                    "speculative": "? speculative",
+                    "unspecified": "- unspecified"
+                }.get(confidence, confidence)
+
+                lines.append(f"| {i} | {tactic} | {tech_id} | {name} | {conf_marker} |")
+
+            lines.append("")
+
+        # Assets
+        assets = []
+        for obj in flow_data.get("objects", []):
+            if obj.get("id") == "asset":
+                props = obj.get("properties", [])
+                name = AttackFlowFormatter._get_property(props, "name")
+                if name:
+                    assets.append(name)
+
+        if assets:
+            lines.append("## Targeted Assets")
+            for asset in assets:
+                lines.append(f"- {asset}")
+            lines.append("")
+
+        # Format reference
+        lines.append("## MITRE Attack Flow Format")
+        lines.append("This flow is in the native `.afb` (Attack Flow Binary) format compatible with the MITRE Attack Flow Builder.")
+        lines.append("")
+
+        return "\n".join(lines)
+
+    @staticmethod
     def save_to_file(flow_data: Dict[str, Any], filepath: Path, format: str = "json") -> Path:
         """Save the attack flow to a file."""
         filepath = Path(filepath)
@@ -304,14 +428,24 @@ class AttackFlowFormatter:
         # Ensure directory exists
         filepath.parent.mkdir(parents=True, exist_ok=True)
 
+        # Detect if flow is .afb format
+        is_afb = flow_data.get("schema") == "attack_flow_v2"
+
         if format.lower() == "json":
             content = AttackFlowFormatter.to_json(flow_data)
-            if not filepath.suffix == ".json":
+            # Use .afb extension for native format, .json for STIX
+            if is_afb and filepath.suffix != ".afb":
+                filepath = filepath.with_suffix(".afb")
+            elif not is_afb and filepath.suffix != ".json":
                 filepath = filepath.with_suffix(".json")
         elif format.lower() == "md" or format.lower() == "markdown":
             content = AttackFlowFormatter.to_summary_markdown(flow_data)
             if not filepath.suffix == ".md":
                 filepath = filepath.with_suffix(".md")
+        elif format.lower() == "afb":
+            content = AttackFlowFormatter.to_json(flow_data)
+            if not filepath.suffix == ".afb":
+                filepath = filepath.with_suffix(".afb")
         else:
             raise ValueError(f"Unknown format: {format}")
 
@@ -322,7 +456,7 @@ class AttackFlowFormatter:
         return filepath
 
     @staticmethod
-    def generate_filename(industry: str, region: str, org_size: str) -> str:
+    def generate_filename(industry: str, region: str, org_size: str, suffix: str = ".afb") -> str:
         """Generate a filename for the attack flow."""
         # Clean up inputs for filename
         safe_industry = industry.lower().replace(" ", "_").replace("/", "_")[:20]
@@ -330,4 +464,4 @@ class AttackFlowFormatter:
         safe_size = org_size.lower().replace(" ", "_")[:10]
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return f"attack_flow_{safe_industry}_{safe_region}_{safe_size}_{timestamp}"
+        return f"attack_flow_{safe_industry}_{safe_region}_{safe_size}_{timestamp}{suffix}"

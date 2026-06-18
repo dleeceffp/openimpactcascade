@@ -126,19 +126,86 @@ def demo_attack_flow_structure():
     print(f"  Scope: {sample_flow['scope']}")
     print(f"  Actions: {len(sample_flow['attack_actions'])}")
 
-    # Format as markdown
-    print("\n" + "-" * 70)
-    print("Markdown Summary:")
-    print("-" * 70)
-    md_output = AttackFlowFormatter.to_summary_markdown(sample_flow)
-    print(md_output[:500] + "...")
+    # Create an .afb format flow
+    from formatter import AttackFlowFormatter
+    afb_flow = {
+        "schema": "attack_flow_v2",
+        "theme": "dark_theme",
+        "objects": [
+            {
+                "id": "flow",
+                "instance": "flow-uuid-1234",
+                "properties": [
+                    ["name", sample_flow['name']],
+                    ["description", sample_flow['description']],
+                    ["author", [["name", "Demo"], ["identity_class", "organization"], ["contact_information", "demo@test.com"]]],
+                    ["scope", sample_flow['scope']],
+                    ["external_references", []],
+                    ["created", sample_flow['x_oic_context']['generated_at']]
+                ],
+                "objects": ["action-1", "action-2", "action-3", "action-4"]
+            },
+            {
+                "id": "action",
+                "instance": "action-1",
+                "properties": [
+                    ["name", "Spearphishing Attachment"],
+                    ["tactic_id", "Initial Access"],
+                    ["technique_id", "T1566.001"],
+                    ["description", "Phishing email with malicious attachment"],
+                    ["confidence", "observed"]
+                ]
+            },
+            {
+                "id": "action",
+                "instance": "action-2",
+                "properties": [
+                    ["name", "Malicious File"],
+                    ["tactic_id", "Execution"],
+                    ["technique_id", "T1204.002"],
+                    ["description", "User opens malicious attachment"],
+                    ["confidence", "observed"]
+                ]
+            },
+            {
+                "id": "action",
+                "instance": "action-3",
+                "properties": [
+                    ["name", "Registry Run Keys"],
+                    ["tactic_id", "Persistence"],
+                    ["technique_id", "T1547.001"],
+                    ["description", "Malware establishes persistence"],
+                    ["confidence", "reported"]
+                ]
+            },
+            {
+                "id": "action",
+                "instance": "action-4",
+                "properties": [
+                    ["name", "Data Encrypted for Impact"],
+                    ["tactic_id", "Impact"],
+                    ["technique_id", "T1486"],
+                    ["description", "Ransomware encrypts data"],
+                    ["confidence", "observed"]
+                ]
+            }
+        ],
+        "x_oic_context": sample_flow['x_oic_context']
+    }
 
-    # Format as JSON
+    # Format as markdown (.afb format)
     print("\n" + "-" * 70)
-    print("JSON Output (excerpt):")
+    print("Markdown Summary (from .afb format):")
     print("-" * 70)
-    json_output = AttackFlowFormatter.to_json(sample_flow)
-    print(json_output[:500] + "...")
+    md_output = AttackFlowFormatter.to_summary_markdown(afb_flow)
+    print(md_output[:600] + "...")
+
+    # Format as JSON (.afb format)
+    print("\n" + "-" * 70)
+    print("AFB JSON Output (excerpt):")
+    print("-" * 70)
+    json_output = AttackFlowFormatter.to_json(afb_flow)
+    print(json_output[:600] + "...")
 
 
 def demo_corpus_check():

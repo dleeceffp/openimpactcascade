@@ -29,6 +29,7 @@ generated/*
 app/generated/*
 !app/generated/.gitkeep
 !app/generated/cascade_archetypes/
+!app/generated/attack_flows/
 
 # Documentation --
 documentation/historical/
