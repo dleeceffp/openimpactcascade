@@ -362,9 +362,18 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
             if internal_id not in instance_map:
                 instance_map[internal_id] = str(uuid.uuid4())
 
-        # Create action objects
+        # Helper to generate anchors for visual layout
+        def _make_anchors(index: int, total: int, is_flow: bool = False) -> Dict[str, str]:
+            """Generate anchor points for Attack Flow Builder canvas layout."""
+            # Generate 12 anchor points (every 30 degrees)
+            anchors = {}
+            for deg in range(0, 360, 30):
+                anchors[str(deg)] = str(uuid.uuid4())
+            return anchors
+
+        # Create action objects with anchors
         action_objects = []
-        for action in actions:
+        for idx, action in enumerate(actions):
             internal_id = action.get("id", f"action-{len(action_objects)}")
             instance_id = instance_map.get(internal_id, str(uuid.uuid4()))
 
@@ -392,13 +401,14 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
             action_obj = {
                 "id": "action",
                 "instance": instance_id,
-                "properties": action_props
+                "properties": action_props,
+                "anchors": _make_anchors(idx, len(actions))
             }
             action_objects.append(action_obj)
 
-        # Create asset objects
+        # Create asset objects with anchors
         asset_objects = []
-        for asset_name in assets:
+        for idx, asset_name in enumerate(assets):
             asset_instance = str(uuid.uuid4())
             asset_props = [
                 ["name", asset_name],
@@ -407,7 +417,8 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
             asset_obj = {
                 "id": "asset",
                 "instance": asset_instance,
-                "properties": asset_props
+                "properties": asset_props,
+                "anchors": _make_anchors(idx, len(assets))
             }
             asset_objects.append(asset_obj)
             # Add asset to instance map for reference
@@ -420,7 +431,8 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
             "id": "flow",
             "instance": str(uuid.uuid4()),
             "properties": flow_properties,
-            "objects": all_object_instances
+            "objects": all_object_instances,
+            "anchors": _make_anchors(0, 1, is_flow=True)
         }
 
         # Build final .afb format
