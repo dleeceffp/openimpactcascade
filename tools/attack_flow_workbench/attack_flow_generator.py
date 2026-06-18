@@ -326,6 +326,10 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
         # Generate STIX IDs
         bundle_id = f"bundle--{uuid.uuid4()}"
         flow_id = f"attack-flow--{uuid.uuid4()}"
+        identity_id = f"identity--{uuid.uuid4()}"
+
+        # Current timestamp for all objects
+        created_timestamp = datetime.now().isoformat() + "Z"
 
         objects = []
 
@@ -333,11 +337,27 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
         is_stub = flow_data.get("generation_status") == "fallback_stub"
         scope = flow_data.get("scope", "incident")
 
+        # Create identity object for author (required for created_by_ref)
+        identity_obj = {
+            "type": "identity",
+            "id": identity_id,
+            "spec_version": "2.1",
+            "name": "OIC Attack Flow Workbench",
+            "identity_class": "organization",
+            "contact_information": "oic@sandbox.local",
+            "created": created_timestamp,
+            "modified": created_timestamp
+        }
+        objects.append(identity_obj)
+
         # Create the attack-flow object
         attack_flow = {
             "type": "attack-flow",
             "id": flow_id,
             "spec_version": "2.1",
+            "created": created_timestamp,
+            "modified": created_timestamp,
+            "created_by_ref": identity_id,
             "name": flow_data.get("name", f"Attack Flow - {industry}"),
             "description": flow_data.get("description", ""),
             "scope": scope,
@@ -354,7 +374,7 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
             "industry": industry,
             "region": region,
             "organization_size": organization_size,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": created_timestamp,
             "generator": "OIC Attack Flow Workbench v0.1.0",
             "generation_status": flow_data.get("generation_status", "generated")
         }
@@ -400,6 +420,9 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
                 "type": "attack-action",
                 "id": action_id,
                 "spec_version": "2.1",
+                "created": created_timestamp,
+                "modified": created_timestamp,
+                "created_by_ref": identity_id,
                 "name": action.get("name", "Unknown Action"),
                 "description": action.get("description", ""),
                 "tactic_id": tactic_shortname,
@@ -446,6 +469,9 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
                 "type": "attack-operator",
                 "id": gate_id,
                 "spec_version": "2.1",
+                "created": created_timestamp,
+                "modified": created_timestamp,
+                "created_by_ref": identity_id,
                 "operator": gate_type,
                 "extensions": {
                     "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
@@ -471,6 +497,9 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
                 "type": "attack-asset",
                 "id": asset_id,
                 "spec_version": "2.1",
+                "created": created_timestamp,
+                "modified": created_timestamp,
+                "created_by_ref": identity_id,
                 "name": asset_name,
                 "extensions": {
                     "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
