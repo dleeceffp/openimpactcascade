@@ -1,0 +1,486 @@
+{
+  "type": "bundle",
+  "id": "bundle--ebce0a02-b327-4b43-8789-19c3c1692cf2",
+  "objects": [
+    {
+      "type": "attack-flow",
+      "id": "attack-flow--156cdcf1-cf33-4b29-a4cc-9aedd92a36ab",
+      "spec_version": "2.1",
+      "name": "Active Directory Takeover by Criminal Gang — Canadian Energy Sector",
+      "description": "A financially motivated criminal gang targets a mid-sized Canadian energy operator (~2500 employees). The campaign begins with a spearphishing lure crafted around energy-sector themes (e.g., regulatory filings, NERC CIP compliance documents), establishes a foothold via a commodity loader, pivots through credential harvesting and Kerberos abuse, and ultimately seizes control of Active Directory to deploy ransomware across OT-adjacent infrastructure.",
+      "scope": "incident",
+      "start_refs": [
+        "attack-action--fa10ef46-3119-45b6-975c-10a4e0dea672"
+      ],
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      },
+      "x_oic_context": {
+        "industry": "energy",
+        "region": "Canada",
+        "organization_size": "2500",
+        "generated_at": "2026-06-18T06:27:22.300905",
+        "generator": "OIC Attack Flow Workbench v0.1.0",
+        "generation_status": "generated"
+      }
+    },
+    {
+      "type": "attack-action",
+      "id": "attack-action--fa10ef46-3119-45b6-975c-10a4e0dea672",
+      "spec_version": "2.1",
+      "name": "Spearphishing Attachment — Energy-Themed Lure",
+      "description": "Attackers send targeted emails to IT and finance staff impersonating a Canadian energy regulator (e.g., Canada Energy Regulator or IESO) with a macro-enabled Excel or Word attachment. The lure references a familiar compliance or procurement process to increase click likelihood in a 2500-person energy org where such communications are routine.",
+      "tactic_id": "initial-access",
+      "technique_id": "T1566.001",
+      "technique_ref": "attack-pattern--2e34237d-8574-43f6-aace-ae2915de8597",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      },
+      "x_oic_metadata": {
+        "confidence": "reported",
+        "internal_id": "n1"
+      },
+      "effect_refs": [
+        "attack-action--45766337-0a5f-48bd-9627-f7c639bfba11"
+      ]
+    },
+    {
+      "type": "attack-action",
+      "id": "attack-action--45766337-0a5f-48bd-9627-f7c639bfba11",
+      "spec_version": "2.1",
+      "name": "User Execution — Malicious Office Macro",
+      "description": "A targeted employee opens the attachment and enables macros, executing an embedded VBA script that drops and runs a commodity loader (e.g., QakBot, IcedID, or Emotet — all historically used against energy sector targets). This gives the attacker an initial beacon on a domain-joined workstation.",
+      "tactic_id": "execution",
+      "technique_id": "T1204.002",
+      "technique_ref": "attack-pattern--232b7f21-adf9-4b42-b936-b9d6f7df856e",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      },
+      "x_oic_metadata": {
+        "confidence": "reported",
+        "internal_id": "n2"
+      },
+      "effect_refs": [
+        "attack-action--ff1240bc-72b6-45ff-96f5-3f258cea0fa8"
+      ]
+    },
+    {
+      "type": "attack-action",
+      "id": "attack-action--ff1240bc-72b6-45ff-96f5-3f258cea0fa8",
+      "spec_version": "2.1",
+      "name": "OS Credential Dumping — LSASS Memory",
+      "description": "After establishing persistence and disabling local AV, the attacker uses a Mimikatz-style tool or the loader's built-in credential harvesting module to dump plaintext credentials and NTLM hashes from LSASS on the initial workstation. This typically yields at minimum one domain user credential.",
+      "tactic_id": "credential-access",
+      "technique_id": "T1003.001",
+      "technique_ref": "attack-pattern--65f2d882-3f41-4d48-8a06-29af77ec9f90",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      },
+      "x_oic_metadata": {
+        "confidence": "reported",
+        "internal_id": "n3"
+      },
+      "effect_refs": [
+        "attack-action--b04d324e-c9e7-4646-b555-7a4d4a8ddbc7"
+      ]
+    },
+    {
+      "type": "attack-action",
+      "id": "attack-action--b04d324e-c9e7-4646-b555-7a4d4a8ddbc7",
+      "spec_version": "2.1",
+      "name": "Domain Account Discovery",
+      "description": "Using harvested credentials, the attacker enumerates Active Directory to identify privileged accounts (Domain Admins, Service Accounts, Tier-0 assets) via LDAP queries or BloodHound. In a 2500-person energy org this typically reveals a moderately complex AD structure with dedicated OT/SCADA-adjacent service accounts.",
+      "tactic_id": "discovery",
+      "technique_id": "T1087.002",
+      "technique_ref": "attack-pattern--21875073-b0ee-49e3-9077-1e2a885359af",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      },
+      "x_oic_metadata": {
+        "confidence": "reported",
+        "internal_id": "n4"
+      },
+      "effect_refs": [
+        "attack-action--e35def86-d70a-44b7-8dbb-5fec8e2ec560"
+      ]
+    },
+    {
+      "type": "attack-action",
+      "id": "attack-action--e35def86-d70a-44b7-8dbb-5fec8e2ec560",
+      "spec_version": "2.1",
+      "name": "Kerberoasting — Service Account Hash Extraction",
+      "description": "The attacker requests Kerberos TGS tickets for service accounts (common in energy orgs for historian, SCADA, or backup service accounts) and extracts the ticket hashes for offline cracking. Weak or default service account passwords in OT-adjacent environments frequently yield DA-level credentials.",
+      "tactic_id": "credential-access",
+      "technique_id": "T1558.003",
+      "technique_ref": "attack-pattern--f2877f7f-9a4c-4251-879f-1224e3006bee",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      },
+      "x_oic_metadata": {
+        "confidence": "reported",
+        "internal_id": "n5"
+      },
+      "effect_refs": [
+        "attack-action--acf0a265-90d8-41eb-b330-1cf2847ec21f"
+      ]
+    },
+    {
+      "type": "attack-action",
+      "id": "attack-action--acf0a265-90d8-41eb-b330-1cf2847ec21f",
+      "spec_version": "2.1",
+      "name": "Lateral Movement via Pass-the-Hash to IT Admin Jump Host",
+      "description": "Using cracked or harvested NTLM hashes, the attacker authenticates to an IT administrator jump host or Tier-1 management server. In mid-sized energy organisations, these jump hosts often bridge corporate IT and OT network segments and run with elevated AD privileges.",
+      "tactic_id": "lateral-movement",
+      "technique_id": "T1550.002",
+      "technique_ref": "attack-pattern--e624264c-033a-424d-9fd7-fc9c3bbdb03e",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      },
+      "x_oic_metadata": {
+        "confidence": "reported",
+        "internal_id": "n6"
+      },
+      "effect_refs": [
+        "attack-action--ace9ae05-fb3f-4f53-91a1-fc143856e2e4"
+      ]
+    },
+    {
+      "type": "attack-action",
+      "id": "attack-action--ace9ae05-fb3f-4f53-91a1-fc143856e2e4",
+      "spec_version": "2.1",
+      "name": "Remote Services — RDP to Domain Controller",
+      "description": "From the privileged jump host, the attacker uses RDP with Domain Admin credentials (now in hand) to connect directly to one of the organisation's Domain Controllers. Energy sector DCs often run additional roles (DNS, NPS) and are highly valuable targets.",
+      "tactic_id": "lateral-movement",
+      "technique_id": "T1021.001",
+      "technique_ref": "attack-pattern--eb062747-2193-45de-8fa2-e62549c37ddf",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      },
+      "x_oic_metadata": {
+        "confidence": "reported",
+        "internal_id": "n7"
+      },
+      "effect_refs": [
+        "attack-action--5dc70849-72f4-4df4-b142-808b99da85e4"
+      ]
+    },
+    {
+      "type": "attack-action",
+      "id": "attack-action--5dc70849-72f4-4df4-b142-808b99da85e4",
+      "spec_version": "2.1",
+      "name": "DCSync — Domain Credential Replication",
+      "description": "With Domain Admin rights on the DC, the attacker performs a DCSync attack using Mimikatz's lsadump::dcsync, pulling NTLM hashes for all accounts including KRBTGT — enabling full Golden Ticket capability. This constitutes complete Active Directory takeover.",
+      "tactic_id": "credential-access",
+      "technique_id": "T1003.006",
+      "technique_ref": "attack-pattern--f303a39a-6255-4b89-aecc-18c4d8ca7163",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      },
+      "x_oic_metadata": {
+        "confidence": "reported",
+        "internal_id": "n8"
+      },
+      "effect_refs": [
+        "attack-action--d2837b59-4b0b-47d1-bb7e-dcdbdf6a9094"
+      ]
+    },
+    {
+      "type": "attack-action",
+      "id": "attack-action--d2837b59-4b0b-47d1-bb7e-dcdbdf6a9094",
+      "spec_version": "2.1",
+      "name": "Create/Modify Domain Account — Backdoor Admin",
+      "description": "The attacker creates a hidden Domain Admin account with a benign-sounding name (e.g., matching naming conventions for IT service accounts) to ensure persistent AD access even if the initial compromise path is remediated. This is consistent with ransomware gang TTPs that maintain access during negotiation.",
+      "tactic_id": "persistence",
+      "technique_id": "T1136.002",
+      "technique_ref": "attack-pattern--7610cada-1499-41a4-b3dd-46467b68d177",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      },
+      "x_oic_metadata": {
+        "confidence": "reported",
+        "internal_id": "n9"
+      },
+      "effect_refs": [
+        "attack-action--4b5011ea-abd0-43df-9439-4b27bc32180c"
+      ]
+    },
+    {
+      "type": "attack-action",
+      "id": "attack-action--4b5011ea-abd0-43df-9439-4b27bc32180c",
+      "spec_version": "2.1",
+      "name": "Inhibit System Recovery — Shadow Copy Deletion via GPO",
+      "description": "Using Domain Admin access, the attacker deploys a malicious GPO to all domain-joined machines that deletes Volume Shadow Copies (vssadmin delete shadows) and disables Windows Recovery Environment, preventing easy restoration before ransomware detonation.",
+      "tactic_id": "impact",
+      "technique_id": "T1490",
+      "technique_ref": "attack-pattern--f5d8eed6-48a9-4cdf-a3d7-d1ffa99c3d2a",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      },
+      "x_oic_metadata": {
+        "confidence": "reported",
+        "internal_id": "n10"
+      },
+      "effect_refs": [
+        "attack-action--5a43c6eb-545b-44f3-a998-a88acf61e43a"
+      ]
+    },
+    {
+      "type": "attack-action",
+      "id": "attack-action--5a43c6eb-545b-44f3-a998-a88acf61e43a",
+      "spec_version": "2.1",
+      "name": "Data Encrypted for Impact — Ransomware Deployment via GPO",
+      "description": "The attacker pushes ransomware (e.g., BlackCat/ALPHV, Play, or LockBit 3.0 — all observed in energy sector incidents) to all domain-joined endpoints via Group Policy startup scripts or PSEXEC from the DC, maximising encryption coverage across the 2500-person organisation. OT historian servers and engineering workstations on the corporate domain are particularly targeted to maximise leverage.",
+      "tactic_id": "impact",
+      "technique_id": "T1486",
+      "technique_ref": "attack-pattern--b80d107d-fa0d-4b60-9684-b0433e8bdba0",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      },
+      "x_oic_metadata": {
+        "confidence": "reported",
+        "internal_id": "n11"
+      }
+    },
+    {
+      "type": "attack-asset",
+      "id": "attack-asset--f35b6c91-ad2a-4c43-8b78-fa0d6ef8ac17",
+      "spec_version": "2.1",
+      "name": "Corporate email infrastructure",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      }
+    },
+    {
+      "type": "attack-asset",
+      "id": "attack-asset--f1796bd0-a2b6-4aa4-a7ab-d8f7fa4703f0",
+      "spec_version": "2.1",
+      "name": "Domain-joined employee workstations",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      }
+    },
+    {
+      "type": "attack-asset",
+      "id": "attack-asset--2e84b358-c5b6-49f3-96ea-247234a36d71",
+      "spec_version": "2.1",
+      "name": "Active Directory Domain Controllers",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      }
+    },
+    {
+      "type": "attack-asset",
+      "id": "attack-asset--d3080f71-80f6-4033-87df-05e852a815a5",
+      "spec_version": "2.1",
+      "name": "IT/OT jump hosts",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      }
+    },
+    {
+      "type": "attack-asset",
+      "id": "attack-asset--83944385-e2ce-451f-8e9d-43a6a7bd1464",
+      "spec_version": "2.1",
+      "name": "SCADA/historian service accounts",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      }
+    },
+    {
+      "type": "attack-asset",
+      "id": "attack-asset--a9523237-164b-432e-98ee-e69a80618645",
+      "spec_version": "2.1",
+      "name": "Energy management and NERC CIP compliance systems",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      }
+    },
+    {
+      "type": "attack-asset",
+      "id": "attack-asset--11fd548d-d961-4ae9-9ab7-9135fa3db724",
+      "spec_version": "2.1",
+      "name": "Backup and recovery infrastructure",
+      "extensions": {
+        "extension-definition--fb9c968a-745b-4ade-9b25-c324172197f4": {
+          "extension_type": "new-sdo"
+        }
+      }
+    }
+  ],
+  "x_original_flow": {
+    "name": "Active Directory Takeover by Criminal Gang — Canadian Energy Sector",
+    "description": "A financially motivated criminal gang targets a mid-sized Canadian energy operator (~2500 employees). The campaign begins with a spearphishing lure crafted around energy-sector themes (e.g., regulatory filings, NERC CIP compliance documents), establishes a foothold via a commodity loader, pivots through credential harvesting and Kerberos abuse, and ultimately seizes control of Active Directory to deploy ransomware across OT-adjacent infrastructure.",
+    "scope": "incident",
+    "attack_actions": [
+      {
+        "id": "n1",
+        "name": "Spearphishing Attachment — Energy-Themed Lure",
+        "technique_id": "T1566.001",
+        "tactic": "Initial Access",
+        "description": "Attackers send targeted emails to IT and finance staff impersonating a Canadian energy regulator (e.g., Canada Energy Regulator or IESO) with a macro-enabled Excel or Word attachment. The lure references a familiar compliance or procurement process to increase click likelihood in a 2500-person energy org where such communications are routine.",
+        "depends_on": [],
+        "confidence": "reported"
+      },
+      {
+        "id": "n2",
+        "name": "User Execution — Malicious Office Macro",
+        "technique_id": "T1204.002",
+        "tactic": "Execution",
+        "description": "A targeted employee opens the attachment and enables macros, executing an embedded VBA script that drops and runs a commodity loader (e.g., QakBot, IcedID, or Emotet — all historically used against energy sector targets). This gives the attacker an initial beacon on a domain-joined workstation.",
+        "depends_on": [
+          "n1"
+        ],
+        "confidence": "reported"
+      },
+      {
+        "id": "n3",
+        "name": "OS Credential Dumping — LSASS Memory",
+        "technique_id": "T1003.001",
+        "tactic": "Credential Access",
+        "description": "After establishing persistence and disabling local AV, the attacker uses a Mimikatz-style tool or the loader's built-in credential harvesting module to dump plaintext credentials and NTLM hashes from LSASS on the initial workstation. This typically yields at minimum one domain user credential.",
+        "depends_on": [
+          "n2"
+        ],
+        "confidence": "reported"
+      },
+      {
+        "id": "n4",
+        "name": "Domain Account Discovery",
+        "technique_id": "T1087.002",
+        "tactic": "Discovery",
+        "description": "Using harvested credentials, the attacker enumerates Active Directory to identify privileged accounts (Domain Admins, Service Accounts, Tier-0 assets) via LDAP queries or BloodHound. In a 2500-person energy org this typically reveals a moderately complex AD structure with dedicated OT/SCADA-adjacent service accounts.",
+        "depends_on": [
+          "n3"
+        ],
+        "confidence": "reported"
+      },
+      {
+        "id": "n5",
+        "name": "Kerberoasting — Service Account Hash Extraction",
+        "technique_id": "T1558.003",
+        "tactic": "Credential Access",
+        "description": "The attacker requests Kerberos TGS tickets for service accounts (common in energy orgs for historian, SCADA, or backup service accounts) and extracts the ticket hashes for offline cracking. Weak or default service account passwords in OT-adjacent environments frequently yield DA-level credentials.",
+        "depends_on": [
+          "n4"
+        ],
+        "confidence": "reported"
+      },
+      {
+        "id": "n6",
+        "name": "Lateral Movement via Pass-the-Hash to IT Admin Jump Host",
+        "technique_id": "T1550.002",
+        "tactic": "Lateral Movement",
+        "description": "Using cracked or harvested NTLM hashes, the attacker authenticates to an IT administrator jump host or Tier-1 management server. In mid-sized energy organisations, these jump hosts often bridge corporate IT and OT network segments and run with elevated AD privileges.",
+        "depends_on": [
+          "n5"
+        ],
+        "confidence": "reported"
+      },
+      {
+        "id": "n7",
+        "name": "Remote Services — RDP to Domain Controller",
+        "technique_id": "T1021.001",
+        "tactic": "Lateral Movement",
+        "description": "From the privileged jump host, the attacker uses RDP with Domain Admin credentials (now in hand) to connect directly to one of the organisation's Domain Controllers. Energy sector DCs often run additional roles (DNS, NPS) and are highly valuable targets.",
+        "depends_on": [
+          "n6"
+        ],
+        "confidence": "reported"
+      },
+      {
+        "id": "n8",
+        "name": "DCSync — Domain Credential Replication",
+        "technique_id": "T1003.006",
+        "tactic": "Credential Access",
+        "description": "With Domain Admin rights on the DC, the attacker performs a DCSync attack using Mimikatz's lsadump::dcsync, pulling NTLM hashes for all accounts including KRBTGT — enabling full Golden Ticket capability. This constitutes complete Active Directory takeover.",
+        "depends_on": [
+          "n7"
+        ],
+        "confidence": "reported"
+      },
+      {
+        "id": "n9",
+        "name": "Create/Modify Domain Account — Backdoor Admin",
+        "technique_id": "T1136.002",
+        "tactic": "Persistence",
+        "description": "The attacker creates a hidden Domain Admin account with a benign-sounding name (e.g., matching naming conventions for IT service accounts) to ensure persistent AD access even if the initial compromise path is remediated. This is consistent with ransomware gang TTPs that maintain access during negotiation.",
+        "depends_on": [
+          "n8"
+        ],
+        "confidence": "reported"
+      },
+      {
+        "id": "n10",
+        "name": "Inhibit System Recovery — Shadow Copy Deletion via GPO",
+        "technique_id": "T1490",
+        "tactic": "Impact",
+        "description": "Using Domain Admin access, the attacker deploys a malicious GPO to all domain-joined machines that deletes Volume Shadow Copies (vssadmin delete shadows) and disables Windows Recovery Environment, preventing easy restoration before ransomware detonation.",
+        "depends_on": [
+          "n9"
+        ],
+        "confidence": "reported"
+      },
+      {
+        "id": "n11",
+        "name": "Data Encrypted for Impact — Ransomware Deployment via GPO",
+        "technique_id": "T1486",
+        "tactic": "Impact",
+        "description": "The attacker pushes ransomware (e.g., BlackCat/ALPHV, Play, or LockBit 3.0 — all observed in energy sector incidents) to all domain-joined endpoints via Group Policy startup scripts or PSEXEC from the DC, maximising encryption coverage across the 2500-person organisation. OT historian servers and engineering workstations on the corporate domain are particularly targeted to maximise leverage.",
+        "depends_on": [
+          "n10"
+        ],
+        "confidence": "reported"
+      }
+    ],
+    "logic": [],
+    "entry_points": [
+      "n1"
+    ],
+    "assets": [
+      "Corporate email infrastructure",
+      "Domain-joined employee workstations",
+      "Active Directory Domain Controllers",
+      "IT/OT jump hosts",
+      "SCADA/historian service accounts",
+      "Energy management and NERC CIP compliance systems",
+      "Backup and recovery infrastructure"
+    ],
+    "threat_actor": "Financially motivated criminal ransomware gang (e.g., ALPHV/BlackCat, Play, or LockBit affiliate) targeting critical infrastructure for double-extortion"
+  }
+}
