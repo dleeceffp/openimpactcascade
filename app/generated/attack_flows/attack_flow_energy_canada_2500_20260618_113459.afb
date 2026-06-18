@@ -1,0 +1,1137 @@
+{
+  "schema": "attack_flow_v2",
+  "theme": "dark_theme",
+  "objects": [
+    {
+      "id": "flow",
+      "instance": "c9a36181-e925-457f-9dac-0081c4d3c5bd",
+      "properties": [
+        [
+          "name",
+          "Active Directory Takeover by Criminal Gang – Canadian Energy Sector"
+        ],
+        [
+          "description",
+          "A financially motivated criminal gang targets a mid-sized Canadian energy company (~2500 employees) with the goal of achieving full Active Directory compromise, enabling ransomware deployment or data extortion. The intrusion begins with a phishing campaign targeting corporate email users, proceeds through credential theft and internal reconnaissance, and culminates in domain controller takeover via DCSync or similar AD abuse."
+        ],
+        [
+          "author",
+          [
+            [
+              "name",
+              "OIC Attack Flow Workbench"
+            ],
+            [
+              "identity_class",
+              "organization"
+            ],
+            [
+              "contact_information",
+              "oic@sandbox.local"
+            ]
+          ]
+        ],
+        [
+          "scope",
+          "incident"
+        ],
+        [
+          "external_references",
+          []
+        ],
+        [
+          "created",
+          "2026-06-18T11:34:59.106782Z"
+        ]
+      ],
+      "objects": [
+        "7603f10a-7d2a-4f18-a9ee-685def4b35c5",
+        "64b12a34-fac5-4368-82af-9e23943253e6",
+        "ea54db05-7c1e-48e5-9c2f-3cfa7a3585f9",
+        "08198a7d-a114-4c62-8cf5-3837933253c9",
+        "04f7f4b5-2d26-481c-aed2-1e0f52880074",
+        "a4306f24-b579-4ca9-b6e2-ddab5e14dccf",
+        "b17eeb0c-f50f-4b75-a37d-e4c3658e93a0",
+        "bdb6fa11-dfbe-491a-b86c-6afa9fe31b39",
+        "f261e005-020e-4a7e-8922-ca8fde831295",
+        "cffdbc2c-cb75-4168-97e9-ae46971d35c2",
+        "3f30abb6-2950-43ad-aaef-ac4ede7a5209",
+        "14620927-a0f4-49b9-8590-47e4b27fd8cd",
+        "93ef5c05-f786-4f9e-8176-b7d465a052a4",
+        "8e9d938d-00db-4a12-91a0-2b2c7d7974ec",
+        "8dada17c-5061-4375-bea4-d77f411afd5f",
+        "7a0d605f-d6dc-42bd-b753-ec007542dfab"
+      ],
+      "anchors": {
+        "0": "9797161f-9562-4244-81d0-579b10098fe6",
+        "30": "2b533ef1-6eb0-4d7c-9f49-2c82455a343d",
+        "60": "98697548-de10-435a-a027-33891c1b6233",
+        "90": "3480866c-2319-4ccb-9603-e9396b691dc2",
+        "120": "16e69f1a-a322-435e-adf9-92f348c5441e",
+        "150": "12a30a29-72f4-43c2-a8f7-71ebe668cea8",
+        "180": "a93038be-7eed-4d0c-ac5d-47d337f9f7f8",
+        "210": "b82acbed-761d-48e4-816f-f72b3dd5bd53",
+        "240": "0e4fcf7f-131d-4660-a9ae-011dd69b08f4",
+        "270": "39b063d9-95b9-412c-a094-df1cd0ce476d",
+        "300": "323e19ef-2fc9-424a-b0d0-174b3e477468",
+        "330": "1551cd4d-b007-44e9-9c53-844769be68e6"
+      }
+    },
+    {
+      "id": "action",
+      "instance": "7603f10a-7d2a-4f18-a9ee-685def4b35c5",
+      "properties": [
+        [
+          "name",
+          "Spearphishing Link"
+        ],
+        [
+          "tactic_id",
+          "Initial Access"
+        ],
+        [
+          "tactic_ref",
+          null
+        ],
+        [
+          "technique_id",
+          "T1566.002"
+        ],
+        [
+          "technique_ref",
+          "attack-pattern--2b742742-28c3-4e1b-bab7-8350d6300fa7"
+        ],
+        [
+          "description",
+          "Threat actors send targeted phishing emails to energy-sector employees impersonating a Canadian utility regulator or invoicing system, containing a malicious URL leading to a credential harvesting page or malware dropper. Mid-sized energy companies in Canada are frequent targets of commodity phishing campaigns by ransomware-affiliated criminal groups."
+        ],
+        [
+          "confidence",
+          "reported"
+        ],
+        [
+          "execution_start",
+          null
+        ],
+        [
+          "execution_end",
+          null
+        ],
+        [
+          "ttp",
+          [
+            [
+              "tactic",
+              "Initial Access"
+            ],
+            [
+              "technique",
+              "T1566.002"
+            ]
+          ]
+        ]
+      ],
+      "anchors": {
+        "0": "8e74746e-cd41-43c6-a568-1d12223c432b",
+        "30": "02df71c1-9f80-457c-8dc4-b676205c6cd2",
+        "60": "ea7a605f-d3a1-4d28-ae90-af5bc114137e",
+        "90": "a537b60b-8c0d-424b-84eb-616fee79d82c",
+        "120": "9fab1819-1987-4661-bd22-d96207664328",
+        "150": "355e9388-66f7-4de4-b409-35e6c0516fdf",
+        "180": "3d0c3724-1c79-491b-b460-2857adb3cb02",
+        "210": "13a41a18-dac8-4ec3-8ef5-d7c30184d0c1",
+        "240": "475bc0b7-0521-4854-b160-a620cebdfabb",
+        "270": "596a739a-5467-408a-8936-e08c903484d1",
+        "300": "64db3a16-96d5-4c44-a6bd-488fee9c4896",
+        "330": "e293cc3b-7732-4117-bd1b-d8d94f0c1922"
+      }
+    },
+    {
+      "id": "action",
+      "instance": "64b12a34-fac5-4368-82af-9e23943253e6",
+      "properties": [
+        [
+          "name",
+          "User Execution – Malicious Link"
+        ],
+        [
+          "tactic_id",
+          "Execution"
+        ],
+        [
+          "tactic_ref",
+          null
+        ],
+        [
+          "technique_id",
+          "T1204.001"
+        ],
+        [
+          "technique_ref",
+          "attack-pattern--ef67e13e-5598-4adc-bdb2-998225874fa9"
+        ],
+        [
+          "description",
+          "A corporate user clicks the phishing link and either enters credentials on a spoofed portal or downloads and opens a malicious file (e.g., disguised PDF or Office document) that executes an initial stager."
+        ],
+        [
+          "confidence",
+          "reported"
+        ],
+        [
+          "execution_start",
+          null
+        ],
+        [
+          "execution_end",
+          null
+        ],
+        [
+          "ttp",
+          [
+            [
+              "tactic",
+              "Execution"
+            ],
+            [
+              "technique",
+              "T1204.001"
+            ]
+          ]
+        ]
+      ],
+      "anchors": {
+        "0": "70253a6a-b942-494c-9482-7320aab05290",
+        "30": "f0bb9163-6eb9-480e-a316-fd06001501d6",
+        "60": "2fcfd34a-3b38-4d9b-9da7-33fa2e4a89ea",
+        "90": "008587cc-e977-4ad5-9afc-6657d9bc7b74",
+        "120": "fd01746e-3542-4982-b92a-a118953eff80",
+        "150": "f05573b5-f4ca-48a8-8ad9-ffd1737a2ad2",
+        "180": "15bb2255-8a78-4bfc-8f84-65b3a2004e7a",
+        "210": "0e7234eb-8167-4e61-ac99-581a2be35730",
+        "240": "b43986ab-0655-4e67-b63b-62dd1c5cc4d0",
+        "270": "11499efc-67d4-4fd3-a6cc-2e3c11b09695",
+        "300": "d6690612-77cc-47fd-ac91-df37dc260f81",
+        "330": "33761174-9911-48a2-bfcd-c3d57328066d"
+      }
+    },
+    {
+      "id": "action",
+      "instance": "ea54db05-7c1e-48e5-9c2f-3cfa7a3585f9",
+      "properties": [
+        [
+          "name",
+          "Steal Web Session Cookie / Adversary-in-the-Middle Credential Capture"
+        ],
+        [
+          "tactic_id",
+          "Credential Access"
+        ],
+        [
+          "tactic_ref",
+          null
+        ],
+        [
+          "technique_id",
+          "T1539"
+        ],
+        [
+          "technique_ref",
+          "attack-pattern--10ffac09-e42d-4f56-ab20-db94c67d76ff"
+        ],
+        [
+          "description",
+          "The phishing page proxies Microsoft 365 / Entra ID authentication (EvilGinx-style AiTM) to capture both the user's password and session cookie, bypassing MFA. This technique is widely documented in criminal gang campaigns targeting mid-market enterprises with Office 365."
+        ],
+        [
+          "confidence",
+          "reported"
+        ],
+        [
+          "execution_start",
+          null
+        ],
+        [
+          "execution_end",
+          null
+        ],
+        [
+          "ttp",
+          [
+            [
+              "tactic",
+              "Credential Access"
+            ],
+            [
+              "technique",
+              "T1539"
+            ]
+          ]
+        ]
+      ],
+      "anchors": {
+        "0": "b027c197-5db4-49a3-95dd-bc37f77464c4",
+        "30": "5ef9d933-69bb-4be0-b4a2-ce97a57d019a",
+        "60": "50149600-7dd1-4810-9143-37b63ced9820",
+        "90": "621ba692-f60f-4b88-a2bb-2d75db4d3e62",
+        "120": "b5207357-2022-46df-b091-7846a5f79826",
+        "150": "e7a3da79-4741-4f15-be97-c117dcf7eb9a",
+        "180": "03468ba4-036e-4890-9ac4-f3c3826c779c",
+        "210": "a0498bd3-f046-4c02-9c36-09dbc126a6e4",
+        "240": "7691b4ce-75f1-4003-b5fe-c067533691da",
+        "270": "9bd8aa59-f49d-4135-be92-260bc363d7a0",
+        "300": "30bf078e-3ffe-4514-b645-edda3331b8b5",
+        "330": "a9b99383-9012-4c04-81ba-200e78878378"
+      }
+    },
+    {
+      "id": "action",
+      "instance": "08198a7d-a114-4c62-8cf5-3837933253c9",
+      "properties": [
+        [
+          "name",
+          "Valid Accounts – Cloud Accounts (M365 Foothold)"
+        ],
+        [
+          "tactic_id",
+          "Initial Access"
+        ],
+        [
+          "tactic_ref",
+          null
+        ],
+        [
+          "technique_id",
+          "T1078.004"
+        ],
+        [
+          "technique_ref",
+          "attack-pattern--f232fa7a-025c-4d43-abc7-318e81a73d65"
+        ],
+        [
+          "description",
+          "Using the stolen session token, the actor authenticates to the victim's Microsoft 365 / Entra ID tenant without triggering MFA challenges, establishing a persistent cloud foothold and accessing email and SharePoint for internal intelligence gathering."
+        ],
+        [
+          "confidence",
+          "reported"
+        ],
+        [
+          "execution_start",
+          null
+        ],
+        [
+          "execution_end",
+          null
+        ],
+        [
+          "ttp",
+          [
+            [
+              "tactic",
+              "Initial Access"
+            ],
+            [
+              "technique",
+              "T1078.004"
+            ]
+          ]
+        ]
+      ],
+      "anchors": {
+        "0": "7d233b55-bfe0-459c-86d4-e323a14d508a",
+        "30": "d037c8b5-8580-4450-8040-b85e5ccb19db",
+        "60": "d5ce9487-a97d-4162-983a-dd835c5727c1",
+        "90": "0ee069ce-ffb3-412e-b685-6d6e2ef50c39",
+        "120": "9ed7426e-43c3-401f-8849-9251f0d59593",
+        "150": "df7bbcf0-2d8c-4e33-9306-4318f4f7aad2",
+        "180": "72d6d056-8dcd-488d-8464-9942157e2768",
+        "210": "2f48657a-32f7-4768-a6cd-34f2bfd6e66e",
+        "240": "04806fc5-1288-4802-ac65-7f1b9673c893",
+        "270": "34b75629-5235-418b-ae0b-294b5a008e1c",
+        "300": "8ee6e020-7cfb-41d0-b799-787dd4a16ac5",
+        "330": "9c04ea79-557f-4c52-b275-54ef948864c8"
+      }
+    },
+    {
+      "id": "action",
+      "instance": "04f7f4b5-2d26-481c-aed2-1e0f52880074",
+      "properties": [
+        [
+          "name",
+          "Command and Scripting Interpreter – PowerShell (Stager Execution)"
+        ],
+        [
+          "tactic_id",
+          "Execution"
+        ],
+        [
+          "tactic_ref",
+          null
+        ],
+        [
+          "technique_id",
+          "T1059.001"
+        ],
+        [
+          "technique_ref",
+          "attack-pattern--970a3432-3237-47ad-bcca-7d8cbb217736"
+        ],
+        [
+          "description",
+          "On endpoints where the user opened a malicious attachment rather than (or in addition to) entering credentials, a PowerShell stager is executed to download and run a second-stage payload (e.g., Cobalt Strike beacon, Sliver, or Brute Ratel C4) – common tooling for criminal ransomware affiliates."
+        ],
+        [
+          "confidence",
+          "reported"
+        ],
+        [
+          "execution_start",
+          null
+        ],
+        [
+          "execution_end",
+          null
+        ],
+        [
+          "ttp",
+          [
+            [
+              "tactic",
+              "Execution"
+            ],
+            [
+              "technique",
+              "T1059.001"
+            ]
+          ]
+        ]
+      ],
+      "anchors": {
+        "0": "dc83217d-9efc-4a0a-b881-132bedc92e5c",
+        "30": "d2f16ae9-b2d1-4540-bdcf-6ad934822fe6",
+        "60": "b3619b23-bb15-4543-b468-1a8e4524c94e",
+        "90": "9904e3df-976b-46c3-9ad6-91e094dccbe7",
+        "120": "87912203-06cd-4936-8707-ed827e19ea40",
+        "150": "a70f1a44-7608-41ed-8296-bfa6e96cb4d7",
+        "180": "9bea1a4d-7a82-400f-8bcf-fdc97bfb4a29",
+        "210": "b4abac51-a633-42f9-9549-f82c7e72a363",
+        "240": "f1b26fc6-d4ef-4f3f-9cc8-90be1606e079",
+        "270": "4e0f6c36-8f38-49cf-aa54-bb2152707b91",
+        "300": "da8ce5db-e0fa-4b8a-ada0-d7c651fb4b36",
+        "330": "0e6b6134-3666-45d8-a15e-02605863f0be"
+      }
+    },
+    {
+      "id": "action",
+      "instance": "a4306f24-b579-4ca9-b6e2-ddab5e14dccf",
+      "properties": [
+        [
+          "name",
+          "OS Credential Dumping – LSASS Memory"
+        ],
+        [
+          "tactic_id",
+          "Credential Access"
+        ],
+        [
+          "tactic_ref",
+          null
+        ],
+        [
+          "technique_id",
+          "T1003.001"
+        ],
+        [
+          "technique_ref",
+          "attack-pattern--65f2d882-3f41-4d48-8a06-29af77ec9f90"
+        ],
+        [
+          "description",
+          "From the beaconed endpoint, the actor dumps LSASS memory (via Mimikatz, ProcDump, or a driver-based approach) to extract NTLM hashes and Kerberos tickets for domain-joined accounts, including potentially privileged service accounts common in energy-sector OT/IT integration environments."
+        ],
+        [
+          "confidence",
+          "reported"
+        ],
+        [
+          "execution_start",
+          null
+        ],
+        [
+          "execution_end",
+          null
+        ],
+        [
+          "ttp",
+          [
+            [
+              "tactic",
+              "Credential Access"
+            ],
+            [
+              "technique",
+              "T1003.001"
+            ]
+          ]
+        ]
+      ],
+      "anchors": {
+        "0": "75f2766f-f259-4143-a903-2cbcece49d7d",
+        "30": "0f78b905-e49b-4404-823f-cf10072c8e0d",
+        "60": "ccb83343-7e14-4c36-9a0a-8429c2b4edd4",
+        "90": "5323da25-7b6f-4e3b-8a48-869fca71aacb",
+        "120": "c7bc4c8d-ba6d-4ba2-b13a-fb2cb54ccece",
+        "150": "2841a170-a454-43bf-ba71-46e1c697a7c0",
+        "180": "333695f6-fb8c-4ead-8c63-a19d9ea669c7",
+        "210": "50ec45ff-fcab-4a43-9e1c-b9b38e4d5ed9",
+        "240": "971c1899-2fd5-4548-8000-31cea492e3bc",
+        "270": "69fad35c-7348-4bd0-b071-9038bb3992a9",
+        "300": "d9295d7b-66f4-45fb-a478-ad0c6287e064",
+        "330": "b20caa1e-96ef-4318-8341-4b411fc57600"
+      }
+    },
+    {
+      "id": "action",
+      "instance": "b17eeb0c-f50f-4b75-a37d-e4c3658e93a0",
+      "properties": [
+        [
+          "name",
+          "Domain Account / Group Discovery"
+        ],
+        [
+          "tactic_id",
+          "Discovery"
+        ],
+        [
+          "tactic_ref",
+          null
+        ],
+        [
+          "technique_id",
+          "T1069.002"
+        ],
+        [
+          "technique_ref",
+          "attack-pattern--2aed01ad-3df3-4410-a8cb-11ea4ded587c"
+        ],
+        [
+          "description",
+          "The actor enumerates Active Directory domain groups (Domain Admins, Enterprise Admins, Backup Operators) and user accounts using built-in Windows tools (net.exe, PowerShell AD module) or BloodHound/SharpHound to identify privilege escalation paths and high-value targets."
+        ],
+        [
+          "confidence",
+          "reported"
+        ],
+        [
+          "execution_start",
+          null
+        ],
+        [
+          "execution_end",
+          null
+        ],
+        [
+          "ttp",
+          [
+            [
+              "tactic",
+              "Discovery"
+            ],
+            [
+              "technique",
+              "T1069.002"
+            ]
+          ]
+        ]
+      ],
+      "anchors": {
+        "0": "f44d3623-3625-42b5-82a3-fe0534413c2e",
+        "30": "591bdec7-ca0e-48e3-9d4f-d915f80d5802",
+        "60": "0fca9546-4c6c-4632-84b6-518ba3d18fca",
+        "90": "e49d0f2a-24a2-4054-a19e-fa82bf230207",
+        "120": "124e703b-9b5a-4982-981e-52ee0385cfba",
+        "150": "c49025be-4d8b-453c-bd99-1512c69d823a",
+        "180": "181cc6e7-9874-43b3-8f79-4d902a84a69b",
+        "210": "b05bd6f2-0b68-483f-be17-bdf6a42405b8",
+        "240": "a9c09c9f-4571-47cb-bd5b-ef24ff76a5c8",
+        "270": "e680a665-7142-4e67-8977-2e0d4c0449c7",
+        "300": "74204bea-b227-4bee-ba23-79e7bdb51622",
+        "330": "6a30b144-83a2-408d-9f6b-d30900a3f92d"
+      }
+    },
+    {
+      "id": "action",
+      "instance": "bdb6fa11-dfbe-491a-b86c-6afa9fe31b39",
+      "properties": [
+        [
+          "name",
+          "Lateral Movement – Pass the Hash / Use Alternate Authentication Material"
+        ],
+        [
+          "tactic_id",
+          "Lateral Movement"
+        ],
+        [
+          "tactic_ref",
+          null
+        ],
+        [
+          "technique_id",
+          "T1550.002"
+        ],
+        [
+          "technique_ref",
+          "attack-pattern--e624264c-033a-424d-9fd7-fc9c3bbdb03e"
+        ],
+        [
+          "description",
+          "Using harvested NTLM hashes, the actor moves laterally to additional workstations and member servers using Pass-the-Hash, escalating access toward systems with privileged AD credentials or with network adjacency to domain controllers."
+        ],
+        [
+          "confidence",
+          "reported"
+        ],
+        [
+          "execution_start",
+          null
+        ],
+        [
+          "execution_end",
+          null
+        ],
+        [
+          "ttp",
+          [
+            [
+              "tactic",
+              "Lateral Movement"
+            ],
+            [
+              "technique",
+              "T1550.002"
+            ]
+          ]
+        ]
+      ],
+      "anchors": {
+        "0": "8034874f-5311-45c2-9f5d-a4686b719a8f",
+        "30": "184a17aa-68a6-4283-bb96-9be9965e522f",
+        "60": "53310ec7-3a55-459f-a588-9b8bbd40fe7c",
+        "90": "2e4dbd51-9c04-48e4-925b-6c0a94aa42fb",
+        "120": "5b79796d-334e-48d9-bcf7-ba19363e79bb",
+        "150": "f87e1708-d847-44d5-8899-5c9e816f2d15",
+        "180": "63123dca-ce1a-4811-b51e-881ceeda85db",
+        "210": "2eb3e3ed-7358-4dc8-9336-ad0a6aaf138a",
+        "240": "139d51b0-658f-4635-bee9-b5f67861ff0e",
+        "270": "82b45bf9-06ce-4ca5-9f21-098f1ec0658f",
+        "300": "a1697466-d0da-43da-a2e3-1f001eb68d52",
+        "330": "a7ee7b51-45a9-45fc-ae1f-925676cf6ba0"
+      }
+    },
+    {
+      "id": "action",
+      "instance": "f261e005-020e-4a7e-8922-ca8fde831295",
+      "properties": [
+        [
+          "name",
+          "Kerberoasting – Steal or Forge Kerberos Tickets"
+        ],
+        [
+          "tactic_id",
+          "Credential Access"
+        ],
+        [
+          "tactic_ref",
+          null
+        ],
+        [
+          "technique_id",
+          "T1558.003"
+        ],
+        [
+          "technique_ref",
+          "attack-pattern--f2877f7f-9a4c-4251-879f-1224e3006bee"
+        ],
+        [
+          "description",
+          "From a domain-authenticated context, the actor requests service tickets for high-privilege service accounts (common in energy companies running SCADA-adjacent services), then cracks them offline to obtain plaintext credentials for privileged accounts with Domain Admin equivalent rights."
+        ],
+        [
+          "confidence",
+          "reported"
+        ],
+        [
+          "execution_start",
+          null
+        ],
+        [
+          "execution_end",
+          null
+        ],
+        [
+          "ttp",
+          [
+            [
+              "tactic",
+              "Credential Access"
+            ],
+            [
+              "technique",
+              "T1558.003"
+            ]
+          ]
+        ]
+      ],
+      "anchors": {
+        "0": "89d55535-76a7-4e13-bfff-cf85c21555a6",
+        "30": "369399b6-5c4b-4eb1-8676-44b8a4aab41a",
+        "60": "2dabc28c-867f-4c5e-86a0-0d9ea5aa5073",
+        "90": "086a91bc-47ff-4a2f-91b7-813b09004e3b",
+        "120": "f3b009c1-2caf-4253-ab3f-74f454fcdbb1",
+        "150": "750370e0-34b0-4cce-88d7-1a4d8f488a74",
+        "180": "4244f688-e7e1-47dd-a5c6-55bfd457cd84",
+        "210": "a7716a85-fced-48cf-9481-457d1abf74ba",
+        "240": "5906bd2f-0bf9-4475-8927-b3049e45b67d",
+        "270": "0b8966c2-cd84-4b16-bf04-fd01ea867295",
+        "300": "9e002f1d-bf6a-44fb-8104-1a3efc0aa586",
+        "330": "e79138e9-7277-4c39-98c8-ee2f9774bc35"
+      }
+    },
+    {
+      "id": "action",
+      "instance": "cffdbc2c-cb75-4168-97e9-ae46971d35c2",
+      "properties": [
+        [
+          "name",
+          "DCSync – OS Credential Dumping"
+        ],
+        [
+          "tactic_id",
+          "Credential Access"
+        ],
+        [
+          "tactic_ref",
+          null
+        ],
+        [
+          "technique_id",
+          "T1003.006"
+        ],
+        [
+          "technique_ref",
+          "attack-pattern--f303a39a-6255-4b89-aecc-18c4d8ca7163"
+        ],
+        [
+          "description",
+          "With Domain Admin or equivalent privileges obtained via Kerberoasting or lateral movement, the actor performs a DCSync attack using Mimikatz to replicate all AD credentials including the KRBTGT hash, achieving complete Active Directory compromise and enabling Golden Ticket forgery."
+        ],
+        [
+          "confidence",
+          "reported"
+        ],
+        [
+          "execution_start",
+          null
+        ],
+        [
+          "execution_end",
+          null
+        ],
+        [
+          "ttp",
+          [
+            [
+              "tactic",
+              "Credential Access"
+            ],
+            [
+              "technique",
+              "T1003.006"
+            ]
+          ]
+        ]
+      ],
+      "anchors": {
+        "0": "f9f9c68f-3769-428b-a3c7-1b0f7a9ebb28",
+        "30": "28a1bec4-ae46-437d-9d80-e6930c9b4c8a",
+        "60": "c869339f-220a-46cf-8999-0f1c7856a0e2",
+        "90": "659dae12-f836-4d88-ab88-9766642ec6b3",
+        "120": "bd5aafc9-5c45-4f28-8a7d-28dc756a28a8",
+        "150": "8b6e41e6-7910-4721-ac2d-b6cc930a33b6",
+        "180": "3a7334a8-9bea-491a-9c18-a65e104ec140",
+        "210": "59ea3672-2dd7-4389-a754-360b52187dff",
+        "240": "6c9f6b7b-d978-43bd-8d25-f3b476e2d3e4",
+        "270": "0f1c2953-bce7-4c32-9900-9e749bcfd445",
+        "300": "12c89a3d-a756-4cf3-b0c7-2db0e0dfca70",
+        "330": "78d6f0fa-7ad3-4c74-a2ee-9dd8af4c9294"
+      }
+    },
+    {
+      "id": "action",
+      "instance": "3f30abb6-2950-43ad-aaef-ac4ede7a5209",
+      "properties": [
+        [
+          "name",
+          "Forge Kerberos Tickets – Golden Ticket"
+        ],
+        [
+          "tactic_id",
+          "Credential Access"
+        ],
+        [
+          "tactic_ref",
+          null
+        ],
+        [
+          "technique_id",
+          "T1558.001"
+        ],
+        [
+          "technique_ref",
+          "attack-pattern--768dce68-8d0d-477a-b01d-0eea98b963a1"
+        ],
+        [
+          "description",
+          "Using the KRBTGT hash obtained via DCSync, the actor forges Golden Tickets providing persistent, unrevokable access to any resource in the domain. This ensures the actor retains AD control even if passwords are reset, and is used to prepare ransomware or extortion deployment."
+        ],
+        [
+          "confidence",
+          "reported"
+        ],
+        [
+          "execution_start",
+          null
+        ],
+        [
+          "execution_end",
+          null
+        ],
+        [
+          "ttp",
+          [
+            [
+              "tactic",
+              "Credential Access"
+            ],
+            [
+              "technique",
+              "T1558.001"
+            ]
+          ]
+        ]
+      ],
+      "anchors": {
+        "0": "c9f0f8dd-05df-4bda-9e98-27bcbb1d8045",
+        "30": "1ca4b65f-4234-48db-a878-cfbad5686a2a",
+        "60": "b6c4fa7e-bd2e-4740-abc6-e2b7a0423b71",
+        "90": "fc2544ba-a6de-4def-94ee-dc88dddf2c22",
+        "120": "781a8df4-22fd-4c07-a2c8-30998c11173b",
+        "150": "10eb4fd8-4559-40cf-91e7-ac8eb14ff3a6",
+        "180": "75f8fa3e-1c53-4fc1-894f-a1252724345b",
+        "210": "b8084283-2a39-4d94-b18c-721b3da733fc",
+        "240": "22e7d2fa-70d2-48e2-9d0b-d632658ea1c5",
+        "270": "1f4486d3-dfd9-4dbb-94e0-1d00376069bb",
+        "300": "0446e8eb-2d0b-46df-bf1e-87909babd9bf",
+        "330": "4ca6cea7-86ae-4b5b-8c64-f29fd5f79a29"
+      }
+    },
+    {
+      "id": "asset",
+      "instance": "14620927-a0f4-49b9-8590-47e4b27fd8cd",
+      "properties": [
+        [
+          "name",
+          "Corporate email (Microsoft 365 / Entra ID)"
+        ],
+        [
+          "description",
+          null
+        ]
+      ],
+      "anchors": {
+        "0": "4c804cc7-0d2f-40af-8325-7e0938bfa00c",
+        "30": "367211f5-658c-43c6-b0ec-7c43af1b48e8",
+        "60": "193c4d7f-0b67-43a6-b1ee-47c2d9dc5b3a",
+        "90": "7880a4c0-93cb-4bae-afaf-09670570f8a5",
+        "120": "79fa5f2c-be56-49bd-aea0-7229d56bd535",
+        "150": "e582b663-0f54-45da-ab48-1a222560ad35",
+        "180": "66a69f8e-4539-4631-bf80-d966ceee0ae1",
+        "210": "53b8ecfc-0bec-4e0b-93cc-bc52d396874d",
+        "240": "ca337a86-6d63-4441-88fe-9791d11c2ebb",
+        "270": "23a68c12-b3fa-4b5a-8293-3b7e6dcb7e81",
+        "300": "a7de65ed-654f-453c-95e4-d728dd700e76",
+        "330": "08902691-4c96-44db-8bde-b05fdc5bb177"
+      }
+    },
+    {
+      "id": "asset",
+      "instance": "93ef5c05-f786-4f9e-8176-b7d465a052a4",
+      "properties": [
+        [
+          "name",
+          "Domain-joined workstations"
+        ],
+        [
+          "description",
+          null
+        ]
+      ],
+      "anchors": {
+        "0": "3de65602-740a-4b77-aa5c-dea7832be9d7",
+        "30": "c97ef326-ec2d-4727-b462-05b2bb7c46e9",
+        "60": "56f08930-f63f-40e9-be06-7eabcb9718bd",
+        "90": "09010923-e9a1-48e1-a339-ce3b607750b0",
+        "120": "94dda19b-b54d-44bd-b67c-91114632ca4c",
+        "150": "38263811-76bc-4c5a-a064-5189288bc1d4",
+        "180": "e512065c-872c-4fcb-9478-8bf619f51a93",
+        "210": "9e261e71-ffcd-4518-b4aa-d12c2c80014f",
+        "240": "9be94ca5-ae3a-4ff0-8a2d-a1b8c7a34c6f",
+        "270": "31c64f85-bf34-4f59-96a3-56d588e73880",
+        "300": "95f78af1-c7d2-4fd3-9f84-28a86aa67058",
+        "330": "307c3c37-d007-443c-b2c9-8f0a1d757973"
+      }
+    },
+    {
+      "id": "asset",
+      "instance": "8e9d938d-00db-4a12-91a0-2b2c7d7974ec",
+      "properties": [
+        [
+          "name",
+          "Active Directory Domain Controllers"
+        ],
+        [
+          "description",
+          null
+        ]
+      ],
+      "anchors": {
+        "0": "6601d0da-088d-41e9-a457-fd427c61ec87",
+        "30": "8a8a0214-3212-41a6-be37-34fb46086596",
+        "60": "2d737a17-5072-466c-b8c8-c1a7f29e2fbc",
+        "90": "12b0b730-7550-4fdb-a681-4c1dbdd72a90",
+        "120": "b81c1258-c7df-41ca-a27a-e5b5203bb17f",
+        "150": "8982dfd5-2266-40c2-9da5-59c47060f5b8",
+        "180": "b5c3ab63-dd56-42d5-bdcb-f7c44d2d8b20",
+        "210": "3bbac3b1-3258-4fbf-871b-dde3d129c8c6",
+        "240": "069a8fc9-c0a5-4fe8-b5c6-4a1e7198113c",
+        "270": "4f88e117-560a-4b82-a294-d263c057f0c9",
+        "300": "b8583355-df0d-4202-9df2-edb9b96adf83",
+        "330": "82e6bb33-f100-49ed-86bb-13eccd8f2940"
+      }
+    },
+    {
+      "id": "asset",
+      "instance": "8dada17c-5061-4375-bea4-d77f411afd5f",
+      "properties": [
+        [
+          "name",
+          "Privileged service accounts (SCADA-adjacent)"
+        ],
+        [
+          "description",
+          null
+        ]
+      ],
+      "anchors": {
+        "0": "38d1106e-8f3a-40b9-acfc-fd90721e4f2d",
+        "30": "0ba37619-2716-4722-9cf5-de41ea748056",
+        "60": "d51e2841-4186-48e7-b599-6258da661afc",
+        "90": "a92ee370-06d4-4c44-a58b-0aa7ed054778",
+        "120": "0a831a5e-2d84-4d6b-b783-66631de3a4ba",
+        "150": "cad56022-5308-4480-9452-672b4c9b07f5",
+        "180": "c0b11b9e-95e7-4954-b5f7-6b62e107b12c",
+        "210": "495d951c-d154-41c8-bb16-39174f3242da",
+        "240": "4ebc7b6d-fe8e-4519-a1f0-2f2ced4d3ae4",
+        "270": "7998fbba-2d6c-4f89-bb12-e36c903964b8",
+        "300": "3ec56870-f7d6-4712-b360-e2d0203625a2",
+        "330": "3741d4c9-6786-4f99-99f5-311e55942644"
+      }
+    },
+    {
+      "id": "asset",
+      "instance": "7a0d605f-d6dc-42bd-b753-ec007542dfab",
+      "properties": [
+        [
+          "name",
+          "Internal file shares / SharePoint"
+        ],
+        [
+          "description",
+          null
+        ]
+      ],
+      "anchors": {
+        "0": "caa6c37c-19db-4c04-bd9b-4c3efcef1b21",
+        "30": "ce4cd32a-227c-4907-a6ba-f36c9c77cf95",
+        "60": "8bf7e0eb-1abe-4e30-ac9c-be988c468bc5",
+        "90": "891f03f6-4356-4d43-8b89-83c031d71b9d",
+        "120": "c8c985a2-a4cf-4ef8-8317-822dfcdda6e2",
+        "150": "e757e9f4-6442-4029-9a05-ff44ecc109fa",
+        "180": "681f1109-65c6-44f2-a9a7-83d76569adcb",
+        "210": "f7085191-29d8-4754-b455-52a23d507787",
+        "240": "ba5c8ed0-d200-4fcf-9e99-c2522a81d4e5",
+        "270": "4fddc2eb-f31c-4b61-8023-e47445350f02",
+        "300": "cd38aaaf-5686-4568-82f3-423fffd2abb2",
+        "330": "e394f12c-668c-4d0f-b01f-d5dc89555534"
+      }
+    }
+  ],
+  "x_oic_context": {
+    "industry": "energy",
+    "region": "Canada",
+    "organization_size": "2500",
+    "generated_at": "2026-06-18T11:34:59.106782Z",
+    "generator": "OIC Attack Flow Workbench v0.1.0",
+    "generation_status": "generated",
+    "original_flow": {
+      "name": "Active Directory Takeover by Criminal Gang – Canadian Energy Sector",
+      "description": "A financially motivated criminal gang targets a mid-sized Canadian energy company (~2500 employees) with the goal of achieving full Active Directory compromise, enabling ransomware deployment or data extortion. The intrusion begins with a phishing campaign targeting corporate email users, proceeds through credential theft and internal reconnaissance, and culminates in domain controller takeover via DCSync or similar AD abuse.",
+      "scope": "incident",
+      "attack_actions": [
+        {
+          "id": "n1",
+          "name": "Spearphishing Link",
+          "technique_id": "T1566.002",
+          "tactic": "Initial Access",
+          "description": "Threat actors send targeted phishing emails to energy-sector employees impersonating a Canadian utility regulator or invoicing system, containing a malicious URL leading to a credential harvesting page or malware dropper. Mid-sized energy companies in Canada are frequent targets of commodity phishing campaigns by ransomware-affiliated criminal groups.",
+          "depends_on": [],
+          "confidence": "reported"
+        },
+        {
+          "id": "n2",
+          "name": "User Execution – Malicious Link",
+          "technique_id": "T1204.001",
+          "tactic": "Execution",
+          "description": "A corporate user clicks the phishing link and either enters credentials on a spoofed portal or downloads and opens a malicious file (e.g., disguised PDF or Office document) that executes an initial stager.",
+          "depends_on": [
+            "n1"
+          ],
+          "confidence": "reported"
+        },
+        {
+          "id": "n3",
+          "name": "Steal Web Session Cookie / Adversary-in-the-Middle Credential Capture",
+          "technique_id": "T1539",
+          "tactic": "Credential Access",
+          "description": "The phishing page proxies Microsoft 365 / Entra ID authentication (EvilGinx-style AiTM) to capture both the user's password and session cookie, bypassing MFA. This technique is widely documented in criminal gang campaigns targeting mid-market enterprises with Office 365.",
+          "depends_on": [
+            "n2"
+          ],
+          "confidence": "reported"
+        },
+        {
+          "id": "n4",
+          "name": "Valid Accounts – Cloud Accounts (M365 Foothold)",
+          "technique_id": "T1078.004",
+          "tactic": "Initial Access",
+          "description": "Using the stolen session token, the actor authenticates to the victim's Microsoft 365 / Entra ID tenant without triggering MFA challenges, establishing a persistent cloud foothold and accessing email and SharePoint for internal intelligence gathering.",
+          "depends_on": [
+            "n3"
+          ],
+          "confidence": "reported"
+        },
+        {
+          "id": "n5",
+          "name": "Command and Scripting Interpreter – PowerShell (Stager Execution)",
+          "technique_id": "T1059.001",
+          "tactic": "Execution",
+          "description": "On endpoints where the user opened a malicious attachment rather than (or in addition to) entering credentials, a PowerShell stager is executed to download and run a second-stage payload (e.g., Cobalt Strike beacon, Sliver, or Brute Ratel C4) – common tooling for criminal ransomware affiliates.",
+          "depends_on": [
+            "n2"
+          ],
+          "confidence": "reported"
+        },
+        {
+          "id": "n6",
+          "name": "OS Credential Dumping – LSASS Memory",
+          "technique_id": "T1003.001",
+          "tactic": "Credential Access",
+          "description": "From the beaconed endpoint, the actor dumps LSASS memory (via Mimikatz, ProcDump, or a driver-based approach) to extract NTLM hashes and Kerberos tickets for domain-joined accounts, including potentially privileged service accounts common in energy-sector OT/IT integration environments.",
+          "depends_on": [
+            "n5"
+          ],
+          "confidence": "reported"
+        },
+        {
+          "id": "n7",
+          "name": "Domain Account / Group Discovery",
+          "technique_id": "T1069.002",
+          "tactic": "Discovery",
+          "description": "The actor enumerates Active Directory domain groups (Domain Admins, Enterprise Admins, Backup Operators) and user accounts using built-in Windows tools (net.exe, PowerShell AD module) or BloodHound/SharpHound to identify privilege escalation paths and high-value targets.",
+          "depends_on": [
+            "n5"
+          ],
+          "confidence": "reported"
+        },
+        {
+          "id": "n8",
+          "name": "Lateral Movement – Pass the Hash / Use Alternate Authentication Material",
+          "technique_id": "T1550.002",
+          "tactic": "Lateral Movement",
+          "description": "Using harvested NTLM hashes, the actor moves laterally to additional workstations and member servers using Pass-the-Hash, escalating access toward systems with privileged AD credentials or with network adjacency to domain controllers.",
+          "depends_on": [
+            "n6",
+            "n7"
+          ],
+          "confidence": "reported"
+        },
+        {
+          "id": "n9",
+          "name": "Kerberoasting – Steal or Forge Kerberos Tickets",
+          "technique_id": "T1558.003",
+          "tactic": "Credential Access",
+          "description": "From a domain-authenticated context, the actor requests service tickets for high-privilege service accounts (common in energy companies running SCADA-adjacent services), then cracks them offline to obtain plaintext credentials for privileged accounts with Domain Admin equivalent rights.",
+          "depends_on": [
+            "n7"
+          ],
+          "confidence": "reported"
+        },
+        {
+          "id": "n10",
+          "name": "DCSync – OS Credential Dumping",
+          "technique_id": "T1003.006",
+          "tactic": "Credential Access",
+          "description": "With Domain Admin or equivalent privileges obtained via Kerberoasting or lateral movement, the actor performs a DCSync attack using Mimikatz to replicate all AD credentials including the KRBTGT hash, achieving complete Active Directory compromise and enabling Golden Ticket forgery.",
+          "depends_on": [
+            "n8",
+            "n9"
+          ],
+          "confidence": "reported"
+        },
+        {
+          "id": "n11",
+          "name": "Forge Kerberos Tickets – Golden Ticket",
+          "technique_id": "T1558.001",
+          "tactic": "Credential Access",
+          "description": "Using the KRBTGT hash obtained via DCSync, the actor forges Golden Tickets providing persistent, unrevokable access to any resource in the domain. This ensures the actor retains AD control even if passwords are reset, and is used to prepare ransomware or extortion deployment.",
+          "depends_on": [
+            "n10"
+          ],
+          "confidence": "reported"
+        }
+      ],
+      "logic": [
+        {
+          "type": "AND",
+          "inputs": [
+            "n8",
+            "n9"
+          ],
+          "output": "n10"
+        }
+      ],
+      "entry_points": [
+        "n1"
+      ],
+      "assets": [
+        "Corporate email (Microsoft 365 / Entra ID)",
+        "Domain-joined workstations",
+        "Active Directory Domain Controllers",
+        "Privileged service accounts (SCADA-adjacent)",
+        "Internal file shares / SharePoint"
+      ],
+      "threat_actor": "Financially motivated criminal gang (ransomware affiliate / extortion operator)"
+    }
+  }
+}
