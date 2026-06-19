@@ -3,7 +3,6 @@
 import os
 import json
 import logging
-import uuid
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
@@ -84,15 +83,17 @@ class AttackFlowGenerator:
             threat_patterns=threat_patterns
         )
 
-        # Validate and format as proper MITRE Attack Flow
-        attack_flow = self._format_as_attack_flow(
-            flow_data=flow_data,
-            industry=industry,
-            region=region,
-            organization_size=organization_size
-        )
+        # Attach provenance/context so formatters can render it without the .afb wrapper
+        flow_data["x_oic_context"] = {
+            "industry": industry,
+            "region": region,
+            "organization_size": organization_size,
+            "generated_at": datetime.now().isoformat() + "Z",
+            "generator": "OIC Attack Flow Workbench v0.1.0",
+            "generation_status": flow_data.get("generation_status", "generated"),
+        }
 
-        return attack_flow
+        return flow_data
 
     def _suggest_techniques_for_patterns(self, patterns: List[str]) -> List[Dict[str, Any]]:
         """Suggest MITRE techniques based on threat patterns."""
@@ -176,7 +177,8 @@ Return ONLY a JSON object with this structure:
             "tactic": "Tactic name (e.g., Initial Access)",
             "description": "How this technique is used in the attack",
             "depends_on": [],
-            "confidence": "observed | reported | speculative"
+            "confidence": "observed | reported | speculative",
+            "asset_refs": ["asset_name"]
         }}
     ],
     "logic": [
@@ -192,6 +194,9 @@ Schema guidance:
   * Two nodes sharing one predecessor = a fork (the attacker had two options/paths from there).
   * One node listing several predecessors = a join (it needed all of them).
   * Entry nodes have "depends_on": [] and must appear in "entry_points".
+- "asset_refs" lists the names of the targeted assets this action directly compromises
+  (from the flow's "assets" list). Leave it empty only if the action truly does not target
+  any named asset.
 - Use "logic" ONLY when a node genuinely requires a combination of predecessors:
   AND = all inputs needed; OR = any one input suffices. Omit "logic" (use []) for simple chains.
 - Model a repeated tactic as DISTINCT nodes (e.g. "Discovery", later "Discovery (round 2)"),
@@ -268,7 +273,7 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
         return {
             "name": f"Common Attack Pattern - {industry}",
             "description": f"A representative attack pattern targeting {industry} organizations",
-            "scope": "stub",
+            "scope": "other",
             "generation_status": "fallback_stub",
             "attack_actions": [
                 {
@@ -278,7 +283,8 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
                     "tactic": "Initial Access",
                     "description": "Malicious email attachment delivered to employee",
                     "depends_on": [],
-                    "confidence": "speculative"
+                    "confidence": "speculative",
+                    "asset_refs": ["Workstation"]
                 },
                 {
                     "id": "n2",
@@ -287,7 +293,8 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
                     "tactic": "Execution",
                     "description": "User executes malicious attachment",
                     "depends_on": ["n1"],
-                    "confidence": "speculative"
+                    "confidence": "speculative",
+                    "asset_refs": ["Workstation"]
                 },
                 {
                     "id": "n3",
@@ -296,7 +303,8 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
                     "tactic": "Persistence",
                     "description": "Malware establishes persistence via registry",
                     "depends_on": ["n2"],
-                    "confidence": "speculative"
+                    "confidence": "speculative",
+                    "asset_refs": ["Workstation"]
                 },
                 {
                     "id": "n4",
@@ -305,7 +313,8 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
                     "tactic": "Impact",
                     "description": "Ransomware encrypts critical data",
                     "depends_on": ["n3"],
-                    "confidence": "speculative"
+                    "confidence": "speculative",
+                    "asset_refs": ["File Server", "Workstation"]
                 }
             ],
             "logic": [],
@@ -314,283 +323,3 @@ Output must be valid JSON that can be converted to a MITRE Attack Flow document.
             "threat_actor": "External - Financially Motivated"
         }
 
-    def _format_as_attack_flow(
-        self,
-        flow_data: Dict[str, Any],
-        industry: str,
-        region: str,
-        organization_size: str
-    ) -> Dict[str, Any]:
-        """Format the generated data as a proper MITRE Attack Flow (.afb format).
-
-        The .afb format is the native Attack Flow Builder canvas state. Every node
-        needs 12 anchor points (every 30 degrees). Edges are represented as:
-          horizontal_anchor (attached to a node's anchor UUID)
-            -> generic_latch (connection point, listed in h_anchor.latches)
-              -> dynamic_line.source/target (both latches)
-                -> dynamic_line.handles -> generic_handle (midpoint for routing)
-        """
-
-        # Check if this is a fallback stub
-        is_stub = flow_data.get("generation_status") == "fallback_stub"
-        scope = flow_data.get("scope", "incident")
-
-        # Current timestamp
-        created_timestamp = datetime.now().isoformat() + "Z"
-
-        # Build author property array
-        author_properties = [
-            ["name", "OIC Attack Flow Workbench"],
-            ["identity_class", None],
-            ["contact_information", "oic@sandbox.local"]
-        ]
-
-        # Build flow properties
-        description = flow_data.get("description", "")
-        if is_stub:
-            description = "[FALLBACK STUB - generation failed, not grounded] " + description
-
-        flow_properties = [
-            ["name", flow_data.get("name", f"Attack Flow - {industry}")],
-            ["description", description],
-            ["author", author_properties],
-            ["scope", scope],
-            ["external_references", []],
-            ["created", created_timestamp]
-        ]
-
-        # Tactic name -> TA#### ID mapping
-        tactic_id_map = {
-            "Reconnaissance": "TA0043",
-            "Resource Development": "TA0042",
-            "Initial Access": "TA0001",
-            "Execution": "TA0002",
-            "Persistence": "TA0003",
-            "Privilege Escalation": "TA0004",
-            "Defense Evasion": "TA0005",
-            "Credential Access": "TA0006",
-            "Discovery": "TA0007",
-            "Lateral Movement": "TA0008",
-            "Collection": "TA0009",
-            "Command and Control": "TA0011",
-            "Exfiltration": "TA0010",
-            "Impact": "TA0040",
-        }
-
-        # Tactic name -> STIX tactic ref mapping
-        tactic_ref_map = {
-            "TA0043": "x-mitre-tactic--daa4cbb1-b4f4-4723-a824-7f1efd6e0592",
-            "TA0042": "x-mitre-tactic--d679bca2-e57d-4935-8650-8031c87a4400",
-            "TA0001": "x-mitre-tactic--ffd5bcee-6e16-4dd2-8eca-7b3beedf33ca",
-            "TA0002": "x-mitre-tactic--4ca45d45-df4d-4613-8980-bac22d278fa5",
-            "TA0003": "x-mitre-tactic--5bc1d813-693e-4823-9961-abf9af4b0e92",
-            "TA0004": "x-mitre-tactic--1f3e5d8b-f7bf-4078-a40f-68f3506fb0e9",
-            "TA0005": "x-mitre-tactic--78b23412-0651-46d7-a540-170a1ce8bd5a",
-            "TA0006": "x-mitre-tactic--2558fd61-8c75-4730-900d-122e8cdaea9e",
-            "TA0007": "x-mitre-tactic--0b20d6d2-e6cd-4c36-b984-eed9f15f4bff",
-            "TA0008": "x-mitre-tactic--7141578b-e50b-4dcc-bfa4-08a8dd689e9e",
-            "TA0009": "x-mitre-tactic--d108ce10-2953-4444-b7c9-e1fcbe35a5f1",
-            "TA0011": "x-mitre-tactic--f72804c5-f15a-449e-a5da-2eecd181f813",
-            "TA0010": "x-mitre-tactic--9a4e74ab-5008-408c-84bf-a10dfbc53462",
-            "TA0040": "x-mitre-tactic--5569339b-94c2-49ee-afb3-2222936582c8",
-        }
-
-        # All canvas objects collected here
-        all_objects = []
-
-        # ── helper: build the 12 anchor-point dict for a node ──────────────
-        # Each anchor slot holds a horizontal_anchor instance UUID.
-        # We store the anchor objects and return the slot->uuid map.
-        def _make_node_anchors() -> Dict[str, str]:
-            """Return {degree_str: h_anchor_instance_uuid} and emit h_anchor objects."""
-            slot_map = {}
-            for deg in range(0, 360, 30):
-                h_anchor_id = str(uuid.uuid4())
-                slot_map[str(deg)] = h_anchor_id
-                all_objects.append({
-                    "id": "horizontal_anchor",
-                    "instance": h_anchor_id,
-                    "latches": []
-                })
-            return slot_map
-
-        # ── helper: create a directed edge between two node anchor slots ────
-        def _make_edge(src_anchor_id: str, tgt_anchor_id: str) -> None:
-            """Emit generic_latch × 2, generic_handle × 1, dynamic_line × 1."""
-            src_latch_id = str(uuid.uuid4())
-            tgt_latch_id = str(uuid.uuid4())
-            handle_id = str(uuid.uuid4())
-            line_id = str(uuid.uuid4())
-
-            # Attach latches to their h_anchor objects
-            for obj in all_objects:
-                if obj.get("id") == "horizontal_anchor":
-                    if obj["instance"] == src_anchor_id:
-                        obj["latches"].append(src_latch_id)
-                    elif obj["instance"] == tgt_anchor_id:
-                        obj["latches"].append(tgt_latch_id)
-
-            all_objects.append({"id": "generic_latch", "instance": src_latch_id})
-            all_objects.append({"id": "generic_latch", "instance": tgt_latch_id})
-            all_objects.append({"id": "generic_handle", "instance": handle_id})
-            all_objects.append({
-                "id": "dynamic_line",
-                "instance": line_id,
-                "source": src_latch_id,
-                "target": tgt_latch_id,
-                "handles": [handle_id]
-            })
-            return line_id
-
-        # ── Generate instance UUIDs for all actions ──────────────────────────
-        actions = flow_data.get("attack_actions", [])
-        assets = flow_data.get("assets", [])
-
-        instance_map: Dict[str, str] = {}
-        for action in actions:
-            internal_id = action.get("id", f"action-{len(instance_map)}")
-            if internal_id not in instance_map:
-                instance_map[internal_id] = str(uuid.uuid4())
-
-        # ── Build successor graph from depends_on ────────────────────────────
-        # successors[internal_id] = [list of internal_ids that depend on it]
-        successors: Dict[str, List[str]] = {a.get("id", ""): [] for a in actions}
-        for action in actions:
-            for dep in action.get("depends_on", []):
-                if dep in successors:
-                    successors[dep].append(action.get("id", ""))
-
-        # ── Create action objects ─────────────────────────────────────────────
-        # anchor slot 90° = output (bottom), slot 270° = input (top) by convention
-        OUTPUT_SLOT = "90"
-        INPUT_SLOT  = "270"
-
-        action_node_map: Dict[str, Dict] = {}  # internal_id -> {instance, anchor_slots}
-
-        action_objects = []
-        for idx, action in enumerate(actions):
-            internal_id = action.get("id", f"action-{idx}")
-            instance_id = instance_map.get(internal_id, str(uuid.uuid4()))
-
-            tactic_name = action.get("tactic", "")
-            tactic_ta_id = tactic_id_map.get(tactic_name, tactic_name)
-            tactic_ref = tactic_ref_map.get(tactic_ta_id, None)
-
-            technique_id = action.get("technique_id", "")
-            technique = self.mitre.get_technique(technique_id) if technique_id else None
-
-            anchor_slots = _make_node_anchors()
-
-            action_props = [
-                ["name", action.get("name", "Unknown Action")],
-                ["tactic_id", tactic_ta_id],
-                ["tactic_ref", tactic_ref],
-                ["technique_id", technique_id],
-                ["technique_ref", technique["stix_id"] if technique else None],
-                ["description", action.get("description", "")],
-                ["confidence", action.get("confidence", None)],
-                ["execution_start", None],
-                ["execution_end", None],
-                ["ttp", [
-                    ["tactic", tactic_ta_id],
-                    ["technique", technique_id]
-                ]]
-            ]
-
-            action_obj = {
-                "id": "action",
-                "instance": instance_id,
-                "properties": action_props,
-                "anchors": anchor_slots
-            }
-            all_objects.append(action_obj)
-            action_objects.append(action_obj)
-            action_node_map[internal_id] = {"instance": instance_id, "anchors": anchor_slots}
-
-        # ── Create asset objects ──────────────────────────────────────────────
-        asset_objects = []
-        for asset_name in assets:
-            asset_instance = str(uuid.uuid4())
-            anchor_slots = _make_node_anchors()
-            asset_obj = {
-                "id": "asset",
-                "instance": asset_instance,
-                "properties": [["name", asset_name], ["description", None]],
-                "anchors": anchor_slots
-            }
-            all_objects.append(asset_obj)
-            asset_objects.append(asset_obj)
-
-        # ── Draw edges between actions ────────────────────────────────────────
-        edge_line_ids = []
-        for src_id, tgt_ids in successors.items():
-            src_node = action_node_map.get(src_id)
-            if not src_node:
-                continue
-            src_anchor_uuid = src_node["anchors"][OUTPUT_SLOT]
-            for tgt_id in tgt_ids:
-                tgt_node = action_node_map.get(tgt_id)
-                if not tgt_node:
-                    continue
-                tgt_anchor_uuid = tgt_node["anchors"][INPUT_SLOT]
-                line_id = _make_edge(src_anchor_uuid, tgt_anchor_uuid)
-                edge_line_ids.append(line_id)
-
-        # ── Collect all dynamic_line instance IDs ────────────────────────────
-        line_instances = [o["instance"] for o in all_objects if o.get("id") == "dynamic_line"]
-
-        # ── Build the flow object ─────────────────────────────────────────────
-        flow_anchor_slots = _make_node_anchors()
-        node_instances = [obj["instance"] for obj in action_objects + asset_objects]
-        all_flow_objects = node_instances + line_instances
-
-        flow_obj = {
-            "id": "flow",
-            "instance": str(uuid.uuid4()),
-            "properties": flow_properties,
-            "objects": all_flow_objects,
-            "anchors": flow_anchor_slots
-        }
-
-        # Insert flow at the front
-        all_objects.insert(0, flow_obj)
-
-        # Build final .afb
-        afb_flow = {
-            "schema": "attack_flow_v2",
-            "theme": "dark_theme",
-            "objects": all_objects
-        }
-
-        # Store metadata for formatter reference
-        afb_flow["x_oic_context"] = {
-            "industry": industry,
-            "region": region,
-            "organization_size": organization_size,
-            "generated_at": created_timestamp,
-            "generator": "OIC Attack Flow Workbench v0.1.0",
-            "generation_status": flow_data.get("generation_status", "generated"),
-            "original_flow": flow_data
-        }
-
-        return afb_flow
-
-    def _tactic_name_to_shortname(self, tactic_name: str) -> str:
-        """Convert tactic name to MITRE shortname."""
-        mapping = {
-            "Reconnaissance": "reconnaissance",
-            "Resource Development": "resource-development",
-            "Initial Access": "initial-access",
-            "Execution": "execution",
-            "Persistence": "persistence",
-            "Privilege Escalation": "privilege-escalation",
-            "Defense Evasion": "defense-evasion",
-            "Credential Access": "credential-access",
-            "Discovery": "discovery",
-            "Lateral Movement": "lateral-movement",
-            "Collection": "collection",
-            "Command and Control": "command-and-control",
-            "Exfiltration": "exfiltration",
-            "Impact": "impact",
-        }
-        return mapping.get(tactic_name, tactic_name.lower().replace(" ", "-"))

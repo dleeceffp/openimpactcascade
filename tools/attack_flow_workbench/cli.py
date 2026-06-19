@@ -29,14 +29,14 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Generate attack flow for healthcare in US (medium enterprise)
+  # Generate a STIX 2.1 bundle for healthcare in the US (medium enterprise)
   python cli.py --industry healthcare --region "United States" --org-size "500-1000"
 
-  # Generate with specific threat scenario
+  # Generate with a specific threat scenario
   python cli.py --industry financial --region Canada --org-size SME \\
       --threat "ransomware via phishing"
 
-  # Output to specific directory with markdown summary
+  # Output both the STIX bundle and a markdown summary
   python cli.py --industry manufacturing --region UK --org-size Enterprise \\
       --output ./my_flows --format both
         """
@@ -72,9 +72,9 @@ Examples:
     )
     parser.add_argument(
         "--format", "-f",
-        choices=["json", "md", "markdown", "both"],
-        default="both",
-        help="Output format (default: both)"
+        choices=["stix", "json", "md", "markdown", "both"],
+        default="stix",
+        help="Output format: stix (default, STIX 2.1 JSON bundle), json (alias for stix), md/markdown, both"
     )
     parser.add_argument(
         "--no-web-search",
@@ -97,6 +97,12 @@ Examples:
 
 def main() -> int:
     """Main entry point."""
+    # Use UTF-8 for console output so Markdown summaries render correctly on Windows.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
     args = parse_args()
     setup_logging(args.verbose)
 
@@ -142,18 +148,17 @@ def main() -> int:
         saved_files = []
 
         # Debug: Log the flow format being used
-        is_afb_format = flow_data.get("schema") == "attack_flow_v2"
-        logger.info(f"Flow format detected: {'AFB (.afb)' if is_afb_format else 'STIX (.json)'}")
+        logger.info("Flow format detected: STIX (.json)")
 
         # Save in requested formats
-        if args.format in ("json", "both"):
+        if args.format in ("stix", "json", "both"):
             json_path = AttackFlowFormatter.save_to_file(
                 flow_data,
                 args.output / filename_base,
-                format="json"
+                format="stix"
             )
             saved_files.append(json_path)
-            logger.info(f"Attack Flow saved: {json_path}")
+            logger.info(f"STIX bundle saved: {json_path}")
 
         if args.format in ("md", "markdown", "both"):
             md_path = AttackFlowFormatter.save_to_file(
@@ -164,6 +169,20 @@ def main() -> int:
             saved_files.append(md_path)
             logger.info(f"Markdown saved: {md_path}")
 
+        # Bundle the self-contained Mermaid viewer with the output directory
+        viewer_src = Path(__file__).parent / "attack_flow_viewer.html"
+        if viewer_src.exists():
+            viewer_dst = args.output / "attack_flow_viewer.html"
+            try:
+                import shutil
+                shutil.copy2(viewer_src, viewer_dst)
+                saved_files.append(viewer_dst)
+                logger.info(f"Viewer copied: {viewer_dst}")
+            except Exception as e:
+                logger.warning(f"Could not copy viewer: {e}")
+        else:
+            logger.warning(f"Viewer not found at {viewer_src}")
+
         # Print summary to console
         print("\n" + "=" * 70)
         print("ATTACK FLOW GENERATED SUCCESSFULLY")
@@ -173,6 +192,8 @@ def main() -> int:
         print(f"\nFiles saved to:")
         for f in saved_files:
             print(f"  - {f}")
+
+        print("\nView: open attack_flow_viewer.html and load the generated .json file.")
 
         return 0
 

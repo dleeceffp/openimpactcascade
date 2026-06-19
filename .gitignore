@@ -33,8 +33,6 @@ app/generated/*
 
 # Documentation --
 documentation/historical/
-documentation/project/
-documentation/coding_instructions/
 refdocs/code_agent_instructions_arch/
 
 # Archives -- never ship archive directories
