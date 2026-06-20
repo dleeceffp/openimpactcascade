@@ -25,7 +25,6 @@ COPY app/main.py /app/
 COPY app/config.py /app/
 COPY app/ai_question_generator.py /app/
 COPY app/simulation.py /app/
-COPY app/vertex_rag.py /app/
 COPY app/user_tracking.py /app/
 COPY app/context_storage.py /app/
 
@@ -36,8 +35,9 @@ COPY app/corpus/ /app/corpus/
 COPY app/cards/ /app/cards/
 
 # Copy ONLY the compressed cascade-archetype cards (not other generated artifacts).
-# The detailed source flows are intentionally left out of the image for now.
-COPY app/generated/cascade_archetypes/ /app/generated/cascade_archetypes/
+# Cards now live at the repo root generated/cascade_archetypes/ (moved from app/generated/).
+# Detailed source flows (attack_flows/, fair_reports/) are gitignored and never shipped.
+COPY generated/cascade_archetypes/ /app/generated/cascade_archetypes/
 
 # Copy static assets directory structure
 COPY app/static/ /app/static/
