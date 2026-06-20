@@ -10,13 +10,21 @@ from .providers.gemini_provider import GeminiProvider
 
 # The ONE place model strings live. Update here when vendors rev models.
 # Last verified: 2026-06-20
+#
+# Temperature support:
+#   anthropic light  (sonnet-4-6)      -- YES, temperature accepted
+#   anthropic heavy  (opus-4-8)        -- NO,  adaptive thinking; temperature silently dropped
+#   openai    light  (gpt-5.4-mini)    -- NO,  GPT-5 series; temperature silently dropped
+#   openai    heavy  (gpt-5.5)         -- NO,  GPT-5 series; temperature silently dropped
+#   gemini    light  (3.5-flash)       -- YES, temperature accepted
+#   gemini    heavy  (3.1-pro-preview) -- YES, temperature accepted (preview model)
 MODEL_MATRIX: Dict[Tuple[str, str], str] = {
     ("anthropic", "light"): "claude-sonnet-4-6",
-    ("anthropic", "heavy"): "claude-opus-4-8",
-    ("openai", "light"): "gpt-5.4-mini",
-    ("openai", "heavy"): "gpt-5.5",
-    ("gemini", "light"): "gemini-3.5-flash",
-    ("gemini", "heavy"): "gemini-3.1-pro-preview",   # docs: ai.google.dev/gemini-api/docs/models/gemini-3.1-pro-preview
+    ("anthropic", "heavy"): "claude-opus-4-8",         # adaptive thinking; no temperature
+    ("openai",    "light"): "gpt-5.4-mini",             # GPT-5 series; no temperature
+    ("openai",    "heavy"): "gpt-5.5",                  # GPT-5 series; no temperature
+    ("gemini",    "light"): "gemini-3.5-flash",
+    ("gemini",    "heavy"): "gemini-3.1-pro-preview",   # docs: ai.google.dev/gemini-api/docs/models/gemini-3.1-pro-preview
 }
 
 

@@ -10,6 +10,17 @@ import openai
 from ..base import LLMProvider, LLMResponse, ProviderError
 
 
+# GPT-5 series and o-series reasoning models do not support custom temperature.
+# Passing any value other than the default (1) raises a 400 invalid_request_error.
+# Add new model prefixes here as OpenAI releases them.
+_NO_TEMPERATURE_PREFIXES = ("gpt-5", "o1", "o3", "o4")
+
+
+def _supports_temperature(model: str) -> bool:
+    """Return False for models that only accept the default temperature."""
+    return not any(model.startswith(p) for p in _NO_TEMPERATURE_PREFIXES)
+
+
 class OpenAIProvider(LLMProvider):
     """OpenAI GPT provider."""
     name = "openai"
@@ -33,27 +44,23 @@ class OpenAIProvider(LLMProvider):
         max_tokens: int = 4096,
         temperature: Optional[float] = None,
     ) -> LLMResponse:
-        """Generate completion using OpenAI's API."""
+        """Generate a completion using the OpenAI chat completions API."""
         try:
-            # Convert messages to OpenAI format (prepend system message)
             openai_messages = [{"role": "system", "content": system}]
             for msg in messages:
                 if msg["role"] in ("user", "assistant"):
                     openai_messages.append({"role": msg["role"], "content": msg["content"]})
 
-            # Build kwargs conditionally and use max_completion_tokens for GPT-5 models
-            kwargs = {
+            # GPT-5+ uses max_completion_tokens; older models use max_tokens.
+            kwargs: dict = {
                 "model": model,
                 "messages": openai_messages,
+                "max_completion_tokens" if model.startswith("gpt-5") else "max_tokens": max_tokens,
             }
-            
-            # Use max_completion_tokens for newer models, fall back to max_tokens for older ones
-            if model.startswith("gpt-5"):
-                kwargs["max_completion_tokens"] = max_tokens
-            else:
-                kwargs["max_tokens"] = max_tokens
-            
-            if temperature is not None:
+
+            # GPT-5 and reasoning models (o-series) reject any temperature != default.
+            # Silently omit the parameter for those models.
+            if temperature is not None and _supports_temperature(model):
                 kwargs["temperature"] = temperature
 
             response: ChatCompletion = self.client.chat.completions.create(**kwargs)
@@ -91,6 +98,8 @@ class OpenAIProvider(LLMProvider):
                 kind="not_found",
                 cause=e,
             ) from e
+        except ProviderError:
+            raise
         except Exception as e:
             raise ProviderError(
                 f"OpenAI API error: {e}",

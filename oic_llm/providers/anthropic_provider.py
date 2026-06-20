@@ -10,6 +10,24 @@ import anthropic
 from ..base import LLMProvider, LLMResponse, ProviderError
 
 
+# Adaptive-thinking models (Opus 4.7+, Fable 5, Mythos 5) do not support custom
+# temperature — the API returns invalid_request_error: "temperature is deprecated
+# for this model."  Sonnet 4.6 and Haiku 4.5 still accept it.
+# Add new model names here as Anthropic releases adaptive-thinking models.
+_NO_TEMPERATURE_MODELS = (
+    "claude-opus-4-7",
+    "claude-opus-4-8",
+    "claude-fable-5",
+    "claude-mythos-5",
+    "claude-mythos-preview",
+)
+
+
+def _supports_temperature(model: str) -> bool:
+    """Return False for models that do not accept a custom temperature."""
+    return not any(model.startswith(m) for m in _NO_TEMPERATURE_MODELS)
+
+
 class AnthropicProvider(LLMProvider):
     """Anthropic Claude provider."""
     name = "anthropic"
@@ -33,9 +51,8 @@ class AnthropicProvider(LLMProvider):
         max_tokens: int = 4096,
         temperature: Optional[float] = None,
     ) -> LLMResponse:
-        """Generate completion using Anthropic's API."""
+        """Generate a completion using the Anthropic Messages API."""
         try:
-            # Convert messages to Anthropic format
             anthropic_messages = []
             for msg in messages:
                 if msg["role"] == "user":
@@ -43,20 +60,24 @@ class AnthropicProvider(LLMProvider):
                 elif msg["role"] == "assistant":
                     anthropic_messages.append({"role": "assistant", "content": msg["content"]})
 
-            # Build kwargs conditionally to avoid passing None for temperature
-            kwargs = {
+            kwargs: dict = {
                 "model": model,
                 "max_tokens": max_tokens,
                 "system": system,
                 "messages": anthropic_messages,
             }
-            if temperature is not None:
+
+            # Adaptive-thinking models reject temperature; omit silently for those.
+            if temperature is not None and _supports_temperature(model):
                 kwargs["temperature"] = temperature
 
             response: Message = self.client.messages.create(**kwargs)
 
-            # Safely extract text from first text block (handle thinking/tool blocks)
-            text = next((b.text for b in response.content if getattr(b, "type", None) == "text"), "")
+            # Safely extract text — skips thinking blocks, tool-use blocks, etc.
+            text = next(
+                (b.text for b in response.content if getattr(b, "type", None) == "text"),
+                "",
+            )
 
             return LLMResponse(
                 text=text,
@@ -90,6 +111,8 @@ class AnthropicProvider(LLMProvider):
                 kind="not_found",
                 cause=e,
             ) from e
+        except ProviderError:
+            raise
         except Exception as e:
             raise ProviderError(
                 f"Anthropic API error: {e}",
