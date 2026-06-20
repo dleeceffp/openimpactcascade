@@ -1,66 +1,95 @@
 #!/usr/bin/env python3
 """
-Interactive test harness for oic_llm package.
+Interactive test harness for oic_llm + oic_search packages.
 
 Validates API keys and model assignments for Anthropic, OpenAI, and Gemini.
-Provides an interactive chat interface to test each provider.
+Provides an interactive chat interface with optional web-search grounding to
+address LLM knowledge cut-off — the same pattern used by the main application
+(ai_question_generator.py: search → format context block → inject into prompt).
 
 Usage:
     python scripts/test_llm_cli.py
+
+Search is enabled automatically when GOOGLE_SEARCH_API_KEY is set.
+Profile and provider can be overridden via env vars (OIC_SEARCH_PROVIDER,
+OIC_SEARCH_PROFILE) or interactively at session start.
 """
 
 import sys
 import os
+from datetime import datetime
 from pathlib import Path
+from typing import List, Optional
 
-# Add src/ to Python path so oic_llm is importable
+# Add src/ to Python path so oic_llm and oic_search are importable
 repo_root = Path(__file__).parent.parent
 sys.path.insert(0, str(repo_root / "src"))
 
 try:
-    from oic_llm import complete, get_provider, resolve_model, ProviderError
+    from oic_llm import complete, resolve_model, ProviderError
     from oic_llm.registry import list_providers, list_models
 except ImportError as e:
     print(f"Error importing oic_llm: {e}")
     print("Install dependencies: pip install anthropic openai google-genai")
-    print("Then run from the repo root: python scripts/test_llm_cli.py")
     sys.exit(1)
 
+try:
+    from oic_search import search, SearchError, SearchResponse
+    from oic_search.registry import list_providers as list_search_providers
+    from oic_search.profiles import list_profiles
+    _SEARCH_AVAILABLE = True
+except ImportError as e:
+    print(f"Note: oic_search not importable ({e}) — web search disabled")
+    _SEARCH_AVAILABLE = False
 
-SYSTEM_PROMPT = "You are a testing tool proving API authentication and environmental variable assignment for a software designer."
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+BASE_SYSTEM_PROMPT = (
+    "You are a cybersecurity risk and threat intelligence expert. "
+    "You have deep knowledge of MITRE ATT&CK, FAIR methodology, DBIR, "
+    "CISA advisories, and industry-specific attack patterns. "
+    "When grounding context from recent web searches is provided, you MUST "
+    "prioritize that information over your training data to overcome your "
+    "knowledge cut-off. Cite the specific sources and dates from the provided "
+    "context when making claims about recent incidents or statistics."
+)
+
+_SEARCH_CONTEXT_HEADER = "=" * 70
+_SEARCH_CONTEXT_LABEL = "WEB SEARCH GROUNDING CONTEXT (recent — overrides training data)"
 
 
-def check_credentials():
-    """Check which providers have credentials configured."""
-    print("\n=== Checking Credentials ===")
+# ---------------------------------------------------------------------------
+# Credential checks
+# ---------------------------------------------------------------------------
 
+def check_llm_credentials() -> dict:
+    """Check which LLM providers have credentials configured."""
+    print("\n=== LLM Credentials ===")
     status = {}
 
-    # Anthropic
     if os.environ.get("ANTHROPIC_API_KEY"):
         key = os.environ["ANTHROPIC_API_KEY"]
-        status["anthropic"] = f"OK  Set (ends ...{key[-10:]})"
+        status["anthropic"] = f"OK  (ends ...{key[-10:]})"
     else:
         status["anthropic"] = "MISSING  ANTHROPIC_API_KEY not set"
 
-    # OpenAI
     if os.environ.get("OPENAI_API_KEY"):
         key = os.environ["OPENAI_API_KEY"]
-        status["openai"] = f"OK  Set (ends ...{key[-10:]})"
+        status["openai"] = f"OK  (ends ...{key[-10:]})"
     else:
         status["openai"] = "MISSING  OPENAI_API_KEY not set"
 
-    # Gemini (multiple auth modes)
     gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     gemini_adc = os.environ.get("GOOGLE_CLOUD_PROJECT") and os.environ.get("GOOGLE_GENAI_USE_VERTEXAI")
-
     if gemini_key:
-        key = gemini_key
-        status["gemini"] = f"OK  API key set (starts {key[:10]}... ends ...{key[-10:]})"
+        status["gemini"] = f"OK  (starts {gemini_key[:10]}...)"
     elif gemini_adc:
-        status["gemini"] = f"OK  Vertex AI/ADC set (project: {os.environ['GOOGLE_CLOUD_PROJECT']})"
+        status["gemini"] = f"OK  Vertex AI (project: {os.environ['GOOGLE_CLOUD_PROJECT']})"
     else:
-        status["gemini"] = "MISSING  Set GEMINI_API_KEY or GOOGLE_CLOUD_PROJECT + GOOGLE_GENAI_USE_VERTEXAI=1"
+        status["gemini"] = "MISSING  Set GEMINI_API_KEY or GOOGLE_CLOUD_PROJECT+GOOGLE_GENAI_USE_VERTEXAI=1"
 
     for provider, msg in status.items():
         print(f"  {provider.title():10}: {msg}")
@@ -68,73 +97,231 @@ def check_credentials():
     return status
 
 
+def check_search_credentials() -> bool:
+    """Check whether web search is operational. Returns True if usable."""
+    print("\n=== Search Credentials ===")
+    if not _SEARCH_AVAILABLE:
+        print("  oic_search package not importable — web search disabled")
+        return False
+
+    has_google = bool(os.environ.get("GOOGLE_SEARCH_API_KEY"))
+    has_brave  = bool(os.environ.get("BRAVE_SEARCH_API_KEY"))
+    has_tavily = bool(os.environ.get("TAVILY_API_KEY"))
+
+    if has_google:
+        key = os.environ["GOOGLE_SEARCH_API_KEY"]
+        print(f"  google_cse : OK  (ends ...{key[-10:]})")
+    else:
+        print("  google_cse : MISSING  GOOGLE_SEARCH_API_KEY not set")
+
+    if has_brave:
+        print("  brave      : OK")
+    else:
+        print("  brave      : MISSING  BRAVE_SEARCH_API_KEY not set")
+
+    if has_tavily:
+        print("  tavily     : OK")
+    else:
+        print("  tavily     : MISSING  TAVILY_API_KEY not set")
+
+    usable = has_google or has_brave or has_tavily
+    if not usable:
+        print("  (No search provider available — chat will run without grounding)")
+    return usable
+
+
+# ---------------------------------------------------------------------------
+# Display helpers
+# ---------------------------------------------------------------------------
+
 def show_model_matrix():
-    """Show the model matrix."""
     print("\n=== Model Matrix ===")
-    models = list_models()
-    for (provider, weight), model in models.items():
+    for (provider, weight), model in list_models().items():
         print(f"  {provider:10} {weight:5}: {model}")
 
 
-def select_provider():
-    """Interactive provider selection."""
-    providers = list_providers()
-    print("\n=== Select Provider ===")
-    for i, provider in enumerate(providers, 1):
-        print(f"  {i}. {provider.title()}")
+def show_search_profiles():
+    if not _SEARCH_AVAILABLE:
+        return
+    print("\n=== Search Profiles ===")
+    for name in list_profiles():
+        print(f"  {name}")
 
+
+# ---------------------------------------------------------------------------
+# Interactive selectors
+# ---------------------------------------------------------------------------
+
+def select_provider() -> str:
+    providers = list_providers()
+    print("\n=== Select LLM Provider ===")
+    for i, p in enumerate(providers, 1):
+        print(f"  {i}. {p.title()}")
     while True:
         try:
-            choice = input(f"\nEnter provider number (1-{len(providers)}): ").strip()
+            choice = input(f"\nProvider (1-{len(providers)}): ").strip()
             if not choice:
                 continue
             idx = int(choice) - 1
             if 0 <= idx < len(providers):
                 return providers[idx]
-            print("Invalid selection. Try again.")
+            print("Invalid selection.")
         except ValueError:
             print("Please enter a number.")
 
 
-def select_weight():
-    """Interactive weight selection."""
+def select_weight() -> str:
     print("\n=== Select Model Weight ===")
     print("  1. Light (faster, cheaper)")
     print("  2. Heavy (more capable)")
+    while True:
+        choice = input("\nWeight (1-2): ").strip()
+        if choice == "1":
+            return "light"
+        if choice == "2":
+            return "heavy"
+        print("Enter 1 or 2.")
+
+
+def select_search_profile(search_enabled: bool) -> Optional[str]:
+    """Let user pick a search profile, or disable search for this session."""
+    if not search_enabled:
+        return None
+
+    profiles = list_profiles()
+    print("\n=== Select Search Profile ===")
+    print("  0. Disable web search for this session")
+    for i, name in enumerate(profiles, 1):
+        print(f"  {i}. {name}")
 
     while True:
         try:
-            choice = input("\nEnter weight number (1-2): ").strip()
+            choice = input(f"\nProfile (0-{len(profiles)}): ").strip()
             if not choice:
                 continue
-            if choice == "1":
-                return "light"
-            elif choice == "2":
-                return "heavy"
-            print("Invalid selection. Try again.")
+            idx = int(choice)
+            if idx == 0:
+                return None
+            if 1 <= idx <= len(profiles):
+                return profiles[idx - 1]
+            print("Invalid selection.")
         except ValueError:
             print("Please enter a number.")
 
 
+# ---------------------------------------------------------------------------
+# Web search: the same pattern as ai_question_generator._perform_intelligent_web_search
+# ---------------------------------------------------------------------------
+
+def _format_search_response(resp: SearchResponse, query: str) -> str:
+    """Format a SearchResponse into a prompt-injectable context block.
+
+    Mirrors the format used by ai_question_generator._format_search_results /
+    _perform_intelligent_web_search so the LLM sees the same context structure
+    as in production.
+    """
+    if not resp.results:
+        return ""
+
+    cache_flag = " [cached]" if resp.cached else ""
+    lines = [
+        f"### Search: {query}{cache_flag}",
+        f"Profile: {resp.profile}  Provider: {resp.provider}  "
+        f"Results: {len(resp.results)}",
+    ]
+    for i, r in enumerate(resp.results, 1):
+        lines.append(f"\n**Result {i}:**")
+        lines.append(f"Title  : {r.title}")
+        lines.append(f"Source : {r.source}")
+        lines.append(f"Summary: {r.snippet}")
+        lines.append(f"URL    : {r.url}")
+        if r.published:
+            lines.append(f"Date   : {r.published}")
+
+    return "\n".join(lines)
+
+
+def run_web_search(query: str, profile: str, num: int = 5) -> str:
+    """Execute a single oic_search query and return a formatted context block.
+
+    This is the canonical grounding pattern:
+        search() → SearchResponse → format → inject into system prompt.
+
+    Returns an empty string (silently) when search is unavailable or fails,
+    so the chat loop degrades gracefully to ungrounded mode.
+    """
+    if not _SEARCH_AVAILABLE:
+        return ""
+    try:
+        print(f"  [search] {query!r}  profile={profile} ...", end="", flush=True)
+        resp = search(query, profile=profile, num=num)
+        cache_label = " (cached)" if resp.cached else ""
+        print(f" {len(resp.results)} result(s){cache_label}")
+        return _format_search_response(resp, query)
+    except SearchError as e:
+        print(f" FAILED ({e.kind}): {e}")
+        return ""
+    except Exception as e:
+        print(f" error: {e}")
+        return ""
+
+
+def build_grounded_system_prompt(
+    search_profile: Optional[str],
+    user_query: str,
+    num_results: int = 5,
+) -> str:
+    """Build a system prompt that includes fresh web-search context for this turn.
+
+    Matches the approach in ai_question_generator.generate_questionnaire:
+      1. Run targeted search query
+      2. Format results into a labelled context block
+      3. Prepend to system prompt so the LLM treats it as authoritative
+         ground truth that overrides its training-data cut-off
+
+    Returns the plain BASE_SYSTEM_PROMPT when search is off or produces nothing.
+    """
+    if not search_profile:
+        return BASE_SYSTEM_PROMPT
+
+    context_block = run_web_search(user_query, search_profile, num=num_results)
+    if not context_block:
+        return BASE_SYSTEM_PROMPT
+
+    current_date = datetime.now().strftime("%Y-%m-%d")
+    search_section = "\n".join([
+        _SEARCH_CONTEXT_HEADER,
+        _SEARCH_CONTEXT_LABEL,
+        f"Retrieved: {current_date}",
+        _SEARCH_CONTEXT_HEADER,
+        context_block,
+        _SEARCH_CONTEXT_HEADER,
+    ])
+
+    return "\n\n".join([BASE_SYSTEM_PROMPT, search_section])
+
+
+# ---------------------------------------------------------------------------
+# Provider smoke-test
+# ---------------------------------------------------------------------------
+
 def test_provider(provider: str, weight: str) -> bool:
-    """Test a specific provider with a simple completion."""
     print(f"\n=== Testing {provider.title()} ({weight}) ===")
     try:
         model = resolve_model(provider, weight)
         print(f"Model: {model}")
         print("Sending test request...")
         response = complete(
-            system=SYSTEM_PROMPT,
+            system=BASE_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": "Say 'API test successful' and nothing else."}],
             provider=provider,
             weight=weight,
             max_tokens=100,
         )
-        print("Success!")
-        print(f"Response: {response.text.strip()}")
-        print(f"Provider: {response.provider}  Model: {response.model}")
+        print(f"Response : {response.text.strip()}")
+        print(f"Provider : {response.provider}  Model: {response.model}")
         if response.usage:
-            print(f"Usage: {response.usage}")
+            print(f"Usage    : {response.usage}")
         return True
     except ProviderError as e:
         print(f"Provider Error ({e.kind}): {e}")
@@ -144,39 +331,77 @@ def test_provider(provider: str, weight: str) -> bool:
         return False
 
 
-def chat_loop(provider: str, weight: str) -> bool:
-    """Interactive chat loop.  Returns True to signal 'switch provider'."""
-    print(f"\n=== Chat with {provider.title()} ({weight}) ===")
-    print("Commands: 'quit'/'exit' to end  |  'switch' to change provider")
-    print("-" * 50)
-    model = resolve_model(provider, weight)
-    print(f"Using model: {model}")
+# ---------------------------------------------------------------------------
+# Chat loop
+# ---------------------------------------------------------------------------
 
-    messages = []
+def chat_loop(provider: str, weight: str, search_profile: Optional[str]) -> bool:
+    """Interactive chat with per-turn web-search grounding.
+
+    Search grounding pattern (matches the main application):
+      - Each user message triggers a fresh oic_search query against
+        the selected profile before the LLM call.
+      - Results are formatted into a context block and prepended to the
+        system prompt for that turn only (not accumulated in history).
+      - The assistant's reply and the original user message are added to
+        history normally so multi-turn context is preserved.
+
+    Returns True to signal "switch provider", False to exit.
+    """
+    search_status = f"profile={search_profile}" if search_profile else "disabled"
+    print(f"\n=== Chat with {provider.title()} ({weight})  search={search_status} ===")
+    print("Commands: quit/exit | switch (change provider) | nosearch (toggle search off)")
+    print("          search on <profile> (e.g. 'search on incident')")
+    print("-" * 60)
+    print(f"Using model: {resolve_model(provider, weight)}")
+
+    messages: List[dict] = []
+    active_profile = search_profile  # mutable for this session
 
     while True:
         try:
             user_input = input("\nYou: ").strip()
+            if not user_input:
+                continue
             if user_input.lower() in ("quit", "exit"):
                 print("Goodbye!")
                 return False
             if user_input.lower() == "switch":
                 return True
-            if not user_input:
+            if user_input.lower() == "nosearch":
+                active_profile = None
+                print("Web search disabled for remaining turns.")
                 continue
+            if user_input.lower().startswith("search on "):
+                requested = user_input[len("search on "):].strip()
+                if requested in list_profiles():
+                    active_profile = requested
+                    print(f"Search profile switched to '{active_profile}'.")
+                else:
+                    print(f"Unknown profile '{requested}'. Available: {', '.join(list_profiles())}")
+                continue
+
+            # --- Build grounded system prompt for this turn ---
+            system = build_grounded_system_prompt(
+                search_profile=active_profile,
+                user_query=user_input,
+                num_results=5,
+            )
 
             messages.append({"role": "user", "content": user_input})
             print("Assistant: ", end="", flush=True)
+
             response = complete(
-                system=SYSTEM_PROMPT,
+                system=system,
                 messages=messages,
                 provider=provider,
                 weight=weight,
                 max_tokens=2000,
                 temperature=0.7,
             )
-            print(response.text.strip())
-            messages.append({"role": "assistant", "content": response.text})
+            reply = response.text.strip()
+            print(reply)
+            messages.append({"role": "assistant", "content": reply})
 
         except KeyboardInterrupt:
             print("\nGoodbye!")
@@ -187,27 +412,35 @@ def chat_loop(provider: str, weight: str) -> bool:
             print(f"\nError: {e}")
 
 
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
 def main():
-    """Main interactive loop."""
-    # Reconfigure stdout for UTF-8 on Windows
     try:
         sys.stdout.reconfigure(encoding="utf-8")
     except Exception:
         pass
 
-    print("oic_llm Test Harness")
-    print("=" * 50)
+    print("oic_llm + oic_search Test Harness")
+    print("=" * 60)
 
-    check_credentials()
+    check_llm_credentials()
+    search_enabled = check_search_credentials()
     show_model_matrix()
+    if search_enabled:
+        show_search_profiles()
 
     while True:
         provider = select_provider()
-        weight = select_weight()
+        weight   = select_weight()
+        search_profile = select_search_profile(search_enabled)
+
         if not test_provider(provider, weight):
-            print("\nProvider test failed. Try another provider.")
+            print("\nProvider test failed. Try another.")
             continue
-        if not chat_loop(provider, weight):
+
+        if not chat_loop(provider, weight, search_profile):
             break
 
 
