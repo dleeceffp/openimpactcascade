@@ -5,7 +5,9 @@ from typing import List, Dict, Optional
 
 try:
     from google import genai
+    from google.genai import types
     from google.genai.types import GenerateContentResponse
+    import google.genai.errors
 except ImportError as e:
     raise ImportError(
         "google-genai SDK not installed. Install with: pip install google-genai"
@@ -83,18 +85,18 @@ class GeminiProvider(LLMProvider):
                 elif msg["role"] == "assistant":
                     contents.append({"role": "model", "parts": [{"text": msg["content"]}]})
 
-            # Configure generation
-            config = {
-                "max_output_tokens": max_tokens,
-            }
+            # Configure generation using the typed config object
+            config = types.GenerateContentConfig(
+                system_instruction=system,
+                max_output_tokens=max_tokens,
+            )
             if temperature is not None:
-                config["temperature"] = temperature
+                config.temperature = temperature
 
             response: GenerateContentResponse = self.client.models.generate_content(
                 model=model,
                 contents=contents,
                 config=config,
-                system_instruction=system,
             )
 
             # Extract text
@@ -121,8 +123,8 @@ class GeminiProvider(LLMProvider):
                 usage=usage,
             )
 
-        except Exception as e:
-            # Normalize common errors
+        except google.genai.errors.APIError as e:
+            # APIError covers most server-side errors including auth
             if "authentication" in str(e).lower() or "unauthorized" in str(e).lower():
                 raise ProviderError(
                     f"Gemini authentication failed: {e}",
@@ -137,7 +139,7 @@ class GeminiProvider(LLMProvider):
                     kind="rate_limit",
                     cause=e,
                 ) from e
-            elif "model" in str(e).lower() and "not found" in str(e).lower():
+            elif "not found" in str(e).lower():
                 raise ProviderError(
                     f"Gemini model not found: {e}",
                     provider="gemini",
@@ -151,3 +153,10 @@ class GeminiProvider(LLMProvider):
                     kind="unknown",
                     cause=e,
                 ) from e
+        except Exception as e:
+            raise ProviderError(
+                f"Gemini error: {e}",
+                provider="gemini",
+                kind="unknown",
+                cause=e,
+            ) from e

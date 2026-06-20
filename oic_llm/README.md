@@ -11,7 +11,27 @@ A shared multi-provider LLM module for OIC applications. Provides a unified inte
 - **Environment-based config**: No hardcoded credentials or models
 - **Provider traceability**: Every response records which provider/model was used
 
+## Required Dependencies
+
+Before using oic_llm, install these Python packages:
+
+```bash
+pip install anthropic openai google-genai
+```
+
+- `anthropic` - For Claude API access
+- `openai` - For GPT API access  
+- `google-genai` - For Gemini API access (supports both API key and Vertex AI auth)
+
 ## Quick Start
+
+### 1. Install Dependencies
+
+```bash
+pip install anthropic openai google-genai
+```
+
+### 2. Use in Your Code
 
 ```python
 from oic_llm import complete
@@ -28,8 +48,30 @@ print(response.model)  # e.g., "claude-3-5-sonnet-20241022"
 
 ## Installation
 
+### 1. Install Dependencies
+
 ```bash
+# Core dependencies for all providers
+pip install anthropic openai google-genai
+
+# Optional: for development/testing
+pip install pytest pytest-cov
+```
+
+### 2. Install the Package
+
+```bash
+# Install in development mode (recommended for development)
 pip install -e .
+
+# Or install normally
+pip install .
+```
+
+### Quick Install Command
+
+```bash
+pip install anthropic openai google-genai && pip install -e .
 ```
 
 ## Configuration
@@ -68,16 +110,25 @@ export OIC_LLM_WEIGHT=heavy
 
 ## Testing
 
-Run the test harness to validate your setup:
+### Run the Test Harness
+
+First install dependencies, then run the test harness:
 
 ```bash
+# Install dependencies
+pip install anthropic openai google-genai
+
+# Run the interactive test harness
 python test_llm_cli.py
 ```
 
-Run unit tests:
+### Run Unit Tests
 
 ```bash
+# Install test dependencies
 pip install -e ".[test]"
+
+# Run the test suite
 pytest oic_llm/tests/
 ```
 

@@ -9,13 +9,14 @@ from .providers.gemini_provider import GeminiProvider
 
 
 # The ONE place model strings live. Update here when vendors rev models.
+# Last verified: 2026-06-19
 MODEL_MATRIX: Dict[Tuple[str, str], str] = {
-    ("anthropic", "light"): "claude-3-5-sonnet-20241022",
-    ("anthropic", "heavy"): "claude-3-5-sonnet-20241022",  # Same for now; could be Opus later
-    ("openai", "light"): "gpt-4o-mini",
-    ("openai", "heavy"): "gpt-4o",
-    ("gemini", "light"): "gemini-1.5-flash",
-    ("gemini", "heavy"): "gemini-1.5-pro",
+    ("anthropic", "light"): "claude-sonnet-4-6",
+    ("anthropic", "heavy"): "claude-opus-4-8",
+    ("openai", "light"): "gpt-5.4-mini",
+    ("openai", "heavy"): "gpt-5.5",
+    ("gemini", "light"): "gemini-3.5-flash",
+    ("gemini", "heavy"): "gemini-3-pro",
 }
 
 

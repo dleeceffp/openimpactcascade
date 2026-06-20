@@ -5,6 +5,7 @@ from typing import List, Dict, Optional
 
 from openai import OpenAI
 from openai.types.chat import ChatCompletion
+import openai
 
 from ..base import LLMProvider, LLMResponse, ProviderError
 
@@ -40,12 +41,22 @@ class OpenAIProvider(LLMProvider):
                 if msg["role"] in ("user", "assistant"):
                     openai_messages.append({"role": msg["role"], "content": msg["content"]})
 
-            response: ChatCompletion = self.client.chat.completions.create(
-                model=model,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                messages=openai_messages,
-            )
+            # Build kwargs conditionally and use max_completion_tokens for GPT-5 models
+            kwargs = {
+                "model": model,
+                "messages": openai_messages,
+            }
+            
+            # Use max_completion_tokens for newer models, fall back to max_tokens for older ones
+            if model.startswith("gpt-5"):
+                kwargs["max_completion_tokens"] = max_tokens
+            else:
+                kwargs["max_tokens"] = max_tokens
+            
+            if temperature is not None:
+                kwargs["temperature"] = temperature
+
+            response: ChatCompletion = self.client.chat.completions.create(**kwargs)
 
             return LLMResponse(
                 text=response.choices[0].message.content or "",
@@ -59,33 +70,31 @@ class OpenAIProvider(LLMProvider):
                 },
             )
 
+        except openai.AuthenticationError as e:
+            raise ProviderError(
+                f"OpenAI authentication failed: {e}",
+                provider="openai",
+                kind="auth",
+                cause=e,
+            ) from e
+        except openai.RateLimitError as e:
+            raise ProviderError(
+                f"OpenAI rate limit exceeded: {e}",
+                provider="openai",
+                kind="rate_limit",
+                cause=e,
+            ) from e
+        except openai.NotFoundError as e:
+            raise ProviderError(
+                f"OpenAI model not found: {e}",
+                provider="openai",
+                kind="not_found",
+                cause=e,
+            ) from e
         except Exception as e:
-            # Normalize common errors
-            if "authentication" in str(e).lower() or "unauthorized" in str(e).lower():
-                raise ProviderError(
-                    f"OpenAI authentication failed: {e}",
-                    provider="openai",
-                    kind="auth",
-                    cause=e,
-                ) from e
-            elif "rate" in str(e).lower():
-                raise ProviderError(
-                    f"OpenAI rate limit exceeded: {e}",
-                    provider="openai",
-                    kind="rate_limit",
-                    cause=e,
-                ) from e
-            elif "model" in str(e).lower() and "not found" in str(e).lower():
-                raise ProviderError(
-                    f"OpenAI model not found: {e}",
-                    provider="openai",
-                    kind="not_found",
-                    cause=e,
-                ) from e
-            else:
-                raise ProviderError(
-                    f"OpenAI API error: {e}",
-                    provider="openai",
-                    kind="unknown",
-                    cause=e,
-                ) from e
+            raise ProviderError(
+                f"OpenAI API error: {e}",
+                provider="openai",
+                kind="unknown",
+                cause=e,
+            ) from e
