@@ -18,24 +18,19 @@ Each item is small and self-contained. Prioritise before the next major feature.
 | Unified test runner | `pytest` from repo root runs all non-integration tests |
 | `tests/conftest.py` created | Adds `src/` + `app/` + `tools/` to `sys.path`; shared fixtures |
 | oic_llm tests migrated | `oic_llm/tests/` → `tests/oic_llm/`; absolute imports; integration marker added |
+| **Root `oic_llm/` removed** (item 1) | `git rm -r oic_llm/`; stale root scripts removed (`test_llm_cli.py`, `validate_models.py`); `src/oic_llm/` is now the sole canonical package |
+| **`oic_search` package added** | `src/oic_search/` — pluggable search/grounding sibling of `oic_llm`; 79 tests |
 
 ---
 
 ## Deferred — next cleanup pass
 
-### 1. Remove the root-level `oic_llm/` directory
+### ~~1. Remove the root-level `oic_llm/` directory~~ ✅ DONE
 
-**What:** The original `oic_llm/` at the repo root is now superseded by `src/oic_llm/`.
-It is kept temporarily so any outstanding branches that `import oic_llm` without adding `src/`
-to the path don't break immediately.
-
-**Action:**
-```
-git rm -r oic_llm/
-```
-Then update any remaining `sys.path` references (there should be none after this pass).
-
-**Blocker:** Confirm no other branch or tool imports from the root copy.
+`git rm -r oic_llm/` executed.  Root-level `test_llm_cli.py` and `validate_models.py`
+also removed (superseded by `scripts/`).  `src/oic_llm/` is now the sole canonical
+location.  `import oic_llm` resolves to `src/oic_llm/` via `conftest.py` path
+bootstrap or `pip install -e .`.
 
 ---
 
