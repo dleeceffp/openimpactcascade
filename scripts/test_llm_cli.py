@@ -3,18 +3,17 @@
 Interactive test harness for oic_llm + oic_search packages.
 
 Validates API keys and model assignments for Anthropic, OpenAI, and Gemini.
-Provides an interactive chat interface with optional web-search grounding to
-address LLM knowledge cut-off — the same pattern used by the main application
-(ai_question_generator.py: search → format context block → inject into prompt).
+Runs model-only by default.  Pass --search to enable web-search grounding,
+which addresses the LLM knowledge cut-off using the same pattern as the main
+application (ai_question_generator.py: search → format context block → inject
+into system prompt).
 
 Usage:
-    python scripts/test_llm_cli.py
-
-Search is enabled automatically when GOOGLE_SEARCH_API_KEY is set.
-Profile and provider can be overridden via env vars (OIC_SEARCH_PROVIDER,
-OIC_SEARCH_PROFILE) or interactively at session start.
+    python scripts/test_llm_cli.py               # model only (default)
+    python scripts/test_llm_cli.py --search       # enable web-search grounding
 """
 
+import argparse
 import sys
 import os
 from datetime import datetime
@@ -417,19 +416,41 @@ def chat_loop(provider: str, weight: str, search_profile: Optional[str]) -> bool
 # ---------------------------------------------------------------------------
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="oic_llm test harness — model-only by default.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  python scripts/test_llm_cli.py            # model only\n"
+            "  python scripts/test_llm_cli.py --search   # with web-search grounding\n"
+        ),
+    )
+    parser.add_argument(
+        "--search",
+        action="store_true",
+        default=False,
+        help="Enable web-search grounding (oic_search). Off by default.",
+    )
+    args = parser.parse_args()
+
     try:
         sys.stdout.reconfigure(encoding="utf-8")
     except Exception:
         pass
 
-    print("oic_llm + oic_search Test Harness")
+    print("oic_llm Test Harness" + ("  [+search]" if args.search else ""))
     print("=" * 60)
 
     check_llm_credentials()
-    search_enabled = check_search_credentials()
-    show_model_matrix()
-    if search_enabled:
+
+    # Search credential check and profile selector only run when --search is passed.
+    if args.search:
+        search_enabled = check_search_credentials()
         show_search_profiles()
+    else:
+        search_enabled = False
+
+    show_model_matrix()
 
     while True:
         provider = select_provider()
