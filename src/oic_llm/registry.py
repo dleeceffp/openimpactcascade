@@ -16,7 +16,7 @@ MODEL_MATRIX: Dict[Tuple[str, str], str] = {
     ("openai", "light"): "gpt-5.4-mini",
     ("openai", "heavy"): "gpt-5.5",
     ("gemini", "light"): "gemini-3.5-flash",
-    ("gemini", "heavy"): "gemini-3.1-pro-preview",
+    ("gemini", "heavy"): "gemini-3-pro",
 }
 
 

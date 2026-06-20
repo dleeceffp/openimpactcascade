@@ -1,0 +1,70 @@
+# OpenImpactCascade — root project configuration
+# This is the single entry point for developer tooling.
+# Production app dependencies are in app/requirements.txt (Docker/Gunicorn).
+# Tool-specific dependencies are in tools/*/requirements.txt.
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oic-sbx"
+version = "3.1.0"
+description = "OpenImpactCascade — AI-powered cyber risk assessment platform"
+readme = "README.md"
+requires-python = ">=3.11"
+
+# Editable install picks up the packages under src/
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# ---------------------------------------------------------------------------
+# Pytest — runs ALL tests from the repo root with a single `pytest` invocation
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths   = ["tests"]
+python_files   = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts     = "-v --tb=short"
+markers = [
+    "unit: fast, no network, no API keys required",
+    "integration: requires API keys or live services",
+    "e2e: end-to-end tests, may require all services running",
+]
+
+# ---------------------------------------------------------------------------
+# Ruff — linting and formatting (replaces flake8 + isort + black)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "app", "tools"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]   # line length handled by formatter
+
+# ---------------------------------------------------------------------------
+# Mypy — type checking (opt-in per package; tools/ are untyped for now)
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true   # many deps lack stubs
+
+[[tool.mypy.overrides]]
+module = ["tools.*"]
+ignore_errors = true
+
+# ---------------------------------------------------------------------------
+# Coverage
+# ---------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*", "*/scripts/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered  = false
