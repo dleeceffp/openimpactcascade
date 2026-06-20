@@ -21,7 +21,7 @@ from .providers.gemini_provider import GeminiProvider
 MODEL_MATRIX: Dict[Tuple[str, str], str] = {
     ("anthropic", "light"): "claude-sonnet-4-6",
     ("anthropic", "heavy"): "claude-opus-4-8",         # adaptive thinking; no temperature
-    ("openai",    "light"): "gpt-5.4-mini",             # GPT-5 series; no temperature
+    ("openai",    "light"): "gpt-5.4",             # GPT-5 series; no temperature
     ("openai",    "heavy"): "gpt-5.5",                  # GPT-5 series; no temperature
     ("gemini",    "light"): "gemini-3.5-flash",
     ("gemini",    "heavy"): "gemini-3.1-pro-preview",   # docs: ai.google.dev/gemini-api/docs/models/gemini-3.1-pro-preview
