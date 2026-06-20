@@ -7,12 +7,18 @@ Credentials
 -----------
   TAVILY_API_KEY  — from https://tavily.com
 
-API reference: https://docs.tavily.com/docs/rest-api/api-reference
+API reference: https://docs.tavily.com/documentation/api-reference/endpoint/search
 
 Site scoping
 ------------
 Tavily supports an include_domains parameter that restricts results to a list
 of domains — a clean match for OIC profiles.  No site: query operators needed.
+
+Key parameters (pass via **opts to search()):
+  search_depth  "basic" (default, 1 credit) | "advanced" (2 credits, higher relevance)
+  time_range    "day" | "week" | "month" | "year"  — recency filter, useful for
+                knowledge cut-off queries (e.g. "recent CISA advisories")
+  max_results   1–20 (default 5; oic_search clamps to 20)
 """
 
 import os
@@ -69,7 +75,7 @@ class TavilyProvider(SearchProvider):
         payload: dict = {
             "api_key": self._api_key,
             "query": query,
-            "max_results": min(max(num, 1), 10),
+            "max_results": min(max(num, 1), 20),  # Tavily supports up to 20
             "search_depth": "basic",
             "include_domains": sites,
         }
