@@ -31,6 +31,7 @@ markers = [
     "unit: fast, no network, no API keys required",
     "integration: requires API keys or live services",
     "e2e: end-to-end tests, may require all services running",
+    "search: oic_search live backend tests (requires search API keys)",
 ]
 
 # ---------------------------------------------------------------------------
