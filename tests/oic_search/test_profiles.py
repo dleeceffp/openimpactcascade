@@ -8,7 +8,7 @@ Enforces the structural rules that keep profiles Site-Restricted eligible:
 """
 
 import pytest
-from oic_search.profiles import PROFILES, SITE_RESTRICTED_ELIGIBLE, get_profile, list_profiles
+from oic_search.profiles import PROFILES, SITE_RESTRICTED_ELIGIBLE, get_profile, get_profile_domains, list_profiles
 
 
 # The brief designates these profiles as Site-Restricted eligible
@@ -95,3 +95,39 @@ class TestListProfiles:
 
     def test_returns_list(self):
         assert isinstance(list_profiles(), list)
+
+
+class TestGetProfileDomains:
+    """get_profile_domains() strips path components for Brave/Tavily compatibility."""
+
+    def test_bare_domains_returned_unchanged(self):
+        domains = get_profile_domains("ics")
+        for d in domains:
+            assert "/" not in d, f"Path component found in domain: {d}"
+
+    def test_path_entry_stripped_to_bare_domain(self):
+        # incident profile contains "github.com/vz-risk/veris" — must become "github.com"
+        domains = get_profile_domains("incident")
+        assert "github.com" in domains
+        assert "github.com/vz-risk/veris" not in domains
+
+    def test_no_duplicate_domains(self):
+        # Stripping paths could create duplicates if two paths share a domain
+        for name in PROFILES:
+            domains = get_profile_domains(name)
+            assert len(domains) == len(set(domains)), (
+                f"Profile '{name}' has duplicate domains after path stripping: {domains}"
+            )
+
+    def test_returns_nonempty_list_for_all_profiles(self):
+        for name in PROFILES:
+            assert get_profile_domains(name), f"Profile '{name}' returned empty domain list"
+
+    def test_unknown_profile_raises_value_error(self):
+        with pytest.raises(ValueError, match="Unknown search profile"):
+            get_profile_domains("nonexistent")
+
+    def test_default_profile_contains_no_paths(self):
+        domains = get_profile_domains("default")
+        for d in domains:
+            assert "/" not in d, f"Path not stripped for default profile: {d}"

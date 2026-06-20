@@ -32,13 +32,13 @@ setup in tools/attack_flow_workbench/web_search.py).
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
 import requests
 
 from ..base import SearchError, SearchProvider, SearchResponse, SearchResult
-from ..profiles import PROFILES, SITE_RESTRICTED_ELIGIBLE
+from ..profiles import SITE_RESTRICTED_ELIGIBLE, get_profile
 
 
 _STANDARD_URL = "https://www.googleapis.com/customsearch/v1"
@@ -59,12 +59,6 @@ def _domain(url: str) -> str:
         return urlparse(url).netloc.removeprefix("www.")
     except Exception:
         return url
-
-
-def _build_site_query(query: str, sites: List[str]) -> str:
-    """Append site: operators when using Standard endpoint (no built-in restriction)."""
-    site_clause = " OR ".join(f"site:{s}" for s in sites)
-    return f"({query}) ({site_clause})"
 
 
 class GoogleCSEProvider(SearchProvider):
@@ -91,12 +85,10 @@ class GoogleCSEProvider(SearchProvider):
         """Execute a search and return normalized results."""
         effective_profile = profile or "default"
 
-        if effective_profile not in PROFILES:
-            raise SearchError(
-                f"Unknown profile '{effective_profile}'",
-                provider=self.name,
-                kind="not_configured",
-            )
+        try:
+            get_profile(effective_profile)  # validates; raises ValueError if unknown
+        except ValueError as e:
+            raise SearchError(str(e), provider=self.name, kind="not_configured") from e
 
         engine_id = _engine_id_for_profile(effective_profile)
         if not engine_id:
@@ -110,15 +102,14 @@ class GoogleCSEProvider(SearchProvider):
         site_restricted = SITE_RESTRICTED_ELIGIBLE.get(effective_profile, False)
         endpoint = _SITE_RESTRICTED_URL if site_restricted else _STANDARD_URL
 
-        # For Site-Restricted endpoint the engine itself restricts results;
-        # no need to append site: operators.  For Standard endpoint we rely
-        # on the engine being pre-configured with the right sites, but we
-        # append site: operators as a belt-and-suspenders measure when the
-        # profile has <= 10 domains (query won't blow the URL length limit).
+        # For the Site-Restricted endpoint the engine itself enforces the site list —
+        # no site: operators needed in the query.
+        # For the Standard endpoint (i.e. "default" with 22 sites) the engine is
+        # pre-configured with the site list; do not append site: operators here because:
+        #   (a) 22-site clauses would push the query over URL length limits, and
+        #   (b) any <=10-domain profile is already site-restricted, so this branch
+        #       is only ever reached by the "default" 22-site profile anyway.
         effective_query = query
-        sites = PROFILES[effective_profile]
-        if not site_restricted and len(sites) <= 10:
-            effective_query = _build_site_query(query, sites)
 
         params: Dict[str, Any] = {
             "key": self._api_key,
@@ -136,7 +127,7 @@ class GoogleCSEProvider(SearchProvider):
             raise SearchError(
                 f"Google CSE request timed out for query: {query[:60]}",
                 provider=self.name,
-                kind="rate_limit",
+                kind="timeout",
                 cause=e,
             ) from e
         except requests.exceptions.RequestException as e:

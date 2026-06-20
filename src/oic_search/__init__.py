@@ -15,6 +15,7 @@ from typing import Any, List, Optional
 from .base import SearchConfig, SearchError, SearchResponse, SearchResult
 from .cache import get_cache
 from .config import load_config
+from .profiles import get_profile
 from .registry import get_provider, list_providers, search_multi_profile
 
 
@@ -96,6 +97,12 @@ def search_multi(
     Returns:
         SearchResponse with merged results and profile="ics+incident" style label.
     """
+    # Validate all profile names upfront — before instantiating the provider or
+    # touching the cache — so a typo fails immediately with a clear ValueError,
+    # not mid-fan-out after already billing the first profile's network call.
+    for _p in profiles:
+        get_profile(_p)  # raises ValueError for unknown names
+
     config = load_config()
     effective_provider = provider or config.provider
     combined_profile = "+".join(profiles)

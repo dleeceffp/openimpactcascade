@@ -134,3 +134,25 @@ def get_profile(name: str) -> List[str]:
 def list_profiles() -> List[str]:
     """Return all profile names."""
     return list(PROFILES.keys())
+
+
+def get_profile_domains(name: str) -> List[str]:
+    """Return bare domain names for a profile (path components stripped).
+
+    Use this for backends that accept only bare domains in their site-scoping
+    parameters — Brave's site: operators and Tavily's include_domains.
+
+    Google CSE engines support path-scoped entries (e.g. github.com/vz-risk/veris)
+    so google_cse_provider uses get_profile() directly.
+
+    Example: "github.com/vz-risk/veris" → "github.com"
+    """
+    sites = get_profile(name)
+    seen: List[str] = []
+    for s in sites:
+        # Strip any path component — take only scheme+netloc or just the hostname
+        # Entries are bare hostnames or host/path strings (no scheme), so split on "/"
+        domain = s.split("/")[0]
+        if domain not in seen:
+            seen.append(domain)
+    return seen

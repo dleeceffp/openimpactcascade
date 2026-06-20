@@ -29,7 +29,7 @@ from urllib.parse import urlparse
 import requests
 
 from ..base import SearchError, SearchProvider, SearchResponse, SearchResult
-from ..profiles import PROFILES
+from ..profiles import get_profile_domains
 
 
 _BRAVE_API_URL = "https://api.search.brave.com/res/v1/web/search"
@@ -75,14 +75,13 @@ class BraveProvider(SearchProvider):
         """Execute a Brave web search and return normalized results."""
         effective_profile = profile or "default"
 
-        if effective_profile not in PROFILES:
-            raise SearchError(
-                f"Unknown profile '{effective_profile}'",
-                provider=self.name,
-                kind="not_configured",
-            )
+        try:
+            # get_profile_domains() strips path components (e.g. github.com/vz-risk/veris
+            # → github.com) because Brave's site: operator accepts only bare domains.
+            sites = get_profile_domains(effective_profile)
+        except ValueError as e:
+            raise SearchError(str(e), provider=self.name, kind="not_configured") from e
 
-        sites = PROFILES[effective_profile]
         scoped_query = _build_site_query(query, sites)
 
         headers = {
@@ -106,7 +105,7 @@ class BraveProvider(SearchProvider):
             raise SearchError(
                 f"Brave Search request timed out for query: {query[:60]}",
                 provider=self.name,
-                kind="rate_limit",
+                kind="timeout",
                 cause=e,
             ) from e
         except requests.exceptions.RequestException as e:

@@ -86,7 +86,26 @@ class TestSearchMultiProfile:
         urls = [r.url for r in resp.results]
         assert "https://dragos.com/a" in urls
         assert "https://cisa.gov/c" in urls
+        # No truncation: both profiles contribute fully — all 4 unique results returned
         assert len(urls) == 4
+
+    def test_no_truncation_both_profiles_contribute(self):
+        """num results per profile should all appear — second profile must not be zeroed out."""
+        null_p = NullProvider()
+
+        def mock_search(query, *, profile=None, num=2, **opts):
+            if profile == "ics":
+                return _make_resp("null", "ics", ["https://dragos.com/1", "https://dragos.com/2"])
+            if profile == "incident":
+                return _make_resp("null", "incident", ["https://cisa.gov/1", "https://cisa.gov/2"])
+            return _make_resp("null", profile, [])
+
+        null_p.search = mock_search
+        # With old truncation [:num=2], second profile would contribute 0 results
+        resp = search_multi_profile(null_p, "query", ["ics", "incident"], num=2)
+        urls = [r.url for r in resp.results]
+        assert "https://cisa.gov/1" in urls, "second profile must contribute results (no [:num] truncation)"
+        assert len(urls) == 4  # 2 from each profile, no duplicates
 
     def test_deduplicates_by_url(self):
         null_p = NullProvider()
@@ -114,3 +133,17 @@ class TestSearchMultiProfile:
         null_p = NullProvider()
         with pytest.raises((ValueError, SearchError)):
             search_multi_profile(null_p, "query", ["nonexistent"], num=5)
+
+    def test_invalid_profile_validated_upfront_before_any_search(self):
+        """A bad profile in position 1 must fail before the provider is called at all."""
+        null_p = NullProvider()
+        call_count = [0]
+
+        def counting_search(query, *, profile=None, num=10, **opts):
+            call_count[0] += 1
+            return _make_resp("null", profile, ["https://dragos.com/a"])
+
+        null_p.search = counting_search
+        with pytest.raises((ValueError, SearchError)):
+            search_multi_profile(null_p, "query", ["ics", "bad_profile_name"], num=5)
+        assert call_count[0] == 0, "provider.search must not be called if any profile name is invalid"

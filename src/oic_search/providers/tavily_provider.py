@@ -22,7 +22,7 @@ from urllib.parse import urlparse
 import requests
 
 from ..base import SearchError, SearchProvider, SearchResponse, SearchResult
-from ..profiles import PROFILES
+from ..profiles import get_profile_domains
 
 
 _TAVILY_SEARCH_URL = "https://api.tavily.com/search"
@@ -59,14 +59,12 @@ class TavilyProvider(SearchProvider):
         """Execute a Tavily search and return normalized results."""
         effective_profile = profile or "default"
 
-        if effective_profile not in PROFILES:
-            raise SearchError(
-                f"Unknown profile '{effective_profile}'",
-                provider=self.name,
-                kind="not_configured",
-            )
-
-        sites: List[str] = PROFILES[effective_profile]
+        try:
+            # get_profile_domains() strips path components — Tavily's include_domains
+            # accepts only bare domains, not path-scoped entries like github.com/vz-risk/veris.
+            sites: List[str] = get_profile_domains(effective_profile)
+        except ValueError as e:
+            raise SearchError(str(e), provider=self.name, kind="not_configured") from e
 
         payload: dict = {
             "api_key": self._api_key,
@@ -83,7 +81,7 @@ class TavilyProvider(SearchProvider):
             raise SearchError(
                 f"Tavily request timed out for query: {query[:60]}",
                 provider=self.name,
-                kind="rate_limit",
+                kind="timeout",
                 cause=e,
             ) from e
         except requests.exceptions.RequestException as e:

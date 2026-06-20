@@ -76,6 +76,13 @@ def search_multi_profile(
     Results are ordered: first profile's results first, then unique results from
     subsequent profiles.  Deduplication is by URL (case-insensitive).
 
+    `num` results are fetched from EACH profile independently; the merged
+    response may therefore contain up to num * len(profiles) results (minus
+    duplicates).  No truncation is applied — the caller decides how many to use.
+    This is intentional: the point of multi-profile is to surface results from
+    multiple authority domains, and truncating to `num` would cause the second
+    profile to contribute nothing when the first fills the budget.
+
     Used for ICS/OT queries where both "ics" + "incident" profiles are needed.
 
     Example:
@@ -85,14 +92,16 @@ def search_multi_profile(
     if not profiles:
         raise ValueError("profiles list must not be empty")
 
+    # Validate ALL profiles up front before any network call so a bad profile name
+    # doesn't fail mid-fan-out after already billing earlier profiles.
+    for profile_name in profiles:
+        get_profile(profile_name)  # raises ValueError for unknown names
+
     merged: List = []
     seen_urls: set = set()
     last_response: Optional[SearchResponse] = None
 
     for profile_name in profiles:
-        # Validate profile early — cleaner error than a provider-level failure
-        get_profile(profile_name)
-
         try:
             resp = provider.search(query, profile=profile_name, num=num, **opts)
         except SearchError:
@@ -105,9 +114,10 @@ def search_multi_profile(
                 seen_urls.add(key)
                 merged.append(result)
 
-    # Return a SearchResponse that reflects all profiles searched
+    # Return a SearchResponse that reflects all profiles searched.
+    # No [:num] truncation here — see docstring above.
     return SearchResponse(
-        results=merged[:num],
+        results=merged,
         provider=provider.name,
         query=query,
         profile="+".join(profiles),

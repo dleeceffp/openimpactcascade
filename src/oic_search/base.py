@@ -36,6 +36,7 @@ class SearchError(Exception):
         "not_configured" — engine/resource not set up (e.g. API not enabled in GCP,
                            CSE ID missing, or a 403 that is NOT quota)
         "rate_limit"     — per-second / per-minute throttle (retry after)
+        "timeout"        — network or server read timeout (distinct from throttle)
         "not_found"      — engine ID or endpoint not found (404)
         "unknown"        — anything else
     """

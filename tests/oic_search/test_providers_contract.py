@@ -17,9 +17,11 @@ Error normalization assertions (mocked HTTP errors):
 7. 403 quota → SearchError(kind="quota")
 8. 403 disabled → SearchError(kind="not_configured")
 9. 429 → SearchError(kind="rate_limit")
+10. requests.Timeout → SearchError(kind="timeout")  [distinct from rate_limit]
 """
 
 import pytest
+import requests as requests_lib
 from unittest.mock import MagicMock, patch
 
 from oic_search.base import SearchError, SearchResponse, SearchResult
@@ -193,6 +195,15 @@ class TestGoogleCSEContractMocked:
             p.search("q", profile="framework")
         assert exc.value.kind == "not_configured"
 
+    def test_timeout_is_timeout_not_rate_limit(self, provider):
+        """Network timeout must map to kind='timeout', not 'rate_limit'."""
+        with patch("requests.get", side_effect=requests_lib.exceptions.Timeout()):
+            with pytest.raises(SearchError) as exc:
+                provider.search("q", profile="incident")
+        assert exc.value.kind == "timeout", (
+            "timeout must not be mislabelled as rate_limit — remediation is different"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Brave provider — mocked unit tests
@@ -239,6 +250,12 @@ class TestBraveContractMocked:
                 provider.search("q", profile="ics")
         assert exc.value.kind == "rate_limit"
 
+    def test_timeout_is_timeout_not_rate_limit(self, provider):
+        with patch("requests.get", side_effect=requests_lib.exceptions.Timeout()):
+            with pytest.raises(SearchError) as exc:
+                provider.search("q", profile="ics")
+        assert exc.value.kind == "timeout"
+
 
 # ---------------------------------------------------------------------------
 # Tavily provider — mocked unit tests
@@ -278,3 +295,9 @@ class TestTavilyContractMocked:
             with pytest.raises(SearchError) as exc:
                 provider.search("q", profile="incident")
         assert exc.value.kind == "quota"
+
+    def test_timeout_is_timeout_not_rate_limit(self, provider):
+        with patch("requests.post", side_effect=requests_lib.exceptions.Timeout()):
+            with pytest.raises(SearchError) as exc:
+                provider.search("q", profile="incident")
+        assert exc.value.kind == "timeout"
