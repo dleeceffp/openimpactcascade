@@ -347,7 +347,7 @@ def chat_loop(provider: str, weight: str, search_profile: Optional[str]) -> bool
 
     Returns True to signal "switch provider", False to exit.
     """
-    search_status = f"profile={search_profile}" if search_profile else "disabled"
+    search_status = search_profile if search_profile else "disabled"
     print(f"\n=== Chat with {provider.title()} ({weight})  search={search_status} ===")
     print("Commands: quit/exit | switch (change provider) | nosearch (toggle search off)")
     print("          search on <profile> (e.g. 'search on incident')")
