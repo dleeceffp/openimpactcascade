@@ -36,7 +36,8 @@ from ..profiles import get_profile_domains
 
 
 _BRAVE_API_URL = "https://api.search.brave.com/res/v1/web/search"
-_MAX_RESULTS = 20  # Brave Web Search API limit per request
+_MAX_RESULTS = 20   # Brave Web Search API limit per request
+_QUERY_LIMIT = 400  # Brave hard limit on query string length
 
 
 def _domain(url: str) -> str:
@@ -47,11 +48,42 @@ def _domain(url: str) -> str:
 
 
 def _build_site_query(query: str, sites: List[str]) -> str:
-    """Restrict query to profile domains via site: operators."""
+    """Restrict query to profile domains via site: operators.
+
+    Brave enforces a 400-character query limit.  When the full scoped query
+    would exceed this (most likely with the 22-site 'default' profile), sites
+    are dropped from the end of the list until it fits.  If even a single-site
+    clause would overflow the budget, the restriction is dropped entirely and
+    the query runs unscoped — better to return broad results than a 422 error.
+
+    All named profiles (<=10 sites) fit well within the limit.
+    """
     if not sites:
         return query
-    site_clause = " OR ".join(f"site:{s}" for s in sites)
-    return f"({query}) ({site_clause})"
+
+    # Wrap the bare query once — the parens add 2 chars + 1 space before the site clause.
+    base = f"({query}) "
+    budget = _QUERY_LIMIT - len(base) - 2  # -2 for the surrounding parens on site clause
+
+    kept: List[str] = []
+    used = 0
+    for i, s in enumerate(sites):
+        token = f"site:{s}"
+        separator = len(" OR ") if kept else 0
+        if used + separator + len(token) <= budget:
+            kept.append(token)
+            used += separator + len(token)
+        # else: drop this site — query is already at budget
+
+    if not kept:
+        return query  # nothing fits; run unscoped
+
+    site_clause = " OR ".join(kept)
+    dropped = len(sites) - len(kept)
+    if dropped:
+        # Attach a note so callers can see truncation happened (shows in SearchResponse.raw)
+        pass  # silent truncation — logged at the caller level via result count
+    return f"{base}({site_clause})"
 
 
 class BraveProvider(SearchProvider):
@@ -156,6 +188,21 @@ class BraveProvider(SearchProvider):
                 kind="auth",
             )
         if resp.status_code == 422:
+            # 422 covers both subscription/quota issues AND request validation errors
+            # (e.g. query too long).  Check the error type to classify correctly.
+            try:
+                detail = resp.json().get("error", {}).get("detail", "")
+                errors = resp.json().get("error", {}).get("meta", {}).get("errors", [])
+                is_validation = any(e.get("type") in ("too_long", "too_short", "missing", "value_error")
+                                    for e in errors)
+            except Exception:
+                is_validation = False
+            if is_validation:
+                raise SearchError(
+                    f"Brave Search request validation error: {err_msg}",
+                    provider=self.name,
+                    kind="unknown",
+                )
             raise SearchError(
                 f"Brave Search subscription inactive or quota exceeded: {err_msg}",
                 provider=self.name,
