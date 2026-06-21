@@ -215,11 +215,18 @@ class AssessmentContext:
 
 # ========== END ASSESSMENT CONTEXT CLASS ==========
 
-# Initialize AI generator with version-specific tracker
+# Initialize AI generator with version-specific tracker.
+# config.py has already run _bootstrap_env() so .env values are in os.environ
+# before we read OIC_SEARCH_PROVIDER here.
 ai_generator = None
 try:
-    ai_generator = AIQuestionGeneratorWithRAGAndRationale()
-    logger.info(f"[{VERSION}] AI Question Generator initialized successfully (currated-context + Web Search)")
+    ai_generator = AIQuestionGeneratorWithRAGAndRationale(
+        search_provider=os.environ.get("OIC_SEARCH_PROVIDER"),
+    )
+    logger.info(
+        f"[{VERSION}] AI Question Generator initialized "
+        f"(search_provider={os.environ.get('OIC_SEARCH_PROVIDER', 'env/config')})"
+    )
 except Exception as e:
     logger.warning(f"[{VERSION}] AI Generator not available: {e}", exc_info=True)
     ai_generator = None

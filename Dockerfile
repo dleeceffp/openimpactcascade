@@ -28,6 +28,9 @@ COPY app/simulation.py /app/
 COPY app/user_tracking.py /app/
 COPY app/context_storage.py /app/
 
+# Copy shared OIC modules (oic_search — pluggable search/grounding layer)
+COPY src/oic_search/ /app/lib/oic_search/
+
 # Copy corpus module
 COPY app/corpus/ /app/corpus/
 
@@ -57,6 +60,9 @@ RUN mkdir -p /app/generated \
 ENV FLASK_APP=main.py
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
+# Make the shared oic_search package importable without a pip install.
+# /app/lib sits alongside the app code; both are on the path.
+ENV PYTHONPATH=/app/lib
 
 # Expose port
 EXPOSE 8080

@@ -7,17 +7,35 @@ web searches only for missing information. Avoids duplication.
 This is a DROP-IN REPLACEMENT for v213 with identical interface.
 """
 
+import logging
 import os
 import json
 import anthropic
-import requests
 from typing import Dict, List, Optional, Tuple, Set
 from datetime import datetime
 from user_tracking import get_tracker, create_api_metadata
 from corpus.retrieve import get_rag_engine as get_corpus_retriever
 
-
 from config import OIC_MODEL, OIC_MODEL_FAST, OIC_MODEL_DEEP, build_system
+
+# ---------------------------------------------------------------------------
+# oic_search — pluggable search/grounding layer
+# ---------------------------------------------------------------------------
+# Imported lazily inside _execute_search so that startup never fails if the
+# package is temporarily unavailable.  The provider is chosen by:
+#   1. search_provider argument to __init__  (explicit override)
+#   2. OIC_SEARCH_PROVIDER env var           (set by docker/Secret Manager/.env)
+#   3. oic_search built-in default           (google_cse — warns at init)
+try:
+    import oic_search as _oic_search
+    from oic_search.base import SearchError as _SearchError
+    _OIC_SEARCH_AVAILABLE = True
+except ImportError:
+    _oic_search = None  # type: ignore[assignment]
+    _SearchError = Exception  # type: ignore[assignment,misc]
+    _OIC_SEARCH_AVAILABLE = False
+
+_logger = logging.getLogger("oic.ai_question_generator")
 
 class AIQuestionGeneratorWithRAGAndRationale:
     """
@@ -32,45 +50,66 @@ class AIQuestionGeneratorWithRAGAndRationale:
     """
     
     def __init__(
-        self, 
-        api_key: Optional[str] = None, 
-        enable_rag: bool = True, 
+        self,
+        api_key: Optional[str] = None,
+        enable_rag: bool = True,
         enable_web_search: bool = True,
+        search_provider: Optional[str] = None,
+        # Legacy keyword args kept for backwards compatibility — no longer used.
         google_search_api_key: Optional[str] = None,
-        google_search_cse_id: Optional[str] = None
+        google_search_cse_id: Optional[str] = None,
     ):
-        """
-        Initialize the question generator with currated-context and intelligent Google Search.
-        
+        """Initialize the question generator with currated-context and web search.
+
         Args:
-            api_key: Anthropic API key (or from ANTHROPIC_API_KEY env var)
-            enable_rag: Enable currated-context corpus retrieval (default: True)
-            enable_web_search: Enable intelligent web search (default: True)
-            google_search_api_key: Google Custom Search API key (or from env)
-            google_search_cse_id: Google Custom Search Engine ID (or from env)
+            api_key:          Anthropic API key (or ANTHROPIC_API_KEY env var).
+            enable_rag:       Enable currated-context corpus retrieval (default: True).
+            enable_web_search: Enable intelligent web search (default: True).
+            search_provider:  oic_search provider name — "tavily", "brave",
+                              "google_cse", or "null".  When None, resolved from
+                              OIC_SEARCH_PROVIDER env var or oic_search defaults.
+            google_search_api_key: Deprecated — ignored; kept for call-site compatibility.
+            google_search_cse_id:  Deprecated — ignored; kept for call-site compatibility.
         """
         self.api_key = api_key or os.environ.get('ANTHROPIC_API_KEY')
         if not self.api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable must be set")
-        
+
         self.client = anthropic.Anthropic(api_key=self.api_key)
         self.enable_rag = enable_rag
-        self.enable_web_search = enable_web_search
-        
-        # Google Search API credentials
-        self.google_search_api_key = google_search_api_key or os.environ.get('GOOGLE_SEARCH_API_KEY')
-        self.google_search_cse_id = google_search_cse_id or os.environ.get('GOOGLE_SEARCH_CSE_ID')
-        
         self.model = OIC_MODEL
-        
-        # Validate web search configuration
-        if self.enable_web_search:
-            if not self.google_search_api_key or not self.google_search_cse_id:
-                print("⚠️  Google Search credentials missing (GOOGLE_SEARCH_API_KEY, GOOGLE_SEARCH_CSE_ID)")
-                print("    Web search will be disabled")
-                self.enable_web_search = False
+
+        # Resolve search provider: explicit arg → env var → oic_search default.
+        self.search_provider: Optional[str] = (
+            search_provider
+            or os.environ.get("OIC_SEARCH_PROVIDER")
+        )
+
+        # Determine whether web search is usable at startup.
+        self.enable_web_search = False
+        if enable_web_search:
+            if not _OIC_SEARCH_AVAILABLE:
+                _logger.warning(
+                    "oic_search package not found on PYTHONPATH — web search disabled. "
+                    "Ensure src/oic_search is copied to /app/lib in the container."
+                )
             else:
-                print("✅ Google Custom Search API enabled (intelligent mode)")
+                # Attempt a cheap provider instantiation to surface missing credentials
+                # before the first real request.  Fail-open: disable search rather than
+                # crashing startup if the key is absent.
+                try:
+                    import oic_search.registry as _reg
+                    effective = self.search_provider or _reg.load_config().provider if hasattr(_reg, 'load_config') else self.search_provider
+                    _logger.info(
+                        "Web search enabled via oic_search (provider=%s)",
+                        self.search_provider or "env/config",
+                    )
+                    self.enable_web_search = True
+                except Exception as exc:
+                    _logger.warning(
+                        "Web search initialisation failed (%s: %s) — search disabled for this session.",
+                        type(exc).__name__, exc,
+                    )
         
         # Initialize Corpus Retriever (pillar-based grounding)
         if self.enable_rag:
@@ -379,62 +418,68 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         # Limit to max_queries
         return queries[:max_queries]
 
-    def _execute_google_search(self, query: str, max_results: int = 5) -> List[Dict]:
-        """
-        Execute a Google Custom Search and return structured results.
-        
+    def _execute_search(self, query: str, max_results: int = 5, profile: Optional[str] = None) -> List[Dict]:
+        """Execute a search via oic_search and return normalised result dicts.
+
+        The return format matches what _format_search_results expects:
+            [{"title": ..., "snippet": ..., "link": ..., "display_link": ...}, ...]
+
         Args:
-            query: Search query string
-            max_results: Maximum number of results to retrieve (1-10)
-            
+            query:       Search query string.
+            max_results: Maximum results to retrieve (capped by provider limits).
+            profile:     OIC source profile ("incident", "threatintel", etc.).
+                         Defaults to "incident" for targeted gap-filling queries.
+
         Returns:
-            List of result dictionaries with title, snippet, link
+            List of result dicts, empty on any error (search failures are never fatal).
         """
-        if not self.google_search_api_key or not self.google_search_cse_id:
+        if not _OIC_SEARCH_AVAILABLE or not self.enable_web_search:
             return []
-        
+
+        effective_profile = profile or "incident"
         try:
-            # Google Custom Search API endpoint
-            url = "https://www.googleapis.com/customsearch/v1"
-            
-            params = {
-                'key': self.google_search_api_key,
-                'cx': self.google_search_cse_id,
-                'q': query,
-                'num': min(max_results, 10)  # API max is 10
-            }
-            
-            response = requests.get(url, params=params, timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                results = []
-                
-                for item in data.get('items', []):
-                    results.append({
-                        'title': item.get('title', ''),
-                        'snippet': item.get('snippet', ''),
-                        'link': item.get('link', ''),
-                        'display_link': item.get('displayLink', '')
-                    })
-                
-                return results
-            
-            elif response.status_code == 429:
-                print(f"   ⚠️  Rate limit exceeded for query: {query[:50]}...")
-                return []
-            
+            response = _oic_search.search(
+                query,
+                provider=self.search_provider or None,
+                profile=effective_profile,
+                num=max_results,
+            )
+            return [
+                {
+                    "title": r.title,
+                    "snippet": r.snippet,
+                    "link": r.url,
+                    "display_link": r.source,
+                }
+                for r in response.results
+            ]
+        except _SearchError as exc:
+            # Distinguish transient from permanent failures for better log signal.
+            if exc.kind in ("auth", "not_configured"):
+                _logger.warning(
+                    "Search provider '%s' not configured (%s) — disabling search. "
+                    "Check OIC_SEARCH_PROVIDER and the corresponding API key env var.",
+                    exc.provider, exc,
+                )
+                self.enable_web_search = False  # stop burning retries this session
+            elif exc.kind in ("quota", "rate_limit"):
+                _logger.warning("Search quota/rate-limit hit for '%s': %s", query[:60], exc)
+            elif exc.kind == "timeout":
+                _logger.warning("Search timeout for '%s'", query[:60])
             else:
-                print(f"   ⚠️  Search failed (HTTP {response.status_code}): {query[:50]}...")
-                return []
-                
-        except requests.exceptions.Timeout:
-            print(f"   ⚠️  Search timeout: {query[:50]}...")
+                _logger.warning("Search error for '%s': %s", query[:60], exc)
             return []
-        
-        except Exception as e:
-            print(f"   ⚠️  Search error: {e}")
+        except Exception as exc:
+            _logger.warning("Unexpected search error for '%s': %s", query[:60], exc)
             return []
+
+    # ---------------------------------------------------------------------------
+    # Backwards-compat alias — callers inside _perform_intelligent_web_search
+    # used the old name; redirect so any external callers also keep working.
+    # ---------------------------------------------------------------------------
+    def _execute_google_search(self, query: str, max_results: int = 5) -> List[Dict]:
+        """Deprecated alias for _execute_search.  Use _execute_search directly."""
+        return self._execute_search(query, max_results=max_results)
 
     def _format_search_results(self, results: List[Dict], category: str) -> str:
         """Format search results for inclusion in prompt context."""
@@ -557,60 +602,88 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
         """
         if not self.enable_web_search:
             return "", []
-        
+
         if card is not None:
-            print("🔍 Performing intelligent web search (cascade-grounded)...")
+            _logger.info("Performing intelligent web search (cascade-grounded)...")
             queries = self._generate_card_grounded_queries(industry, region, card, rag_analysis)
         else:
-            print("🔍 Performing intelligent web search (currated-context informed)...")
+            _logger.info("Performing intelligent web search (currated-context informed)...")
             queries = self._generate_targeted_queries(industry, region, rag_analysis)
-        
-        print(f"   currated-context Analysis: {len(rag_analysis.get('gaps', []))} gaps identified")
-        print(f"   Generated {len(queries)} targeted search queries")
-        
+
+        _logger.info(
+            "currated-context Analysis: %d gaps identified; generated %d targeted queries",
+            len(rag_analysis.get('gaps', [])), len(queries),
+        )
+
+        # Map query category -> oic_search profile for domain scoping.
+        # "incident" covers CISA advisories, DBIR/Ponemon breach costs, and regional
+        # incident reports.  "threatintel" is used for vendor threat-specific queries.
+        _CATEGORY_PROFILE = {
+            "ultra_recent_incidents": "incident",
+            "breach_statistics":      "incident",
+            "federal_advisories":     "incident",
+            "regional_incidents":     "incident",
+            "archetype_prevalence":   "incident",
+            "archetype_loss":         "incident",
+            "archetype_regulation":   "incident",
+            "archetype_frequency":    "incident",
+        }
+
         search_results = []
         web_context_parts = []
-        
+
         # Execute each targeted query
         for i, (query, category) in enumerate(queries, 1):
-            print(f"   Search {i}/{len(queries)}: {query}")
-            
-            # Determine result count based on priority
-            max_results = 4 if i == 1 else 3  # More results for first query
-            
-            results = self._execute_google_search(query, max_results=max_results)
-            
+            _logger.debug("Search %d/%d [%s]: %s", i, len(queries), category, query)
+
+            # More results for the first (highest-priority) query
+            max_results = 4 if i == 1 else 3
+            profile = _CATEGORY_PROFILE.get(
+                category,
+                "threatintel" if category.startswith("threat_specific") else "incident",
+            )
+
+            results = self._execute_search(query, max_results=max_results, profile=profile)
+
             if results:
                 search_results.append({
                     'query': query,
                     'category': category,
                     'results_count': len(results),
-                    'sources': [r['link'] for r in results]
+                    'sources': [r['link'] for r in results],
+                    'provider': self.search_provider or os.environ.get("OIC_SEARCH_PROVIDER", "configured"),
                 })
                 formatted = self._format_search_results(results, category)
                 web_context_parts.append(formatted)
-                print(f"      ✓ Found {len(results)} results")
+                _logger.debug("  Search %d: %d results", i, len(results))
             else:
-                print(f"      ✗ No results")
-        
+                _logger.debug("  Search %d: no results", i)
+
         # Compile formatted context
         if web_context_parts:
+            provider_label = self.search_provider or os.environ.get("OIC_SEARCH_PROVIDER", "oic_search")
             formatted_context = "\n\n".join([
                 "=" * 70,
-                "🌐 TARGETED WEB SEARCH RESULTS (currated-context informed Intelligence)",
+                f"TARGETED WEB SEARCH RESULTS (currated-context informed, provider={provider_label})",
                 "=" * 70,
-                f"Note: These searches target gaps in the currated-context corpus knowledge base.",
-                f"currated-context provides foundational knowledge; web search adds recent updates.",
+                "Note: These searches target gaps in the currated-context corpus knowledge base.",
+                "currated-context provides foundational knowledge; web search adds recent updates.",
                 "=" * 70,
                 "\n\n".join(web_context_parts),
-                "=" * 70
+                "=" * 70,
             ])
             total_results = sum(r.get('results_count', 0) for r in search_results)
-            print(f"✅ Intelligent search completed: {len(queries)} targeted queries, {total_results} results")
+            _logger.info(
+                "Intelligent search completed: %d queries, %d results (provider=%s)",
+                len(queries), total_results, provider_label,
+            )
         else:
             formatted_context = ""
-            print("⚠️  No web search results obtained")
-        
+            _logger.warning(
+                "No web search results obtained (provider=%s)",
+                self.search_provider or os.environ.get("OIC_SEARCH_PROVIDER", "oic_search"),
+            )
+
         return formatted_context, search_results
 
     def generate_questionnaire(

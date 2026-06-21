@@ -1,4 +1,64 @@
+import logging
 import os
+from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Environment bootstrap
+# ---------------------------------------------------------------------------
+# Resolution order (highest wins):
+#   1. Process environment (GCP Cloud Run secrets / docker --env / K8s envFrom)
+#   2. Local .env file     (dev server — present only outside containers)
+#   3. Built-in defaults   (below)
+#
+# python-dotenv is already in requirements.txt.  We use override=False so that
+# variables already set by the container runtime (Secret Manager, --env flags)
+# are never overwritten by a stale .env line.  The loader is silent when .env
+# is absent — which is the normal container behaviour.
+# ---------------------------------------------------------------------------
+_logger = logging.getLogger("oic.config")
+
+def _bootstrap_env() -> None:
+    """Load .env into the process environment, if a .env file is found.
+
+    Search order:
+      1. OIC_ENV_FILE env var — explicit override (useful in test suites)
+      2. .env in the app working directory (typical dev-server layout)
+      3. .env one level above the app dir (monorepo root, e.g. OIC_SBX/.env)
+
+    Never raises.  Uses override=False so container secrets always win.
+    """
+    try:
+        from dotenv import load_dotenv, find_dotenv  # type: ignore
+    except ImportError:
+        # python-dotenv not installed (shouldn't happen — it's in requirements.txt)
+        _logger.debug("python-dotenv not available; skipping .env load")
+        return
+
+    explicit = os.environ.get("OIC_ENV_FILE")
+    if explicit:
+        candidates = [Path(explicit)]
+    else:
+        candidates = [
+            Path(".env"),                          # app working dir (dev server / docker CWD)
+            Path(__file__).parent / ".env",        # same dir as config.py
+            Path(__file__).parent.parent / ".env", # monorepo root (OIC_SBX/.env)
+        ]
+
+    for candidate in candidates:
+        if candidate.exists():
+            load_dotenv(dotenv_path=candidate, override=False)
+            _logger.debug("Loaded environment from %s", candidate)
+            return
+
+    # No .env found — normal in container deployments where secrets come from
+    # Secret Manager or --env flags.  Log at DEBUG so it never alarms.
+    _logger.debug(
+        "No .env file found (checked %s); relying on process environment",
+        ", ".join(str(c) for c in candidates),
+    )
+
+
+_bootstrap_env()
 
 # Anthropic Claude model selection (env-overridable; do not hardcode elsewhere).
 OIC_MODEL       = os.getenv("OIC_MODEL", "claude-sonnet-4-6")     # default workhorse
