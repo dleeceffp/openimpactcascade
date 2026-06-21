@@ -29,16 +29,20 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Generate a STIX 2.1 bundle for healthcare in the US (medium enterprise)
+  # Generate using default provider (oic_llm env/config) with Tavily search
   python cli.py --industry healthcare --region "United States" --org-size "500-1000"
 
-  # Generate with a specific threat scenario
+  # Generate with a specific LLM provider and weight
   python cli.py --industry financial --region Canada --org-size SME \\
-      --threat "ransomware via phishing"
+      --provider anthropic --weight heavy
 
-  # Output both the STIX bundle and a markdown summary
+  # Switch to Gemini, use Brave for search, output both STIX and markdown
   python cli.py --industry manufacturing --region UK --org-size Enterprise \\
-      --output ./my_flows --format both
+      --provider gemini --weight heavy --search-provider brave --format both
+
+  # Offline run — no web search
+  python cli.py --industry healthcare --region "United States" --org-size Enterprise \\
+      --no-web-search
         """
     )
 
@@ -75,6 +79,28 @@ Examples:
         choices=["stix", "json", "md", "markdown", "both"],
         default="stix",
         help="Output format: stix (default, STIX 2.1 JSON bundle), json (alias for stix), md/markdown, both"
+    )
+    # LLM provider/weight overrides (default: oic_llm env/config)
+    parser.add_argument(
+        "--provider",
+        choices=["anthropic", "openai", "gemini"],
+        default=None,
+        help="LLM provider to use (default: OIC_LLM_PROVIDER env var or oic_llm config)"
+    )
+    parser.add_argument(
+        "--weight",
+        choices=["light", "heavy"],
+        default=None,
+        help="Model weight/tier (default: OIC_LLM_WEIGHT env var or oic_llm config)"
+    )
+    # Search provider override
+    parser.add_argument(
+        "--search-provider",
+        choices=["tavily", "brave", "null"],
+        default=None,
+        dest="search_provider",
+        help="Search provider (default: OIC_SEARCH_PROVIDER env var, typically tavily). "
+             "Use 'null' to disable search without --no-web-search."
     )
     parser.add_argument(
         "--no-web-search",
@@ -120,6 +146,10 @@ def main() -> int:
     logger.info(f"Organization Size: {args.org_size}")
     if args.threat:
         logger.info(f"Threat Scenario: {args.threat}")
+    logger.info(f"LLM: provider={args.provider or 'env/config'}  weight={args.weight or 'env/config'}")
+    search_label = "disabled" if (args.no_web_search or args.search_provider == "null") \
+        else (args.search_provider or "env/config")
+    logger.info(f"Search: {search_label}")
     logger.info("=" * 70)
 
     try:
@@ -128,8 +158,15 @@ def main() -> int:
         if AttackFlowGenerator is None:
             from attack_flow_generator import AttackFlowGenerator
 
-        # Initialize generator
-        generator = AttackFlowGenerator()
+        # Initialize generator — credential validation happens inside oic_llm at call time
+        generator = AttackFlowGenerator(
+            provider=args.provider,
+            weight=args.weight,
+            search_provider=args.search_provider if args.search_provider != "null" else None,
+        )
+
+        # --search-provider null or --no-web-search both disable live search
+        include_search = not args.no_web_search and args.search_provider != "null"
 
         # Generate attack flow
         flow_data = generator.generate_flow(
@@ -137,7 +174,7 @@ def main() -> int:
             region=args.region,
             organization_size=args.org_size,
             threat_scenario=args.threat,
-            include_web_search=not args.no_web_search
+            include_web_search=include_search,
         )
 
         # Generate filename (without extension - save_to_file will add appropriate one)
@@ -209,13 +246,32 @@ def main() -> int:
 
 
 def _check_environment() -> bool:
-    """Check that required environment is configured."""
+    """Check that the environment has at least one usable LLM credential.
+
+    Does NOT hard-fail on a missing key for a specific provider — oic_llm raises
+    a typed ProviderError(kind='auth') at call time for the *selected* provider.
+    A missing key for a non-selected provider is irrelevant and ignored.
+    """
     import os
 
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        print("Error: ANTHROPIC_API_KEY environment variable not set")
-        print("Set it with: export ANTHROPIC_API_KEY='your-api-key'")
-        return False
+    has_llm = any([
+        os.environ.get("ANTHROPIC_API_KEY"),
+        os.environ.get("OPENAI_API_KEY"),
+        os.environ.get("GEMINI_API_KEY"),
+        os.environ.get("GOOGLE_API_KEY"),
+    ])
+    if not has_llm:
+        print("Warning: No LLM API key found (ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY).")
+        print("Set the key for your chosen provider before generating a flow.")
+        # Warn only — oic_llm will surface the precise ProviderError at call time.
+
+    has_search = any([
+        os.environ.get("TAVILY_API_KEY"),
+        os.environ.get("BRAVE_SEARCH_API_KEY"),
+    ])
+    if not has_search:
+        print("Note: No search API key found (TAVILY_API_KEY / BRAVE_SEARCH_API_KEY).")
+        print("Web search grounding will be skipped; use --no-web-search to silence this.")
 
     # Check if corpus is available
     corpus_dir = Path(__file__).parent.parent.parent / "app" / "corpus" / "ref_pillars"
@@ -223,7 +279,7 @@ def _check_environment() -> bool:
         print(f"Warning: Corpus directory not found at {corpus_dir}")
         print("Threat intelligence grounding may be limited.")
 
-    return True
+    return True  # Always proceed — let oic_llm raise precise errors at call time
 
 
 if __name__ == "__main__":

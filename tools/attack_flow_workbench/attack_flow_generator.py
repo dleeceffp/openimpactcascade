@@ -1,26 +1,30 @@
-"""Attack Flow generation logic using LLM and threat intelligence grounding."""
+"""Attack Flow generation logic using oic_llm and oic_search for grounding.
 
-import os
+Provider and search backend are selected at construction time (or resolved
+from environment/config defaults).  No vendor-specific code lives here.
+"""
+
 import json
 import logging
+import sys
+from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-try:
-    import anthropic
-except ImportError:
-    anthropic = None
+# Ensure src/ packages are importable when running from tools/
+_repo_root = Path(__file__).parent.parent.parent
+_src = str(_repo_root / "src")
+if _src not in sys.path:
+    sys.path.insert(0, _src)
 
-from config import OIC_MODEL, OIC_MODEL_FAST, build_system
+from oic_llm import complete, ProviderError
+from oic_search import search, SearchError, SearchResponse
+
 from mitre_loader import get_mitre_lookup
 try:
     from corpus_grounding import get_grounding
 except ImportError:
     get_grounding = None
-try:
-    from web_search import get_web_search
-except ImportError:
-    get_web_search = None
 
 logger = logging.getLogger("oic.attack_flow.generator")
 
@@ -28,18 +32,25 @@ logger = logging.getLogger("oic.attack_flow.generator")
 class AttackFlowGenerator:
     """Generates MITRE Attack Flows based on industry, region, and org size."""
 
-    def __init__(self, api_key: Optional[str] = None):
-        if anthropic is None:
-            raise ImportError("anthropic package not installed. Run: pip install anthropic")
+    def __init__(
+        self,
+        provider: Optional[str] = None,
+        weight: Optional[str] = None,
+        search_provider: Optional[str] = None,
+    ):
+        # None → oic_llm resolves from OIC_LLM_PROVIDER / OIC_LLM_WEIGHT env vars
+        self.provider = provider
+        self.weight = weight
+        # None → oic_search resolves from OIC_SEARCH_PROVIDER env var (default: tavily)
+        self.search_provider = search_provider
 
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        if not self.api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable must be set")
+        # Provenance fields populated by _generate_with_llm
+        self._last_model: str = "unknown"
+        self._last_provider: str = "unknown"
+        self._last_usage: dict = {}
 
-        self.client = anthropic.Anthropic(api_key=self.api_key)
         self.mitre = get_mitre_lookup()
         self.grounding = get_grounding() if get_grounding else None
-        self.web_search = get_web_search() if get_web_search else None
 
     def generate_flow(
         self,
@@ -62,11 +73,25 @@ class AttackFlowGenerator:
             corpus_text = "No corpus grounding available."
             threat_patterns = []
 
-        web_results = []
-        if include_web_search and self.web_search and self.web_search.enabled:
-            web_results = self.web_search.search_threats(industry, region)
-
-        web_text = self.web_search.format_results_for_prompt(web_results) if (self.web_search and web_results) else ""
+        web_text = ""
+        search_provider_used = "none"
+        search_performed = False
+        if include_web_search:
+            try:
+                q = f"{industry} {region} cyber attack breach ransomware"
+                sr: SearchResponse = search(
+                    q,
+                    profile="incident",
+                    num=5,
+                    provider=self.search_provider,  # None → oic_search env default
+                    time_range="year",              # Tavily recency filter; Brave ignores it
+                )
+                if sr.results:
+                    web_text = self._format_search_results(sr)
+                    search_provider_used = sr.provider
+                    search_performed = True
+            except SearchError as e:
+                logger.warning(f"web search unavailable ({e.kind}): {e}  — continuing without grounding")
 
         # Get relevant MITRE techniques based on threat patterns
         suggested_techniques = self._suggest_techniques_for_patterns(threat_patterns)
@@ -91,6 +116,10 @@ class AttackFlowGenerator:
             "generated_at": datetime.now().isoformat() + "Z",
             "generator": "OIC Attack Flow Workbench v0.1.0",
             "generation_status": flow_data.get("generation_status", "generated"),
+            "llm_provider": self._last_provider,
+            "llm_model": self._last_model,
+            "search_provider": search_provider_used,
+            "search_performed": search_performed,
         }
 
         return flow_data
@@ -204,35 +233,43 @@ Schema guidance:
 - Do not emit an "order" field.
 - Set "confidence" for each node: "observed" (grounded in supplied data), "reported" (consistent with public intel), or "speculative" (plausible but not evidenced)."""
 
+        # TODO: restore prompt caching via oic_llm cache_system flag once
+        # AnthropicProvider supports it (config.build_system() content-block
+        # format is incompatible with oic_llm.complete(system: str)).
         try:
-            response = self.client.messages.create(
-                model=OIC_MODEL,
+            resp = complete(
+                system=system_prompt,   # plain string — no Anthropic-native content blocks
+                messages=[{"role": "user", "content": user_prompt}],
+                provider=self.provider,  # None → oic_llm env/config default
+                weight=self.weight,
                 max_tokens=4000,
-                system=build_system(system_prompt),
-                messages=[{"role": "user", "content": user_prompt}]
             )
+            content = resp.text
+            self._last_model = resp.model
+            self._last_provider = resp.provider
+            self._last_usage = resp.usage or {}
 
-            # Extract JSON from response
-            content = response.content[0].text if response.content else ""
+        except ProviderError as e:
+            logger.error(f"LLM generation failed ({e.provider}/{e.kind}): {e}")
+            return self._generate_fallback_flow(industry, threat_patterns)
 
-            # Try to find JSON in the response
+        # Extract JSON from response — provider-agnostic, works for all backends
+        try:
             json_start = content.find("{")
             json_end = content.rfind("}") + 1
 
             if json_start >= 0 and json_end > json_start:
                 json_str = content[json_start:json_end]
-                flow_data = json.loads(json_str)
-                return flow_data
+                return json.loads(json_str)
             else:
                 raise ValueError("No valid JSON found in LLM response")
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse LLM response as JSON: {e}")
             logger.debug(f"Response content: {content}")
-            # Return a fallback structure
             return self._generate_fallback_flow(industry, threat_patterns)
-        except Exception as e:
-            logger.error(f"Error generating attack flow with LLM: {e}")
+        except ValueError as e:
+            logger.error(f"LLM response extraction failed: {e}")
             return self._generate_fallback_flow(industry, threat_patterns)
 
     def _build_system_prompt(self) -> str:
@@ -267,6 +304,30 @@ You have access to:
 - MITRE ATT&CK technique database
 
 Output must be valid JSON that can be converted to a MITRE Attack Flow document."""
+
+    def _format_search_results(self, sr: SearchResponse) -> str:
+        """Format oic_search results into a prompt-injectable context block.
+
+        Mirrors the shape of the legacy web_search.format_results_for_prompt()
+        so the LLM sees the same structure, but now includes source domain and
+        published date so the model can weight authority and recency.
+        """
+        lines = [
+            "=" * 70,
+            "RECENT THREAT INTELLIGENCE (Web Search)",
+            f"Provider: {sr.provider}  Profile: {sr.profile}  Results: {len(sr.results)}",
+            "=" * 70,
+        ]
+        for i, r in enumerate(sr.results, 1):
+            lines.append(f"\n{i}. {r.title}")
+            lines.append(f"   Source: {r.source}")
+            if r.published:
+                lines.append(f"   Date: {r.published}")
+            snippet = (r.snippet or "")[:300]
+            if snippet:
+                lines.append(f"   Summary: {snippet}")
+        lines.append("=" * 70)
+        return "\n".join(lines)
 
     def _generate_fallback_flow(self, industry: str, patterns: List[str]) -> Dict[str, Any]:
         """Generate a basic fallback flow if LLM generation fails."""
