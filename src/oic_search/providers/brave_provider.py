@@ -1,25 +1,28 @@
-"""Brave Search API provider — the non-Google hedge.
+"""Brave Search API provider — independent, no engine setup required.
 
-Brave Search is purpose-built for LLM grounding:
-- Returns clean snippets with consistent structure
-- No CSE engine setup required — site-scoping is done via query operators
-- Independent of Google's infrastructure and deprecation cycles
-
-This provider proves the oic_search abstraction works: swap OIC_SEARCH_PROVIDER
-from "google_cse" to "brave" and apps require no code changes.
+Brave Search returns clean snippets with consistent structure and is
+independent of Google's infrastructure and deprecation cycles.
 
 Credentials
 -----------
-  BRAVE_SEARCH_API_KEY  — from https://api.search.brave.com/
+  BRAVE_SEARCH_API_KEY  — from https://api-dashboard.search.brave.com/
 
-API reference: https://api.search.brave.com/app/documentation/web-search
+API reference: https://api-dashboard.search.brave.com/api-reference/web/search/get
 
 Site scoping
 ------------
 Brave does not use pre-configured engine IDs.  Profile domains are applied as
-site: operators appended to the query.  This is slightly less precise than a
-pre-configured CSE for large site lists, but works correctly for the OIC
-profiles (all <= 22 sites, all named profiles <= 10).
+site: operators appended to the query.  Works correctly for all OIC profiles
+(all named profiles <= 10 domains; default profile has 22).
+
+Key parameters (pass via **opts to search()):
+  freshness   Recency filter — useful for knowledge cut-off queries:
+                "pd"  — last 24 hours
+                "pw"  — last 7 days
+                "pm"  — last 31 days
+                "py"  — last year
+                "YYYY-MM-DDtoYYYY-MM-DD"  — custom range
+  count       1–20 (default 20; oic_search clamps to 20)
 """
 
 import os
@@ -33,7 +36,7 @@ from ..profiles import get_profile_domains
 
 
 _BRAVE_API_URL = "https://api.search.brave.com/res/v1/web/search"
-_MAX_RESULTS = 10  # Brave Web Search API limit per request
+_MAX_RESULTS = 20  # Brave Web Search API limit per request
 
 
 def _domain(url: str) -> str:
