@@ -242,11 +242,16 @@ def _format_search_response(resp: SearchResponse, query: str) -> str:
     return "\n".join(lines)
 
 
-def run_web_search(query: str, profile: str, num: int = 5) -> str:
+def run_web_search(
+    query: str,
+    profile: str,
+    num: int = 5,
+    active_provider: Optional[str] = None,
+) -> str:
     """Execute an oic_search query with timing, provider identification, and fallback.
 
     Search order:
-      1. Configured provider (OIC_SEARCH_PROVIDER env var, default: tavily)
+      1. active_provider if set (mid-session override), else OIC_SEARCH_PROVIDER env var
       2. If that provider fails with a hard error (auth/not_configured/timeout/unknown),
          try each remaining registered provider in order until one succeeds.
       3. rate_limit and quota errors are NOT retried on another provider — they
@@ -261,14 +266,17 @@ def run_web_search(query: str, profile: str, num: int = 5) -> str:
     if not _SEARCH_AVAILABLE:
         return ""
 
-    # Build the ordered provider list: configured first, then the rest as fallbacks.
+    # Build the ordered provider list: active/configured first, then fallbacks.
     # Kinds that warrant trying the next provider (provider is broken/unavailable).
     _FALLBACK_KINDS = {"auth", "not_configured", "timeout", "unknown"}
 
-    try:
-        cfg_provider = load_search_config().provider
-    except Exception:
-        cfg_provider = "tavily"
+    if active_provider:
+        cfg_provider = active_provider
+    else:
+        try:
+            cfg_provider = load_search_config().provider
+        except Exception:
+            cfg_provider = "tavily"
 
     all_providers = list_search_providers()
     ordered = [cfg_provider] + [p for p in all_providers if p != cfg_provider and p != "null"]
@@ -309,6 +317,7 @@ def build_grounded_system_prompt(
     search_profile: Optional[str],
     user_query: str,
     num_results: int = 5,
+    active_provider: Optional[str] = None,
 ) -> str:
     """Build a system prompt that includes fresh web-search context for this turn.
 
@@ -323,7 +332,9 @@ def build_grounded_system_prompt(
     if not search_profile:
         return BASE_SYSTEM_PROMPT
 
-    context_block = run_web_search(user_query, search_profile, num=num_results)
+    context_block = run_web_search(
+        user_query, search_profile, num=num_results, active_provider=active_provider
+    )
     if not context_block:
         return BASE_SYSTEM_PROMPT
 
@@ -387,15 +398,28 @@ def chat_loop(provider: str, weight: str, search_profile: Optional[str]) -> bool
 
     Returns True to signal "switch provider", False to exit.
     """
-    search_status = search_profile if search_profile else "disabled"
-    print(f"\n=== Chat with {provider.title()} ({weight})  search={search_status} ===")
+    # Resolve the configured search provider for display and mid-session tracking.
+    try:
+        cfg_provider = load_search_config().provider if _SEARCH_AVAILABLE else None
+    except Exception:
+        cfg_provider = None
+
+    def _search_status(prov: Optional[str], prof: Optional[str]) -> str:
+        if not prof:
+            return "disabled"
+        return f"{prov or '?'}:{prof}"
+
+    print(f"\n=== Chat with {provider.title()} ({weight})  "
+          f"search={_search_status(cfg_provider, search_profile)} ===")
     print("Commands: quit/exit | switch (change provider) | nosearch (toggle search off)")
-    print("          search on <profile> (e.g. 'search on incident')")
+    print("          search on <profile>      e.g. 'search on incident'")
+    print("          use provider <name>      e.g. 'use provider brave'")
     print("-" * 60)
     print(f"Using model: {resolve_model(provider, weight)}")
 
     messages: List[dict] = []
-    active_profile = search_profile  # mutable for this session
+    active_profile = search_profile       # mutable for this session
+    active_search_provider = cfg_provider  # mutable: None means use env config
 
     while True:
         try:
@@ -415,9 +439,22 @@ def chat_loop(provider: str, weight: str, search_profile: Optional[str]) -> bool
                 requested = user_input[len("search on "):].strip()
                 if requested in list_profiles():
                     active_profile = requested
-                    print(f"Search profile switched to '{active_profile}'.")
+                    print(f"Search switched to "
+                          f"{_search_status(active_search_provider, active_profile)}.")
                 else:
-                    print(f"Unknown profile '{requested}'. Available: {', '.join(list_profiles())}")
+                    print(f"Unknown profile '{requested}'. "
+                          f"Available: {', '.join(list_profiles())}")
+                continue
+            if user_input.lower().startswith("use provider "):
+                requested = user_input[len("use provider "):].strip()
+                available = [p for p in list_search_providers() if p != "null"]
+                if requested in available:
+                    active_search_provider = requested
+                    print(f"Search provider switched to "
+                          f"{_search_status(active_search_provider, active_profile)}.")
+                else:
+                    print(f"Unknown provider '{requested}'. "
+                          f"Available: {', '.join(available)}")
                 continue
 
             # --- Build grounded system prompt for this turn ---
@@ -425,6 +462,7 @@ def chat_loop(provider: str, weight: str, search_profile: Optional[str]) -> bool
                 search_profile=active_profile,
                 user_query=user_input,
                 num_results=5,
+                active_provider=active_search_provider,
             )
 
             messages.append({"role": "user", "content": user_input})
