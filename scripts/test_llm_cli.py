@@ -16,6 +16,7 @@ Usage:
 import argparse
 import sys
 import os
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -34,6 +35,7 @@ except ImportError as e:
 
 try:
     from oic_search import search, SearchError, SearchResponse
+    from oic_search.config import load_config as load_search_config
     from oic_search.registry import list_providers as list_search_providers
     from oic_search.profiles import list_profiles
     _SEARCH_AVAILABLE = True
@@ -241,28 +243,66 @@ def _format_search_response(resp: SearchResponse, query: str) -> str:
 
 
 def run_web_search(query: str, profile: str, num: int = 5) -> str:
-    """Execute a single oic_search query and return a formatted context block.
+    """Execute an oic_search query with timing, provider identification, and fallback.
 
-    This is the canonical grounding pattern:
-        search() → SearchResponse → format → inject into system prompt.
+    Search order:
+      1. Configured provider (OIC_SEARCH_PROVIDER env var, default: tavily)
+      2. If that provider fails with a hard error (auth/not_configured/timeout/unknown),
+         try each remaining registered provider in order until one succeeds.
+      3. rate_limit and quota errors are NOT retried on another provider — they
+         indicate the provider is up but temporarily restricted.
 
-    Returns an empty string (silently) when search is unavailable or fails,
-    so the chat loop degrades gracefully to ungrounded mode.
+    Each attempt prints:
+      [search] provider=<name>  profile=<profile>  query...  N result(s)  (X.XXs)
+
+    Returns an empty string when all providers fail, so the chat loop degrades
+    gracefully to ungrounded mode.
     """
     if not _SEARCH_AVAILABLE:
         return ""
+
+    # Build the ordered provider list: configured first, then the rest as fallbacks.
+    # Kinds that warrant trying the next provider (provider is broken/unavailable).
+    _FALLBACK_KINDS = {"auth", "not_configured", "timeout", "unknown"}
+
     try:
-        print(f"  [search] {query!r}  profile={profile} ...", end="", flush=True)
-        resp = search(query, profile=profile, num=num)
-        cache_label = " (cached)" if resp.cached else ""
-        print(f" {len(resp.results)} result(s){cache_label}")
-        return _format_search_response(resp, query)
-    except SearchError as e:
-        print(f" FAILED ({e.kind}): {e}")
-        return ""
-    except Exception as e:
-        print(f" error: {e}")
-        return ""
+        cfg_provider = load_search_config().provider
+    except Exception:
+        cfg_provider = "tavily"
+
+    all_providers = list_search_providers()
+    ordered = [cfg_provider] + [p for p in all_providers if p != cfg_provider and p != "null"]
+
+    for provider_name in ordered:
+        is_fallback = provider_name != ordered[0]
+        fallback_label = f"  [fallback→{provider_name}]" if is_fallback else ""
+        print(
+            f"  [search]{fallback_label} provider={provider_name}  "
+            f"profile={profile}  {query[:60]!r} ...",
+            end="", flush=True,
+        )
+        t0 = time.perf_counter()
+        try:
+            resp = search(query, profile=profile, num=num, provider=provider_name)
+            elapsed = time.perf_counter() - t0
+            cache_label = " [cached]" if resp.cached else ""
+            print(f"  {len(resp.results)} result(s){cache_label}  ({elapsed:.2f}s)")
+            return _format_search_response(resp, query)
+
+        except SearchError as e:
+            elapsed = time.perf_counter() - t0
+            if e.kind in _FALLBACK_KINDS and provider_name != ordered[-1]:
+                print(f"  FAILED ({e.kind}) ({elapsed:.2f}s) — trying next provider")
+            else:
+                print(f"  FAILED ({e.kind}) ({elapsed:.2f}s): {e}")
+                break  # quota/rate_limit: don't fan-out to other providers
+
+        except Exception as e:
+            elapsed = time.perf_counter() - t0
+            print(f"  error ({elapsed:.2f}s): {e}")
+            break
+
+    return ""
 
 
 def build_grounded_system_prompt(
