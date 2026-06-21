@@ -162,29 +162,84 @@ gcloud secrets add-iam-policy-binding "GEMINI_API_KEY" \
     --quiet
 
 # The application requires several sensitive keys. We will store these in Secret Manager.
+#
+# Search provider notes:
+#   TAVILY_API_KEY       — Primary provider key (recommended — purpose-built for LLM grounding).
+#                          Sign up at https://tavily.com  (1,000 free queries/month).
+#   BRAVE_SEARCH_API_KEY — Fallback provider key.  Having both means web search continues
+#                          automatically if Tavily hits quota or is temporarily down.
+#                          Sign up at https://api-dashboard.search.brave.com/ (2,000 free/month).
+#   OIC_SEARCH_PROVIDER  — Active primary provider. Stored as a secret so the operator can
+#                          switch providers (e.g. tavily → brave) without a container redeploy.
+#                          Typical value: tavily
+#   OIC_SEARCH_FALLBACK  — Comma-separated fallback chain tried on quota/timeout/rate-limit.
+#                          Typical value: brave   (i.e. fall back to Brave when Tavily is down)
+#                          The failover is invisible to end-users.
+#
+# Both TAVILY_API_KEY and BRAVE_SEARCH_API_KEY should be provisioned so the fallback
+# chain is always available.  Skipping one means there is no failover for that provider.
+#
+# Google Custom Search (GOOGLE_SEARCH_API_KEY / GOOGLE_SEARCH_CSE_ID) has been removed.
+# The service is closed to new customers and deprecated Jan 2027.
 SECRETS=(
     "ANTHROPIC_API_KEY"
     "SECRET_KEY"
-    "GOOGLE_SEARCH_API_KEY"
-    "GOOGLE_SEARCH_CSE_ID"
+    "TAVILY_API_KEY"
+    "BRAVE_SEARCH_API_KEY"
+    "OIC_SEARCH_PROVIDER"
+    "OIC_SEARCH_FALLBACK"
     "APP_USERNAME"
     "APP_PASSWORD"
 )
 
 echo "Setting up remaining Secret Manager secrets..."
+
+# OIC_SEARCH_FALLBACK has a safe default (brave) so it is optional at the prompt.
+# Both search provider keys are strongly encouraged but individually skippable
+# (you lose failover for whichever one is absent).
+OPTIONAL_SECRETS=(
+    "BRAVE_SEARCH_API_KEY"    # strongly recommended — failover when Tavily is down
+    "OIC_SEARCH_FALLBACK"     # safe default is "brave"; skip only if single-provider is acceptable
+)
+
 for SECRET in "${SECRETS[@]}"; do
     if ! gcloud secrets describe "$SECRET" --project="$PROJECT_ID" &>/dev/null; then
-        echo "Creating secret: $SECRET (You will be prompted to provide the value)"
-        
-        # We read securely to not store secrets in bash history
-        read -s -p "Enter value for $SECRET: " SECRET_VALUE
-        echo
-        
+        # Check if this is an optional secret
+        IS_OPTIONAL=false
+        for OPT in "${OPTIONAL_SECRETS[@]}"; do
+            if [ "$SECRET" = "$OPT" ]; then IS_OPTIONAL=true; break; fi
+        done
+
+        if [ "$SECRET" = "OIC_SEARCH_FALLBACK" ]; then
+            read -p "Enter value for $SECRET [default: brave] (press Enter to use default): " SECRET_VALUE
+            echo
+            if [ -z "$SECRET_VALUE" ]; then
+                SECRET_VALUE="brave"
+                echo "Using default value 'brave' for OIC_SEARCH_FALLBACK."
+            fi
+        elif [ "$IS_OPTIONAL" = true ]; then
+            read -s -p "Enter value for $SECRET (press Enter to skip — failover for this provider will be unavailable): " SECRET_VALUE
+            echo
+        else
+            read -s -p "Enter value for $SECRET: " SECRET_VALUE
+            echo
+        fi
+
+        if [ -z "$SECRET_VALUE" ] && [ "$IS_OPTIONAL" = true ]; then
+            echo "Skipping optional secret $SECRET (no value provided — no failover for this provider)."
+            continue
+        fi
+
+        if [ -z "$SECRET_VALUE" ]; then
+            echo "ERROR: $SECRET is required and cannot be empty."
+            exit 1
+        fi
+
         echo -n "$SECRET_VALUE" | gcloud secrets create "$SECRET" \
             --project="$PROJECT_ID" \
             --replication-policy="automatic" \
             --data-file=-
-            
+
         echo "Successfully created secret $SECRET."
     else
         echo "Secret $SECRET already exists. Skipping creation."
@@ -234,6 +289,41 @@ echo "Deploying to Cloud Run..."
 # read -p "Enter VERTEX_RAG_CORPUS ID or name (leave blank if not using): " VERTEX_RAG_CORPUS
 VERTEX_RAG_CORPUS=""
 
+# Build the --set-secrets argument dynamically.
+# Required secrets are always included; optional secrets (e.g. BRAVE_SEARCH_API_KEY)
+# are only mounted if the Secret Manager secret actually exists — so skipping an
+# optional key during setup above does not break the deploy command.
+REQUIRED_SECRETS=(
+    "ANTHROPIC_API_KEY"
+    "SECRET_KEY"
+    "TAVILY_API_KEY"
+    "OIC_SEARCH_PROVIDER"
+    "OIC_SEARCH_FALLBACK"
+    "GEMINI_API_KEY"
+    "APP_USERNAME"
+    "APP_PASSWORD"
+)
+# BRAVE_SEARCH_API_KEY is optional — only mounted if provisioned above.
+# OIC_SEARCH_FALLBACK is required (has a safe "brave" default) so it is in REQUIRED_SECRETS,
+# but if for any reason it doesn't exist in Secret Manager, we catch it here too.
+OPTIONAL_DEPLOY_SECRETS=(
+    "BRAVE_SEARCH_API_KEY"
+)
+
+SECRET_FLAGS=""
+for S in "${REQUIRED_SECRETS[@]}"; do
+    SECRET_FLAGS="${SECRET_FLAGS}${S}=${S}:latest,"
+done
+for S in "${OPTIONAL_DEPLOY_SECRETS[@]}"; do
+    if gcloud secrets describe "$S" --project="$PROJECT_ID" &>/dev/null; then
+        SECRET_FLAGS="${SECRET_FLAGS}${S}=${S}:latest,"
+    else
+        echo "Optional secret $S not found in Secret Manager — skipping mount."
+    fi
+done
+# Strip trailing comma
+SECRET_FLAGS="${SECRET_FLAGS%,}"
+
 gcloud run deploy "$APP_NAME" \
     --image "$IMAGE_TAG" \
     --platform managed \
@@ -246,7 +336,7 @@ gcloud run deploy "$APP_NAME" \
     --max-instances 3 \
     --min-instances 0 \
     --set-env-vars="GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GCS_BUCKET_NAME=$GCS_BUCKET_NAME,VERTEX_AI_LOCATION=$REGION,VERTEX_RAG_CORPUS=$VERTEX_RAG_CORPUS" \
-    --set-secrets="ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,SECRET_KEY=SECRET_KEY:latest,GOOGLE_SEARCH_API_KEY=GOOGLE_SEARCH_API_KEY:latest,GOOGLE_SEARCH_CSE_ID=GOOGLE_SEARCH_CSE_ID:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,APP_USERNAME=APP_USERNAME:latest,APP_PASSWORD=APP_PASSWORD:latest" \
+    --set-secrets="$SECRET_FLAGS" \
     --allow-unauthenticated
 
 echo "============================================================"

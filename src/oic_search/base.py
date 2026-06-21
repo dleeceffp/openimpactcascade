@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional  # noqa: F401 — List used by SearchConfig.fallback_providers
 
 
 @dataclass
@@ -59,6 +59,12 @@ class SearchConfig:
     """Configuration loaded from environment and optional config file."""
     provider: str = "google_cse"
     profile: str = "default"
+    # Ordered fallback chain.  When the primary provider fails with a transient
+    # error (quota, rate_limit, timeout, unknown) the next provider in this list
+    # is tried.  Auth / not_configured failures do NOT trigger a fallback —
+    # they indicate a misconfiguration and should surface immediately.
+    # Populated from OIC_SEARCH_FALLBACK (comma-separated) or left empty.
+    fallback_providers: List[str] = field(default_factory=list)
 
 
 class SearchProvider(ABC):

@@ -1,0 +1,44 @@
+fix(app): migrate web search from legacy Google CSE to oic_search module
+
+The app web search feature silently stopped working whenever GOOGLE_SEARCH_API_KEY
+/ GOOGLE_SEARCH_CSE_ID were absent (i.e. any deployment that followed the new
+.env.example).  Root cause: the app was never migrated to oic_search when that
+module was built; it kept a private Google CSE implementation that predates the
+shared layer.
+
+Changes:
+
+app/config.py
+- Added _bootstrap_env(): loads a local .env file (dev server) via python-dotenv
+  with override=False so container secrets (GCP Secret Manager / --env flags)
+  always win.  Search order: OIC_ENV_FILE > ./.env > <config.py dir>/.env >
+  monorepo root .env.  Silent/graceful when no .env is found (normal in GCP).
+
+app/ai_question_generator.py
+- Replaced direct requests.get to googleapis.com/customsearch with _execute_search()
+  which calls oic_search.search() with an appropriate OIC profile per query category.
+- Dropped google_search_api_key / google_search_cse_id constructor params (kept as
+  no-op kwargs for call-site compatibility).
+- Added search_provider param to __init__; resolved via: explicit arg ->
+  OIC_SEARCH_PROVIDER env var -> oic_search built-in default.
+- Auth/quota failures now disable search for the session rather than silently
+  swallowing on every query.
+- All print() warning statements replaced with _logger.warning/info/debug so
+  search status is visible in structured logs (Docker / Cloud Logging).
+- _execute_google_search() retained as a deprecated alias for _execute_search().
+- Category -> oic_search profile mapping added (_CATEGORY_PROFILE dict).
+
+app/main.py
+- AIQuestionGeneratorWithRAGAndRationale() now receives search_provider from
+  OIC_SEARCH_PROVIDER env var (already loaded by config.py bootstrap).
+
+app/requirements.txt
+- Added comment documenting that oic_search is injected via PYTHONPATH not pip.
+
+Dockerfile
+- COPY src/oic_search/ /app/lib/oic_search/
+- ENV PYTHONPATH=/app/lib  (makes oic_search importable without wheel install)
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

@@ -67,6 +67,16 @@ def load_config(config_path: Optional[Path] = None) -> SearchConfig:
     if os.environ.get("OIC_SEARCH_PROFILE"):
         config.profile = os.environ["OIC_SEARCH_PROFILE"]
 
+    # OIC_SEARCH_FALLBACK — comma-separated ordered fallback chain.
+    # Example: OIC_SEARCH_FALLBACK=brave,tavily
+    # The primary provider (OIC_SEARCH_PROVIDER) is NOT repeated here.
+    # Auth/not_configured failures on the primary do NOT trigger fallback.
+    raw_fallback = os.environ.get("OIC_SEARCH_FALLBACK", "")
+    if raw_fallback:
+        config.fallback_providers = [
+            p.strip() for p in raw_fallback.split(",") if p.strip()
+        ]
+
     # --- Validate ---
     if config.provider not in _VALID_PROVIDERS:
         raise ValueError(
@@ -78,5 +88,11 @@ def load_config(config_path: Optional[Path] = None) -> SearchConfig:
             f"Invalid search profile: '{config.profile}'. "
             f"Must be one of: {', '.join(sorted(PROFILES.keys()))}"
         )
+    for fb in config.fallback_providers:
+        if fb not in _VALID_PROVIDERS:
+            raise ValueError(
+                f"Invalid fallback provider: '{fb}' in OIC_SEARCH_FALLBACK. "
+                f"Must be one of: {', '.join(_VALID_PROVIDERS)}"
+            )
 
     return config

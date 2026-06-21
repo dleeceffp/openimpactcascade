@@ -85,6 +85,17 @@ class AIQuestionGeneratorWithRAGAndRationale:
             or os.environ.get("OIC_SEARCH_PROVIDER")
         )
 
+        # Resolve fallback chain: OIC_SEARCH_FALLBACK env var (comma-separated).
+        # When the primary provider hits quota/rate-limit/timeout, the next
+        # provider in this list is tried automatically and invisibly.
+        # Typical production value: OIC_SEARCH_FALLBACK=brave  (when primary=tavily)
+        #                        or OIC_SEARCH_FALLBACK=tavily (when primary=brave)
+        raw_fallback = os.environ.get("OIC_SEARCH_FALLBACK", "")
+        self.search_fallback_providers: List[str] = (
+            [p.strip() for p in raw_fallback.split(",") if p.strip()]
+            if raw_fallback else []
+        )
+
         # Determine whether web search is usable at startup.
         self.enable_web_search = False
         if enable_web_search:
@@ -94,15 +105,26 @@ class AIQuestionGeneratorWithRAGAndRationale:
                     "Ensure src/oic_search is copied to /app/lib in the container."
                 )
             else:
-                # Attempt a cheap provider instantiation to surface missing credentials
-                # before the first real request.  Fail-open: disable search rather than
-                # crashing startup if the key is absent.
+                # Attempt a cheap config load to surface bad env vars before the
+                # first real request.  Fail-open: disable search rather than
+                # crashing startup if a key is absent.
                 try:
-                    import oic_search.registry as _reg
-                    effective = self.search_provider or _reg.load_config().provider if hasattr(_reg, 'load_config') else self.search_provider
+                    from oic_search.config import load_config as _load_search_cfg
+                    _cfg = _load_search_cfg()
+                    # If caller didn't specify a provider, adopt the config default.
+                    if not self.search_provider:
+                        self.search_provider = _cfg.provider
+                    # Merge config-file fallbacks with env-var fallbacks (env wins).
+                    if not self.search_fallback_providers and _cfg.fallback_providers:
+                        self.search_fallback_providers = list(_cfg.fallback_providers)
+
+                    chain = [self.search_provider] + [
+                        p for p in self.search_fallback_providers
+                        if p != self.search_provider
+                    ]
                     _logger.info(
-                        "Web search enabled via oic_search (provider=%s)",
-                        self.search_provider or "env/config",
+                        "Web search enabled — provider chain: %s",
+                        " → ".join(chain),
                     )
                     self.enable_web_search = True
                 except Exception as exc:
@@ -438,9 +460,13 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
 
         effective_profile = profile or "incident"
         try:
-            response = _oic_search.search(
+            # search_with_fallback() tries the primary provider, and on transient
+            # failures (quota, rate_limit, timeout) automatically retries each
+            # provider in self.search_fallback_providers — transparent to callers.
+            response = _oic_search.search_with_fallback(
                 query,
                 provider=self.search_provider or None,
+                fallback_providers=self.search_fallback_providers or None,
                 profile=effective_profile,
                 num=max_results,
             )
@@ -454,20 +480,23 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
                 for r in response.results
             ]
         except _SearchError as exc:
-            # Distinguish transient from permanent failures for better log signal.
+            # Permanent failures (auth/not_configured) mean the whole chain is
+            # misconfigured — disable search for this session and log clearly.
             if exc.kind in ("auth", "not_configured"):
                 _logger.warning(
-                    "Search provider '%s' not configured (%s) — disabling search. "
-                    "Check OIC_SEARCH_PROVIDER and the corresponding API key env var.",
+                    "Search provider '%s' not configured (%s) — disabling search for "
+                    "this session.  Check OIC_SEARCH_PROVIDER / OIC_SEARCH_FALLBACK "
+                    "and the corresponding API key env vars.",
                     exc.provider, exc,
                 )
                 self.enable_web_search = False  # stop burning retries this session
-            elif exc.kind in ("quota", "rate_limit"):
-                _logger.warning("Search quota/rate-limit hit for '%s': %s", query[:60], exc)
-            elif exc.kind == "timeout":
-                _logger.warning("Search timeout for '%s'", query[:60])
             else:
-                _logger.warning("Search error for '%s': %s", query[:60], exc)
+                # All providers in the fallback chain were exhausted.
+                chain = [self.search_provider or "?"] + self.search_fallback_providers
+                _logger.warning(
+                    "All search providers exhausted %s for '%s': %s",
+                    chain, query[:60], exc,
+                )
             return []
         except Exception as exc:
             _logger.warning("Unexpected search error for '%s': %s", query[:60], exc)
@@ -661,10 +690,12 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
 
         # Compile formatted context
         if web_context_parts:
-            provider_label = self.search_provider or os.environ.get("OIC_SEARCH_PROVIDER", "oic_search")
+            chain = [self.search_provider or os.environ.get("OIC_SEARCH_PROVIDER", "oic_search")] + \
+                    self.search_fallback_providers
+            provider_label = " → ".join(chain) if len(chain) > 1 else chain[0]
             formatted_context = "\n\n".join([
                 "=" * 70,
-                f"TARGETED WEB SEARCH RESULTS (currated-context informed, provider={provider_label})",
+                f"TARGETED WEB SEARCH RESULTS (currated-context informed, provider chain: {provider_label})",
                 "=" * 70,
                 "Note: These searches target gaps in the currated-context corpus knowledge base.",
                 "currated-context provides foundational knowledge; web search adds recent updates.",
@@ -679,9 +710,11 @@ Generate high-quality, factually grounded risk assessment questionnaires with co
             )
         else:
             formatted_context = ""
+            chain = [self.search_provider or os.environ.get("OIC_SEARCH_PROVIDER", "oic_search")] + \
+                    self.search_fallback_providers
             _logger.warning(
-                "No web search results obtained (provider=%s)",
-                self.search_provider or os.environ.get("OIC_SEARCH_PROVIDER", "oic_search"),
+                "No web search results obtained from any provider in chain: %s",
+                " → ".join(chain),
             )
 
         return formatted_context, search_results
