@@ -387,3 +387,140 @@ To verify README accuracy:
 ---
 
 **Summary**: The README has been comprehensively updated to reflect the current implementation, with focus on user tracking, chat assistant, and operational guidance, while keeping safeguards documentation separate for clarity.
+
+---
+
+## June 2026 — Search Provider Migration & Repository Refactor
+
+### Overview
+
+Two related workstreams completed in June 2026:
+
+1. **Web search migration** — replaced the deprecated Google Custom Search integration with a new pluggable oic_search module backed by Tavily and Brave, with automatic provider failover.
+2. **Repository restructure** — realigned folder layout to match standard DevOps monorepo conventions (shared modules under src/, tooling under 	ools/, deployment scripts under deployment/gcp/).
+
+---
+
+### 1. Search Provider Migration
+
+#### Background
+
+The original OIC application (pp/ai_question_generator.py) used Google Custom Search Engine (CSE) directly via equests.get to googleapis.com/customsearch/v1.  This relied on two credentials (GOOGLE_SEARCH_API_KEY, GOOGLE_SEARCH_CSE_ID) which were silently unavailable in most deployments because:
+
+- Google CSE was closed to new customers in mid-2025.
+- Google CSE is deprecated for all customers as of January 1, 2027.
+- The .env.example had already been updated to OIC_SEARCH_PROVIDER=tavily, but pp/ was never migrated — so any deployment following the new template had web search quietly disabled from first startup.
+
+The failure mode was particularly insidious: the __init__ guard emitted a print() warning (not a log entry) and set self.enable_web_search = False.  From that point every call site returned ("", []) with no observable signal in application logs or user-facing output.
+
+#### What Changed
+
+**New oic_search shared module** (src/oic_search/):
+
+A provider-agnostic search library was built to replace all direct search HTTP calls.  It supports:
+
+| Provider | Key env var | Notes |
+|---|---|---|
+| 	avily | TAVILY_API_KEY | Recommended — pre-extracted content, better for LLM prompts |
+| rave | BRAVE_SEARCH_API_KEY | Independent quota pool, good fallback |
+| google_cse | GOOGLE_SEARCH_API_KEY + CSE IDs | Retained for existing customers only |
+| 
+ull | — | Disables search without errors (test/offline use) |
+
+The module normalises results into SearchResult / SearchResponse dataclasses regardless of backend, applies OIC source profiles (curated domain lists for incident, 	hreatintel, ics, ramework), and includes a shared result cache.
+
+**Provider fallback chain** (oic_search.search_with_fallback):
+
+A new search_with_fallback() function was added to oic_search.  It tries the primary provider and, on transient failures (quota, rate-limit, timeout), automatically retries with the next provider in an ordered chain.  Permanent misconfiguration errors (uth, 
+ot_configured) surface immediately rather than triggering a futile retry.  The failover is invisible to end-users.
+
+Configured via two env vars (both now stored in Secret Manager):
+
+`
+OIC_SEARCH_PROVIDER=tavily       # primary
+OIC_SEARCH_FALLBACK=brave        # fallback chain (comma-separated)
+`
+
+**pp/ai_question_generator.py**:
+
+- _execute_google_search() replaced by _execute_search() which delegates to oic_search.search_with_fallback().
+- google_search_api_key / google_search_cse_id constructor params retained as silent no-ops for call-site compatibility.
+- search_provider and search_fallback_providers attrs resolved at __init__ from env vars.
+- All print() warnings replaced with logging.getLogger calls — visible in Cloud Logging / Docker log aggregation.
+- Auth failures disable search for the session and log once; quota/timeout errors log per-query and trigger fallback rather than silently returning empty.
+
+**pp/config.py** — dotenv bootstrap:
+
+A _bootstrap_env() function was added that runs at import time and loads a local .env file (dev server) via python-dotenv with override=False, so container secrets (GCP Secret Manager / --env flags) always win.  Completely silent when no .env is found, which is normal in Cloud Run.
+
+**pp/main.py**:
+
+AIQuestionGeneratorWithRAGAndRationale() now receives search_provider=os.environ.get("OIC_SEARCH_PROVIDER") at construction.  Both chatbot call sites (efine_scenario, chat message handler) inherit the provider chain through the shared i_generator instance — no changes to main.py call sites were required.
+
+**Dockerfile**:
+
+`dockerfile
+COPY src/oic_search/ /app/lib/oic_search/
+ENV PYTHONPATH=/app/lib
+`
+
+The shared module is injected via PYTHONPATH rather than a pip install, keeping the image lean.
+
+**deployment/gcp/deploy_infrastructure.sh**:
+
+- GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_CSE_ID removed from all secret provisioning and --set-secrets mount.
+- TAVILY_API_KEY, BRAVE_SEARCH_API_KEY, OIC_SEARCH_PROVIDER, and OIC_SEARCH_FALLBACK added.
+- OIC_SEARCH_PROVIDER and OIC_SEARCH_FALLBACK have interactive defaults (	avily and rave respectively) so pressing Enter at the prompt accepts the recommended configuration.
+- BRAVE_SEARCH_API_KEY is optional at the prompt (skippable) but strongly encouraged for failover.
+- The --set-secrets argument is built dynamically; optional secrets are only mounted if their Secret Manager entry exists, preventing deploy failures when a key is intentionally skipped.
+
+#### Testing
+
+End-to-end testing confirmed:
+
+- Questionnaire generation, scenario refinement, and chat assistant all produce web-grounded responses using Tavily as primary and Brave as fallback.
+- Forcing a simulated quota error on Tavily triggers transparent failover to Brave — no user-visible error.
+- Auth misconfiguration (kind="auth") disables search for the session and logs a clear diagnostic message.
+- Startup with no .env (container mode) works correctly; startup with a local .env (dev server) loads credentials with correct override priority.
+
+---
+
+### 2. Repository Structure Refactor
+
+#### Background
+
+The repository had grown organically and no longer reflected standard DevOps monorepo conventions.  Shared Python modules were duplicated across directories, tooling scripts were co-located with application code, and there was no clear separation between deployable artifacts and development utilities.
+
+#### Changes
+
+| Area | Before | After |
+|---|---|---|
+| Shared LLM module | oic_llm/ at root + partial copy in src/ | Canonical location: src/oic_llm/ |
+| Shared search module | New, no canonical location | src/oic_search/ |
+| Flask web application | pp/ | pp/ (unchanged — Cloud Run target) |
+| Attack flow workbench | Mixed with app code | 	ools/attack_flow_workbench/ |
+| Deployment scripts | Flat at root | deployment/gcp/ |
+| Documentation | Mixed across root and subdirs | documentation/project/ (working), documentation/public/ (published) |
+| Generated artefacts | pp/generated/ | generated/ at repo root (gitignored detail, archetypes tracked) |
+
+The src/ directory now serves as the monorepo's shared library tree.  Both the Flask app (via Dockerfile PYTHONPATH injection) and the CLI workbench (via local sys.path or pip install -e) import from src/oic_llm and src/oic_search.
+
+#### Impact on existing deployments
+
+The Dockerfile was updated to COPY src/oic_search/ /app/lib/oic_search/ with ENV PYTHONPATH=/app/lib.  No changes are required to existing Cloud Run service configurations; the next build picks up the new layout automatically.
+
+---
+
+### Related Commits
+
+| Commit | Summary |
+|---|---|
+| 4f3921d | fix(app): migrate web search from legacy Google CSE to oic_search module |
+| 517ac5 | feat(search): add provider fallback chain for resilient web search |
+| 815da92 | feat(workbench): add terminal-anchored multi-path reachability generation |
+| 1d67455 | build: converting workbench to use providers and CLI supports multiple AI/search variations |
+|  1ba882 | feat(workbench): replace direct Anthropic+Google CSE with oic_llm+oic_search |
+|  d7db21 | chore(oic_search): Brave/Tavily as active providers, Google CSE commented out |
+| 5ea0a73 | chore: remove stale root oic_llm/ copy |
+| 5aecf13 | feat: add oic_search shared search/grounding package |
+

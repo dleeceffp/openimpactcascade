@@ -210,7 +210,14 @@ for SECRET in "${SECRETS[@]}"; do
             if [ "$SECRET" = "$OPT" ]; then IS_OPTIONAL=true; break; fi
         done
 
-        if [ "$SECRET" = "OIC_SEARCH_FALLBACK" ]; then
+        if [ "$SECRET" = "OIC_SEARCH_PROVIDER" ]; then
+            read -p "Enter value for $SECRET [default: tavily] (press Enter to use default): " SECRET_VALUE
+            echo
+            if [ -z "$SECRET_VALUE" ]; then
+                SECRET_VALUE="tavily"
+                echo "Using default value 'tavily' for OIC_SEARCH_PROVIDER."
+            fi
+        elif [ "$SECRET" = "OIC_SEARCH_FALLBACK" ]; then
             read -p "Enter value for $SECRET [default: brave] (press Enter to use default): " SECRET_VALUE
             echo
             if [ -z "$SECRET_VALUE" ]; then
