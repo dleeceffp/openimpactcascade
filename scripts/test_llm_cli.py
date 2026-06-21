@@ -411,9 +411,9 @@ def chat_loop(provider: str, weight: str, search_profile: Optional[str]) -> bool
 
     print(f"\n=== Chat with {provider.title()} ({weight})  "
           f"search={_search_status(cfg_provider, search_profile)} ===")
-    print("Commands: quit/exit | switch (change provider) | nosearch (toggle search off)")
+    print("Commands: quit/exit | switch llm (change LLM provider) | nosearch (toggle search off)")
     print("          search on <profile>      e.g. 'search on incident'")
-    print("          use provider <name>      e.g. 'use provider brave'")
+    print("          use search <name>        e.g. 'use search brave'")
     print("-" * 60)
     print(f"Using model: {resolve_model(provider, weight)}")
 
@@ -429,7 +429,7 @@ def chat_loop(provider: str, weight: str, search_profile: Optional[str]) -> bool
             if user_input.lower() in ("quit", "exit"):
                 print("Goodbye!")
                 return False
-            if user_input.lower() == "switch":
+            if user_input.lower() in ("switch", "switch llm"):
                 return True
             if user_input.lower() == "nosearch":
                 active_profile = None
@@ -445,13 +445,14 @@ def chat_loop(provider: str, weight: str, search_profile: Optional[str]) -> bool
                     print(f"Unknown profile '{requested}'. "
                           f"Available: {', '.join(list_profiles())}")
                 continue
-            if user_input.lower().startswith("use provider "):
-                requested = user_input[len("use provider "):].strip()
+            if user_input.lower().startswith("use search "):
+                requested = user_input[len("use search "):].strip()
                 available = [p for p in list_search_providers() if p != "null"]
                 if requested in available:
                     active_search_provider = requested
                     print(f"Search provider switched to "
-                          f"{_search_status(active_search_provider, active_profile)}.")
+                          f"{_search_status(active_search_provider, active_profile)}. "
+                          f"(tip: 'use search tavily' to switch back)")
                 else:
                     print(f"Unknown provider '{requested}'. "
                           f"Available: {', '.join(available)}")
