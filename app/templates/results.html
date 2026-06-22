@@ -19,6 +19,19 @@
         }
         
         /* Results page specific chat styles */
+        /* Prior-history entries (from questionnaire / scenario-setup screens) are
+           rendered in a muted style so they're readable but clearly distinct from
+           the current results-page conversation. */
+        .chat-message.prior-history .message-bubble {
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+        .chat-message.prior-history.user .message-label,
+        .chat-message.prior-history.assistant .message-label {
+            font-size: 0.75em;
+            opacity: 0.75;
+        }
+
         .chat-context {
             background: #f0f9ff;
             border-left: 4px solid #0ea5e9;
@@ -886,13 +899,50 @@
         
         // ========== CHAT FUNCTIONS ==========
         let chatHistory = [];
-        
-        // Debug: Check what ChatHistory has on page load
-        console.log('[Results Page] ChatHistory on load:', ChatHistory.getAll().length, 'entries');
-        if (ChatHistory.getAll().length > 0) {
-            console.log('[Results Page] Breakdown:', ChatHistory.getStats().pageBreakdown);
-        }
-        
+
+        // Pre-populate the chat panel with any exchanges saved from previous screens
+        // (questionnaire, generate_custom) so the full conversation is visible here.
+        (function replayPriorHistory() {
+            const prior = ChatHistory.getAll().filter(e => e.context.page !== 'results');
+            if (prior.length === 0) return;
+
+            console.log('[Results Page] Replaying', prior.length, 'prior chat entries from:', ChatHistory.getStats().pageBreakdown);
+            const messagesEl = document.getElementById('chatMessages');
+            prior.forEach(function(entry) {
+                // Page label shown as a subtle section divider on first entry from each page
+                const pageLabel = {
+                    'questionnaire': 'Questionnaire',
+                    'generate_custom': 'Scenario Setup',
+                }[entry.context.page] || entry.context.page;
+
+                // User bubble
+                const userDiv = document.createElement('div');
+                userDiv.className = 'chat-message user prior-history';
+                userDiv.innerHTML = '<div class="message-label">' + pageLabel + ' · You</div>' +
+                    '<div class="message-bubble">' + entry.user.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>';
+                messagesEl.appendChild(userDiv);
+
+                // Assistant bubble
+                const assistDiv = document.createElement('div');
+                assistDiv.className = 'chat-message assistant prior-history';
+                assistDiv.innerHTML = '<div class="message-label">AI Assistant</div>' +
+                    '<div class="message-bubble">' + entry.assistant.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>';
+                messagesEl.appendChild(assistDiv);
+
+                // Also load into local chatHistory so the last-6-exchanges context window includes it
+                chatHistory.push({ user: entry.user, assistant: entry.assistant });
+            });
+
+            // Divider before the new results-page conversation
+            const divider = document.createElement('div');
+            divider.style.cssText = 'text-align:center;font-size:0.75rem;color:#888;padding:8px 0;border-top:1px solid #eee;margin:4px 0';
+            divider.textContent = '─── Risk Analysis Complete – continuing below ───';
+            messagesEl.appendChild(divider);
+
+            // Scroll to bottom so the divider is visible
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        })();
+
         // Initialize chat sidebar (using global function from chat_sidebar.js)
         // Override sendMessage and addChatMessage for results page specific behavior
         
@@ -936,24 +986,23 @@
             };
             
             try {
-                const response = await fetch('/chat/results', {
+                // oicSseFetch keeps the connection alive via SSE keepalive pings
+                // so tablets that cut idle connections after ~60 s don't time out.
+                const fetchFn = (typeof oicSseFetch !== 'undefined') ? oicSseFetch : fetch;
+                const data = await fetchFn('/chat/results', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: message,
                         context: context,
                         history: chatHistory.slice(-6) // Last 3 exchanges
                     })
                 });
-                
-                const data = await response.json();
-                
+
                 if (data.status === 'success') {
                     addChatMessage('assistant', data.response);
                     chatHistory.push({user: message, assistant: data.response});
-                    
+
                     // Add to centralized chat history
                     ChatHistory.add(message, data.response, context);
                 } else {

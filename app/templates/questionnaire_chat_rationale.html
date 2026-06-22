@@ -1115,9 +1115,18 @@
                 return false;
             }
             
-            // CRITICAL: Explicitly save ChatHistory before form submission
-            // This ensures all questionnaire chat data persists across the page navigation
+            // CRITICAL: Sync local chatHistory into ChatHistory then save before form
+            // submission.  Without the importFromLocal call, any exchanges added to
+            // the local array but not yet in ChatHistory (race with beforeunload)
+            // would be lost across the page navigation to /analyze -> results.
             try {
+                if (chatHistory.length > 0) {
+                    ChatHistory.importFromLocal(chatHistory, {
+                        page: 'questionnaire',
+                        industry: '{{ params.industry }}',
+                        region: '{{ params.region }}'
+                    });
+                }
                 ChatHistory.save();
                 console.log('[Questionnaire] ChatHistory saved before form submission:', ChatHistory.getAll().length, 'entries');
             } catch (error) {
