@@ -193,24 +193,21 @@ const ChatSidebar = {
         try {
             // Get context data
             const context = this.config.getContextData();
-            
-            // Send to API
-            const response = await fetch(this.config.apiEndpoint, {
+
+            // oicSseFetch keeps the connection alive with SSE keepalive pings
+            // so tablets and mobile browsers that drop idle HTTP connections
+            // after ~60 s don't time out during 60-180 s AI responses.
+            // Falls back to plain JSON automatically when SSE is unavailable.
+            const fetchFn = (typeof oicSseFetch !== 'undefined') ? oicSseFetch : fetch;
+            const data = await fetchFn(this.config.apiEndpoint, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    message: message,
-                    context: context
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: message, context: context })
             });
-            
-            const data = await response.json();
-            
+
             if (data.status === 'success') {
                 this.addMessageToChat('assistant', data.response);
-                
+
                 // Call onMessageReceived callback with both user message and response
                 if (this.config.onMessageReceived) {
                     this.config.onMessageReceived(message, data.response);
@@ -221,7 +218,7 @@ const ChatSidebar = {
         } catch (error) {
             console.error('[ChatSidebar] Error:', error);
             this.addMessageToChat('assistant', 'Sorry, I encountered an error. Please try again.');
-            
+
             // Call onError callback
             if (this.config.onError) {
                 this.config.onError(error);

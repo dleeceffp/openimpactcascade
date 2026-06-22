@@ -13,7 +13,9 @@ import logging
 import uuid
 from datetime import datetime
 from typing import Dict, Optional, List, Any
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session, send_file
+import queue
+import threading
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session, send_file, Response, stream_with_context
 from ai_question_generator import AIQuestionGeneratorWithRAGAndRationale
 from user_tracking import get_tracker, create_api_metadata
 from context_storage import get_context_storage
@@ -39,6 +41,85 @@ logger.info(f"========== STARTING {VERSION} on PORT {PORT} ==========")
 
 # Create required directories
 os.makedirs('./generated', exist_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# SSE keepalive helper
+# ---------------------------------------------------------------------------
+# All long-running endpoints (questionnaire generation, chat, scenario
+# refinement) run the actual work on a background thread and emit SSE
+# keepalive pings every KEEPALIVE_INTERVAL seconds so that mobile browsers
+# and reverse-proxies that would otherwise drop idle HTTP connections after
+# ~60 s stay connected.
+#
+# Protocol used by every SSE endpoint:
+#   event: keepalive   — sent every KEEPALIVE_INTERVAL s while work runs
+#   event: result      — single event carrying the JSON payload when done
+#   event: error       — single event carrying {"error": "..."} on failure
+#
+# The matching client-side helper (oic_sse_fetch.js) reconstructs a normal
+# Promise<response-json> from this stream so call sites need no changes
+# other than swapping fetch() for oicSseFetch().
+
+KEEPALIVE_INTERVAL = 15   # seconds between ping events
+SSE_HEADERS = {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'X-Accel-Buffering': 'no',   # disable nginx buffering
+}
+
+
+def _sse_event(event: str, data: str = "") -> str:
+    """Format a single SSE frame."""
+    return f"event: {event}\ndata: {data}\n\n"
+
+
+def _run_with_sse_keepalive(work_fn):
+    """Run *work_fn()* on a thread; yield SSE frames until it finishes.
+
+    work_fn must return a dict that will be JSON-serialised into the
+    ``result`` event.  Any exception becomes an ``error`` event.
+
+    Usage inside a Flask route::
+
+        @app.route('/some/endpoint', methods=['POST'])
+        def my_endpoint():
+            # capture everything needed BEFORE entering the generator
+            payload = request.get_json()
+
+            def work():
+                ...
+                return {"status": "success", "data": ...}
+
+            return Response(
+                stream_with_context(_run_with_sse_keepalive(work)),
+                headers=SSE_HEADERS,
+            )
+    """
+    result_q: queue.Queue = queue.Queue()
+
+    def _worker():
+        try:
+            result_q.put(("ok", work_fn()))
+        except Exception as exc:
+            result_q.put(("err", exc))
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+
+    # Emit keepalive pings while the worker is running
+    while True:
+        try:
+            kind, value = result_q.get(timeout=KEEPALIVE_INTERVAL)
+            break
+        except queue.Empty:
+            yield _sse_event("keepalive", "")
+
+    if kind == "ok":
+        yield _sse_event("result", json.dumps(value))
+    else:
+        logger.error("SSE worker raised: %s", value, exc_info=value)
+        yield _sse_event("error", json.dumps({"error": str(value)}))
 
 # Initialize context storage (SQLite-based)
 context_storage = get_context_storage()
@@ -460,6 +541,99 @@ def generate():
         return render_template('error.html', 
             error=f"Failed to generate questionnaire: {str(e)}"), 500
 
+@app.route('/api/generate/stream', methods=['POST'])
+def generate_stream():
+    """SSE version of /generate for use by the browser fetch+EventSource flow.
+
+    Accepts the same form fields as /generate (industry, region,
+    organization_size, selected_archetype_id) as JSON or form data.
+    Emits SSE keepalive pings every KEEPALIVE_INTERVAL seconds while
+    generation runs, then a ``result`` event containing::
+
+        {"redirect": "/questionnaire"}   on success
+        {"error": "..."}                 on failure
+
+    The browser JS (oic_sse_fetch.js) follows the redirect automatically.
+    """
+    if not ai_generator:
+        return jsonify({'error': 'AI question generation is not available'}), 503
+
+    # Accept both JSON and form data (the generate.html form posts as
+    # application/x-www-form-urlencoded; the stream endpoint is also
+    # callable from other contexts with JSON).
+    if request.is_json:
+        payload = request.get_json() or {}
+        industry          = payload.get('industry', '').strip()
+        region            = payload.get('region', '').strip()
+        org_size          = payload.get('organization_size', '').strip()
+        selected_arch_id  = payload.get('selected_archetype_id', '').strip()
+    else:
+        industry          = request.form.get('industry', '').strip()
+        region            = request.form.get('region', '').strip()
+        org_size          = request.form.get('organization_size', '').strip()
+        selected_arch_id  = request.form.get('selected_archetype_id', '').strip()
+
+    if not industry or not region:
+        return jsonify({'error': 'Industry and Region are required'}), 400
+
+    # Sanitize org_size
+    if org_size:
+        org_size = org_size.replace('"', '').replace("'", "").replace('\n', ' ').replace('\r', '')
+        org_size = org_size[:100]
+
+    # Resolve archetype card (same logic as /generate)
+    archetype_card = None
+    if OIC_CARDS_ENABLED and OIC_ARCHETYPE_SELECT and selected_arch_id \
+            and selected_arch_id not in ('none', 'ai_suggest'):
+        archetype_card = get_card_library().get(selected_arch_id)
+        if archetype_card is None:
+            logger.warning(f"[{VERSION}] [stream] Unknown archetype id '{selected_arch_id}'; falling back")
+
+    # Prepare session values needed by the worker (the thread cannot safely
+    # read Flask's request/session proxy, so we snapshot them here).
+    was_authenticated = session.get('authenticated')
+    session.clear()
+    if was_authenticated:
+        session['authenticated'] = True
+    new_session_id = str(uuid.uuid4())
+    session['context_session_id'] = new_session_id
+    context_storage.cleanup_old_sessions(hours=2)
+
+    tracker = get_tracker(session_based=True, code_generator="v221-context-aware")
+    user_id = tracker.get_user_id()
+
+    logger.info(f"[{VERSION}] [stream] Generating questionnaire for {industry}/{region} (user={user_id})")
+
+    def _work():
+        questions = ai_generator.generate_questionnaire(
+            industry=industry,
+            region=region,
+            organization_size=org_size if org_size else None,
+            user_id=user_id,
+            max_retries=2,
+            archetype_card=archetype_card,
+        )
+        filename = save_questionnaire(questions, industry, region, VERSION)
+        # Store in session (safe because the worker calls back into the
+        # same session object; Flask-session writes happen on response close).
+        session['questionnaire_filename'] = filename
+        session['generation_params'] = {
+            'industry': industry,
+            'region': region,
+            'organization_size': org_size,
+            'selected_archetype_id': archetype_card.id if archetype_card else None,
+            'generated_at': datetime.now().isoformat(),
+            'version': VERSION,
+        }
+        logger.info(f"[{VERSION}] [stream] Generation complete, saved to {filename}")
+        return {'redirect': url_for('questionnaire')}
+
+    return Response(
+        stream_with_context(_run_with_sse_keepalive(_work)),
+        headers=SSE_HEADERS,
+    )
+
+
 @app.route('/archetype/view/<archetype_id>')
 def archetype_view(archetype_id):
     """Render a full cascade-archetype card as a standalone HTML page.
@@ -603,83 +777,108 @@ def generate_custom():
 
 @app.route('/refine_scenario', methods=['POST'])
 def refine_scenario():
-    """Refine a user's narrative risk concern into structured scenario options."""
+    """Refine a user's narrative risk concern into structured scenario options.
+
+    Returns SSE when the client sends ``Accept: text/event-stream``,
+    plain JSON otherwise.
+    """
     if not ai_generator:
         return jsonify({'error': 'AI question generation is not available'}), 503
-    
+
     try:
         data = request.get_json()
         narrative = data.get('narrative', '').strip()
         industry = data.get('industry', '').strip()
         region = data.get('region', '').strip()
-        
+
         if not narrative or not industry or not region:
             return jsonify({'error': 'Narrative, industry, and region are required'}), 400
-        
+
         logger.info(f"[{VERSION}] Refining scenario for {industry} in {region}")
-        
+
         # Get tracker
         tracker = get_tracker(session_based=True, code_generator="v215-rag-websearch-enhanced")
         user_id = tracker.get_user_id()
 
-        # Prepare currated-context and intelligent web search context using v214 generator logic
-        from corpus.retrieve import get_rag_engine as get_corpus_retriever
-        rag_engine = get_corpus_retriever(enable_fallback=True)
-        rag_contexts = []
-        if rag_engine.enabled:
-            try:
-                rag_contexts = rag_engine.retrieve_coaching_context(
-                    user_question=narrative,
+        use_sse = 'text/event-stream' in request.headers.get('Accept', '')
+
+        def _work():
+            return _refine_scenario_logic(narrative, industry, region, user_id)
+
+        if use_sse:
+            return Response(
+                stream_with_context(_run_with_sse_keepalive(_work)),
+                headers=SSE_HEADERS,
+            )
+
+        result = _work()
+        return jsonify(result)
+
+    except json.JSONDecodeError as e:
+        logger.error(f"[{VERSION}] JSON parsing error in scenario refinement: {e}")
+        return jsonify({'error': 'Failed to parse AI response'}), 500
+    except Exception as e:
+        logger.error(f"[{VERSION}] Scenario refinement error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+def _refine_scenario_logic(narrative: str, industry: str, region: str, user_id: str) -> dict:
+    """Pure-logic inner function for scenario refinement; safe to call from a thread."""
+    import anthropic as _anthropic
+    from corpus.retrieve import get_rag_engine as get_corpus_retriever
+
+    # Prepare currated-context
+    rag_engine = get_corpus_retriever(enable_fallback=True)
+    rag_contexts = []
+    if rag_engine.enabled:
+        try:
+            rag_contexts = rag_engine.retrieve_coaching_context(
+                user_question=narrative,
+                industry=industry or "General",
+                region=region or "Global",
+                fair_component=None,
+                max_results=5
+            )
+            logger.info(f"[{VERSION}] [refine_scenario] Retrieved {len(rag_contexts)} currated-context contexts")
+        except Exception as e:
+            logger.warning(f"[{VERSION}] [refine_scenario] currated-context retrieval failed: {e}")
+
+    rag_context_str = ""
+    if rag_contexts:
+        try:
+            rag_context_str = rag_engine.format_context_for_prompt(rag_contexts)
+        except Exception as e:
+            logger.warning(f"[{VERSION}] [refine_scenario] Failed to format currated-context context: {e}")
+
+    # Conditionally perform intelligent web search
+    web_context = ""
+    if getattr(ai_generator, 'enable_web_search', False):
+        try:
+            rag_analysis = ai_generator._analyze_rag_content(rag_contexts, industry or "General", region or "Global")
+            has_content      = rag_analysis.get('has_content', False)
+            has_current_year = rag_analysis.get('has_current_year_data', False)
+            has_regional     = rag_analysis.get('has_regional_data', False)
+            has_breach_stats = rag_analysis.get('has_breach_statistics', False)
+            needs_web_search = (not has_content) or (not has_current_year) or (not has_regional) or (not has_breach_stats)
+            if needs_web_search:
+                logger.info(f"[{VERSION}] [refine_scenario] currated-context gaps detected (current_year={has_current_year}, regional={has_regional}, breach_stats={has_breach_stats}); performing targeted web search")
+                web_context, _ = ai_generator._perform_intelligent_web_search(
                     industry=industry or "General",
                     region=region or "Global",
-                    fair_component=None,
-                    max_results=5
+                    rag_analysis=rag_analysis,
+                    user_id=user_id
                 )
-                logger.info(f"[{VERSION}] [refine_scenario] Retrieved {len(rag_contexts)} currated-context contexts")
-            except Exception as e:
-                logger.warning(f"[{VERSION}] [refine_scenario] currated-context retrieval failed: {e}")
+                if web_context:
+                    logger.info(f"[{VERSION}] [refine_scenario] Web search context added to scenario refinement prompt")
+            else:
+                logger.info(f"[{VERSION}] [refine_scenario] currated-context coverage sufficient; skipping web search")
+        except Exception as e:
+            logger.warning(f"[{VERSION}] [refine_scenario] Web search for scenario refinement failed: {e}")
 
-        # Analyze currated-context coverage and conditionally perform intelligent web search
-        rag_context_str = ""
-        if rag_contexts:
-            try:
-                rag_context_str = rag_engine.format_context_for_prompt(rag_contexts)
-            except Exception as e:
-                logger.warning(f"[{VERSION}] [refine_scenario] Failed to format currated-context context: {e}")
+    # Use AI to refine the narrative into structured scenarios
+    client = _anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
 
-        web_context = ""
-        if getattr(ai_generator, 'enable_web_search', False):
-            try:
-                rag_analysis = ai_generator._analyze_rag_content(rag_contexts, industry or "General", region or "Global")
-
-                has_content = rag_analysis.get('has_content', False)
-                has_current_year = rag_analysis.get('has_current_year_data', False)
-                has_regional = rag_analysis.get('has_regional_data', False)
-                has_breach_stats = rag_analysis.get('has_breach_statistics', False)
-
-                needs_web_search = (not has_content) or (not has_current_year) or (not has_regional) or (not has_breach_stats)
-
-                if needs_web_search:
-                    logger.info(f"[{VERSION}] [refine_scenario] currated-context gaps detected (current_year={has_current_year}, regional={has_regional}, breach_stats={has_breach_stats}); performing targeted web search")
-                    web_context, _ = ai_generator._perform_intelligent_web_search(
-                        industry=industry or "General",
-                        region=region or "Global",
-                        rag_analysis=rag_analysis,
-                        user_id=user_id
-                    )
-                    if web_context:
-                        logger.info(f"[{VERSION}] [refine_scenario] Web search context added to scenario refinement prompt")
-                else:
-                    logger.info(f"[{VERSION}] [refine_scenario] currated-context coverage sufficient; skipping web search")
-            except Exception as e:
-                logger.warning(f"[{VERSION}] [refine_scenario] Web search for scenario refinement failed: {e}")
-
-        # Use AI to refine the narrative into structured scenarios, grounded by currated-context and optional web context
-        import anthropic
-        
-        client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
-        
-        system_prompt = """You are a cybersecurity risk assessment expert. Analyze the user's risk concern narrative and extract:
+    system_prompt = """You are a cybersecurity risk assessment expert. Analyze the user's risk concern narrative and extract:
 1. Key concerns (2-4 specific worries)
 2. Recommended scenario options (3-5 specific, actionable risk scenarios)
 
@@ -702,62 +901,49 @@ Return JSON format:
     ]
 }"""
 
-        # Build user prompt with currated-context + optional web context followed by the original narrative
-        prompt_parts = []
-        if rag_context_str:
-            prompt_parts.append("=== CORPUS GROUNDING CONTEXT ===\n")
-            prompt_parts.append(rag_context_str)
-            prompt_parts.append("\n=== END CORPUS CONTEXT ===\n")
-        if web_context:
-            prompt_parts.append("\n=== WEB SEARCH CONTEXT (fills gaps in RAG, e.g., current-year, regional, breach statistics) ===\n")
-            prompt_parts.append(web_context)
-            prompt_parts.append("\n=== END WEB CONTEXT ===\n")
+    prompt_parts = []
+    if rag_context_str:
+        prompt_parts.append("=== CORPUS GROUNDING CONTEXT ===\n")
+        prompt_parts.append(rag_context_str)
+        prompt_parts.append("\n=== END CORPUS CONTEXT ===\n")
+    if web_context:
+        prompt_parts.append("\n=== WEB SEARCH CONTEXT (fills gaps in RAG, e.g., current-year, regional, breach statistics) ===\n")
+        prompt_parts.append(web_context)
+        prompt_parts.append("\n=== END WEB CONTEXT ===\n")
+    prompt_parts.append(f"Industry: {industry}\nRegion: {region}\n\nUser's Risk Concern Narrative:\n{narrative}\n\nAnalyze this concern and provide structured scenario options grounded in the above contexts when available.")
+    user_prompt = "".join(prompt_parts)
 
-        prompt_parts.append(f"Industry: {industry}\nRegion: {region}\n\nUser's Risk Concern Narrative:\n{narrative}\n\nAnalyze this concern and provide structured scenario options grounded in the above contexts when available.")
+    api_metadata = create_api_metadata(user_id)
+    original_user_id = api_metadata.pop('_original_user_id')
 
-        user_prompt = "".join(prompt_parts)
+    response = client.messages.create(
+        model=OIC_MODEL,
+        max_tokens=4000,
+        system=build_system(system_prompt),
+        messages=[{"role": "user", "content": user_prompt}],
+        metadata=api_metadata
+    )
 
-        api_metadata = create_api_metadata(user_id)
-        original_user_id = api_metadata.pop('_original_user_id')
-        
-        response = client.messages.create(
-            model=OIC_MODEL,
-            max_tokens=4000,
-            system=build_system(system_prompt),
-            messages=[{"role": "user", "content": user_prompt}],
-            metadata=api_metadata
-        )
-        
-        # Log API call
-        tracker.log_api_call(
-            user_id=original_user_id,
-            hashed_user_id=api_metadata['user_id'],
-            api_type='scenario_refinement',
-            model=OIC_MODEL,
-            request_id=response.id
-        )
-        
-        # Extract JSON from response
-        content = response.content[0].text
-        
-        # Try to extract JSON if wrapped in code blocks
-        if '```json' in content:
-            content = content.split('```json')[1].split('```')[0].strip()
-        elif '```' in content:
-            content = content.split('```')[1].split('```')[0].strip()
-        
-        result = json.loads(content)
-        
-        logger.info(f"[{VERSION}] Successfully refined scenario: {len(result.get('scenarios', []))} options")
-        
-        return jsonify(result)
-        
-    except json.JSONDecodeError as e:
-        logger.error(f"[{VERSION}] JSON parsing error in scenario refinement: {e}")
-        return jsonify({'error': 'Failed to parse AI response'}), 500
-    except Exception as e:
-        logger.error(f"[{VERSION}] Scenario refinement error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+    # Log API call
+    _tracker = get_tracker(session_based=True, code_generator="v215-rag-websearch-enhanced")
+    _tracker.log_api_call(
+        user_id=original_user_id,
+        hashed_user_id=api_metadata['user_id'],
+        api_type='scenario_refinement',
+        model=OIC_MODEL,
+        request_id=response.id
+    )
+
+    # Extract JSON from response
+    content = response.content[0].text
+    if '```json' in content:
+        content = content.split('```json')[1].split('```')[0].strip()
+    elif '```' in content:
+        content = content.split('```')[1].split('```')[0].strip()
+
+    result = json.loads(content)
+    logger.info(f"[{VERSION}] Successfully refined scenario: {len(result.get('scenarios', []))} options")
+    return result
 
 @app.route('/questionnaire')
 def questionnaire():
@@ -890,30 +1076,37 @@ def update_context():
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    """Handle chat messages for coaching assistance."""
+    """Handle chat messages for coaching assistance.
+
+    Returns SSE when the client sends ``Accept: text/event-stream``,
+    plain JSON otherwise (backwards-compatible with any non-SSE callers).
+    """
     try:
         data = request.get_json()
         user_message = data.get('message', '').strip()
         context = data.get('context', {})
-        
+
         if not user_message:
             return jsonify({'error': 'Message is required'}), 400
-        
-        # Get tracker with version-specific code generator ID
+
         tracker = get_tracker(session_based=True, code_generator="v221-context-aware")
         user_id = tracker.get_user_id()
-        
+
         logger.info(f"[{VERSION}] Chat request from {user_id}: {user_message[:50]}...")
-        
-        # Generate response using Claude with currated-context grounding
+
+        if 'text/event-stream' in request.headers.get('Accept', ''):
+            def _work():
+                resp = generate_chat_response(user_message, context, user_id)
+                return {'status': 'success', 'response': resp, 'version': VERSION}
+            return Response(
+                stream_with_context(_run_with_sse_keepalive(_work)),
+                headers=SSE_HEADERS,
+            )
+
+        # Plain JSON path (legacy / non-SSE callers)
         response = generate_chat_response(user_message, context, user_id)
-        
-        return jsonify({
-            'status': 'success', # required for chat assistant
-            'response': response,
-            'version': VERSION
-        })
-        
+        return jsonify({'status': 'success', 'response': response, 'version': VERSION})
+
     except Exception as e:
         logger.error(f"[{VERSION}] Error in chat: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
@@ -1375,35 +1568,39 @@ def chat_assist():
 
 @app.route('/chat/results', methods=['POST'])
 def chat_results():
-    """Handle chat messages on the results page."""
+    """Handle chat messages on the results page.
+
+    Returns SSE when the client sends ``Accept: text/event-stream``,
+    plain JSON otherwise.
+    """
     try:
         data = request.get_json()
         user_message = data.get('message', '').strip()
         context = data.get('context', {})
-        
+
         if not user_message:
             return jsonify({'error': 'Message is required'}), 400
-        
-        # Get tracker with version-specific code generator ID
+
         tracker = get_tracker(session_based=True, code_generator="v215-rag-websearch-enhanced")
         user_id = tracker.get_user_id()
-        
+
         logger.info(f"[{VERSION}] Results chat request from {user_id}: {user_message[:50]}...")
-        
-        # Generate response using Claude with currated-context grounding
+
+        if 'text/event-stream' in request.headers.get('Accept', ''):
+            def _work():
+                resp = generate_chat_response(user_message, context, user_id)
+                return {'status': 'success', 'response': resp, 'version': VERSION}
+            return Response(
+                stream_with_context(_run_with_sse_keepalive(_work)),
+                headers=SSE_HEADERS,
+            )
+
         response = generate_chat_response(user_message, context, user_id)
-        
-        return jsonify({
-            'status': 'success',  # required for chat assistant
-            'response': response,
-            'version': VERSION
-        })
+        return jsonify({'status': 'success', 'response': response, 'version': VERSION})
+
     except Exception as e:
         logger.error(f"[{VERSION}] Results chat error: {e}", exc_info=True)
-        return jsonify({
-            'status': 'error',
-            'error': str(e)
-        }), 500
+        return jsonify({'status': 'error', 'error': str(e)}), 500
 
 @app.route('/chat/export', methods=['GET'])
 def export_chat():

@@ -527,6 +527,7 @@
     <!-- Mobile chat toggle button -->
     <button class="mobile-chat-toggle" id="mobileChatToggle" onclick="toggleChat()" aria-label="Toggle chat">Chat</button>
     
+    <script src="{{ url_for('static', filename='js/oic_sse_fetch.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chat_sidebar.js') }}"></script>
     <script>
         // Questionnaire data from Flask
@@ -1228,24 +1229,25 @@
             };
             
             try {
-                const response = await fetch('/chat/assist', {
+                // oicSseFetch keeps the HTTP connection alive via SSE keepalive
+                // pings so tablets that drop idle connections after ~60 s don't
+                // time out during AI responses. Falls back to plain fetch if the
+                // helper isn't loaded.
+                const fetchFn = (typeof oicSseFetch !== 'undefined') ? oicSseFetch : fetch;
+                const data = await fetchFn('/chat/assist', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: message,
                         context: context,
                         history: chatHistory.slice(-6) // Last 3 exchanges
                     })
                 });
-                
-                const data = await response.json();
-                
+
                 if (data.status === 'success') {
                     addChatMessage('assistant', data.response);
                     chatHistory.push({user: message, assistant: data.response});
-                    
+
                     // Add to centralized chat history
                     ChatHistory.add(message, data.response, {
                         page: 'questionnaire',

@@ -653,6 +653,7 @@
     {% include 'partials/chat_sidebar.html' %}
     </div>
     
+    <script src="{{ url_for('static', filename='js/oic_sse_fetch.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chat_sidebar.js') }}"></script>
     <script>
         // Initialize chat sidebar with custom configuration
@@ -700,25 +701,20 @@
             document.getElementById('refiningIndicator').classList.add('active');
             
             try {
-                const response = await fetch('/refine_scenario', {
+                // oicSseFetch keeps the HTTP connection alive via SSE keepalive
+                // pings so tablets that cut idle connections after ~60 s don't
+                // time out during AI responses.
+                const fetchFn = (typeof oicSseFetch !== 'undefined') ? oicSseFetch : fetch;
+                const data = await fetchFn('/refine_scenario', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         narrative: narrative,
                         industry: industry,
                         region: region
                     })
                 });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Failed to refine scenario');
-                }
-                
-                const data = await response.json();
-                
+
                 // Display refined scenarios
                 displayScenarioOptions(data);
                 

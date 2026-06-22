@@ -427,32 +427,68 @@
     </div>
     
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="{{ url_for('static', filename='js/oic_sse_fetch.js') }}"></script>
     <script>
         // Initialize Lucide icons
         lucide.createIcons();
 
-        document.getElementById('generateForm').addEventListener('submit', function(e) {
-            // Show loading indicator
+        document.getElementById('generateForm').addEventListener('submit', async function(e) {
+            // Always intercept — use the SSE stream endpoint so mobile browsers
+            // that drop idle HTTP connections after ~60 s stay connected during
+            // the 90-180 s generation window.
+            e.preventDefault();
+
+            const form = e.target;
             document.getElementById('generateForm').style.display = 'none';
             document.getElementById('loading').classList.add('active');
             document.getElementById('submitBtn').disabled = true;
-            
-            // Animate through the steps
+
+            // Animate loading steps while waiting
             let currentStep = 1;
-            const maxStep = document.getElementById('loading').dataset.maxStep || 4;
-            const stepMs = document.getElementById('loading').dataset.stepMs || 8000;
+            const maxStep = parseInt(document.getElementById('loading').dataset.maxStep || '4', 10);
+            const stepMs  = parseInt(document.getElementById('loading').dataset.stepMs  || '8000', 10);
             const stepInterval = setInterval(() => {
                 if (currentStep < maxStep) {
                     document.getElementById('step' + currentStep).classList.remove('active');
                     currentStep++;
                     document.getElementById('step' + currentStep).classList.add('active');
                 }
-            }, parseInt(stepMs, 10));
-            
-            // Store interval ID to clear if page unloads
+            }, stepMs);
             window.stepInterval = stepInterval;
+
+            // Collect form fields as a plain object
+            const fd = new FormData(form);
+            const payload = {};
+            fd.forEach((v, k) => { payload[k] = v; });
+
+            try {
+                // oicSseFetch sends keepalive pings every 15 s so the tablet
+                // connection stays alive.  On completion the server returns
+                // {"redirect": "/questionnaire"} and we follow it.
+                const result = await oicSseFetch('/api/generate/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                clearInterval(stepInterval);
+                if (result && result.redirect) {
+                    window.location.href = result.redirect;
+                } else {
+                    // Unexpected response — fall back to normal form submit
+                    form.submit();
+                }
+            } catch (err) {
+                clearInterval(stepInterval);
+                console.error('Generation error:', err);
+                // Surface the error in the loading panel rather than a blank page
+                document.getElementById('loading').innerHTML =
+                    '<p style="color:#c0392b;font-weight:bold;">Generation failed: ' +
+                    err.message + '</p>' +
+                    '<p><a href="/generate">Try again</a></p>';
+            }
         });
-        
+
         // Clear interval on page unload
         window.addEventListener('beforeunload', function() {
             if (window.stepInterval) {
