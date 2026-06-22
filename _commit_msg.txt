@@ -1,48 +1,39 @@
-feat(search): add provider fallback chain for resilient web search
+fix(results): correct display bugs for low-TEF (sub-annual) risk scenarios
 
-Adds transparent failover so web search continues when the primary provider
-hits quota, rate limits, or a transient outage — invisible to end-users.
+TEF values like 0.01 (once per 100 years) are valid FAIR inputs but exposed
+three display bugs in the results page.
 
-oic_search/base.py
-- Added fallback_providers: List[str] field to SearchConfig (default []).
-  Holds the ordered fallback chain; auth/not_configured failures do NOT
-  trigger it (they indicate misconfiguration, not transience).
+Bug 1 — Frequency histogram empty / single bar for TEF < 0.1
+  The chart used a fixed binSize of 0.1.  For a TEF max of e.g. 0.12 only
+  one meaningful bin was created, and for TEF max < 0.1 freqCounts had
+  length 0 and nothing rendered.  Fixed with adaptive binning that selects
+  the bin size based on the data range:
+    TEF max ≤ 0.05  → binSize 0.005   (e.g. 0.01 TEF → ~10 visible bars)
+    TEF max ≤ 0.20  → binSize 0.01
+    TEF max ≤ 1.00  → binSize 0.05
+    TEF max ≤ 5.00  → binSize 0.25
+    otherwise       → ceil(max/20)
+  Labels also format correctly at sub-0.1 magnitudes ("0.005 (1 in 200 yrs)").
 
-oic_search/config.py
-- Reads OIC_SEARCH_FALLBACK env var (comma-separated) and validates each
-  entry against the known provider list at load time.
-  Example: OIC_SEARCH_FALLBACK=brave
+Bug 2 — "Infinity% change" in controls panel
+  The percent-change lines divided originalStats.median and originalStats.p90
+  directly.  When TEF < 1 those are both $0 (correct — most years have no
+  event) and JS returns Infinity.  Replaced with a zero-safe pctChange()
+  helper that shows the absolute dollar delta vs the $0 baseline instead.
 
-oic_search/__init__.py
-- Added search_with_fallback(): tries primary provider, catches transient
-  errors (quota, rate_limit, timeout, unknown), logs the switch, and retries
-  with the next provider in the chain.  Permanent failures (auth,
-  not_configured) propagate immediately without trying fallbacks.
-  Cache check/store applies per provider; a cache hit short-circuits the chain.
-- Exported in __all__.
+Bug 3 — Misleading $0 Typical Year and $0 Bad Year for low-TEF
+  The unconditional p50/p90 being $0 is statistically correct but confusing.
+  Two additions:
+  - A "ℹ️ N% chance of loss year" annotation under the Typical Year stat.
+  - A new "Low-Frequency Event — Conditional Loss Context" card (orange
+    border, only shown when prob_event < 0.5) displaying the median, mean,
+    and 90th-percentile loss *given* that a loss year occurs.
 
-app/ai_question_generator.py
-- __init__ now resolves self.search_fallback_providers from OIC_SEARCH_FALLBACK
-  env var (already loaded by config.py bootstrap) and logs the full provider
-  chain at startup: "Web search enabled — provider chain: tavily → brave".
-- _execute_search() calls search_with_fallback() instead of search(), passing
-  the resolved chain; the fallback is entirely transparent to prompt assembly.
-- Exhausted-chain error logs the full chain for observability.
-
-deployment/gcp/deploy_infrastructure.sh
-- Added OIC_SEARCH_FALLBACK to both SECRETS[] and REQUIRED_SECRETS[] with a
-  safe interactive default of "brave".
-- Both TAVILY_API_KEY and BRAVE_SEARCH_API_KEY are now provisioned by default
-  (BRAVE_SEARCH_API_KEY remains skippable but warns that failover is lost).
-- OIC_SEARCH_FALLBACK prompt shows default value and accepts Enter-to-default.
-- Dynamic --set-secrets builder mounts OIC_SEARCH_FALLBACK; BRAVE_SEARCH_API_KEY
-  still conditionally mounted only when its secret exists.
-
-Typical production configuration:
-  OIC_SEARCH_PROVIDER=tavily
-  OIC_SEARCH_FALLBACK=brave
-  TAVILY_API_KEY=tvly-...
-  BRAVE_SEARCH_API_KEY=BSA...
+simulation.py
+  Added prob_event, conditional_mean, conditional_median, conditional_p90
+  to the results dict.  These are computed from the nonzero annual_loss
+  slice and passed through to both the initial /analyze render and the
+  /recalculate JSON response.
 
 Generated with [Devin](https://devin.ai)
 
