@@ -463,8 +463,10 @@
 
             try {
                 // oicSseFetch sends keepalive pings every 15 s so the tablet
-                // connection stays alive.  On completion the server returns
-                // {"redirect": "/questionnaire"} and we follow it.
+                // connection stays alive.  The server returns the filename and
+                // generation params in the result event — we cannot rely on
+                // Flask session writes inside an SSE generator because the
+                // response headers (Set-Cookie) are already sent by then.
                 const result = await oicSseFetch('/api/generate/stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -472,12 +474,27 @@
                 });
 
                 clearInterval(stepInterval);
-                if (result && result.redirect) {
-                    window.location.href = result.redirect;
-                } else {
+
+                if (!result || !result.redirect) {
                     // Unexpected response — fall back to normal form submit
                     form.submit();
+                    return;
                 }
+
+                // Write questionnaire_filename and generation_params into the
+                // Flask session via a plain POST (not SSE), so the browser
+                // receives a proper Set-Cookie header before the redirect.
+                await fetch('/api/session/set', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        questionnaire_filename: result.questionnaire_filename,
+                        generation_params:      result.generation_params
+                    })
+                });
+
+                window.location.href = result.redirect;
+
             } catch (err) {
                 clearInterval(stepInterval);
                 console.error('Generation error:', err);

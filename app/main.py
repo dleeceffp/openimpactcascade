@@ -634,7 +634,7 @@ def generate_stream():
 
     def _work():
         # NOTE: do NOT touch session or request here — this runs on a thread
-        # without a request context.  All needed values are captured above.
+        # without a request context.  All values needed are captured above.
         questions = ai_generator.generate_questionnaire(
             industry=industry,
             region=region,
@@ -645,11 +645,17 @@ def generate_stream():
         )
         filename = save_questionnaire(questions, industry, region, VERSION)
         logger.info(f"[{VERSION}] [stream] Generation complete, saved to {filename}")
-        # Return the data the main thread needs — do NOT use url_for here
-        # (needs app context, which is available but request context is not).
+        # Return everything the browser needs.  The browser JS will:
+        #   1. POST questionnaire_filename + generation_params to /api/session/set
+        #      (a normal fetch whose response CAN set the session cookie)
+        #   2. Then follow the redirect URL.
+        # We cannot write to Flask's session here because the SSE response
+        # headers (including Set-Cookie) were already sent before this result
+        # event is emitted.
         return {
-            '_filename': filename,
-            '_generation_params': {
+            'redirect': '/questionnaire',
+            'questionnaire_filename': filename,
+            'generation_params': {
                 'industry': industry,
                 'region': region,
                 'organization_size': org_size,
@@ -659,15 +665,8 @@ def generate_stream():
             },
         }
 
-    def _after(result):
-        # Runs on the main thread (request context still active via
-        # stream_with_context) — safe to write session here.
-        session['questionnaire_filename'] = result.pop('_filename')
-        session['generation_params'] = result.pop('_generation_params')
-        result['redirect'] = url_for('questionnaire')
-
     return Response(
-        stream_with_context(_run_with_sse_keepalive(_work, on_result=_after)),
+        stream_with_context(_run_with_sse_keepalive(_work)),
         headers=SSE_HEADERS,
     )
 
@@ -982,6 +981,37 @@ Return JSON format:
     result = json.loads(content)
     logger.info(f"[{VERSION}] Successfully refined scenario: {len(result.get('scenarios', []))} options")
     return result
+
+@app.route('/api/session/set', methods=['POST'])
+def session_set():
+    """Write a small set of allow-listed keys into the Flask session.
+
+    Used by the SSE generate flow: the browser receives the completed result
+    as a JSON SSE event, then immediately POSTs the questionnaire filename and
+    generation params here before following the redirect.  This is necessary
+    because Flask's cookie-based session is written only when the HTTP response
+    is finalised — any session mutation that happens inside an SSE generator
+    (after headers are already sent) is silently lost.
+
+    Only a fixed allow-list of keys may be set to prevent arbitrary session
+    manipulation.
+    """
+    ALLOWED_KEYS = {'questionnaire_filename', 'generation_params'}
+    try:
+        data = request.get_json() or {}
+        updated = []
+        for key, value in data.items():
+            if key in ALLOWED_KEYS:
+                session[key] = value
+                updated.append(key)
+            else:
+                logger.warning(f"[{VERSION}] session_set: rejected key '{key}'")
+        logger.info(f"[{VERSION}] session_set: wrote {updated}")
+        return jsonify({'status': 'ok', 'updated': updated})
+    except Exception as e:
+        logger.error(f"[{VERSION}] session_set error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/questionnaire')
 def questionnaire():
