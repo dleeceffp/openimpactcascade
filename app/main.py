@@ -1415,12 +1415,16 @@ Be concise, practical, and supportive."""
     
     response_text = message.content[0].text
     
-    # Save chat exchange to AssessmentContext in SQLite
+    # Save chat exchange to AssessmentContext in SQLite.
+    # Use the pre-captured session_id (thread-safe); fall back to flask_session
+    # only when called from the main request thread (session_id still None).
     try:
-        from flask import session as flask_session
-        session_id = flask_session.get('context_session_id')
-        if session_id:
-            context_dict = context_storage.load(session_id)
+        save_session_id = session_id
+        if save_session_id is None:
+            from flask import session as flask_session
+            save_session_id = flask_session.get('context_session_id')
+        if save_session_id:
+            context_dict = context_storage.load(save_session_id)
             if context_dict:
                 assessment_context = AssessmentContext.from_dict(context_dict)
                 current_q_id = assessment_context.current_question_id
@@ -1429,7 +1433,7 @@ Be concise, practical, and supportive."""
                     assistant_response=response_text,
                     question_id=current_q_id
                 )
-                context_storage.save(session_id, assessment_context.to_dict())
+                context_storage.save(save_session_id, assessment_context.to_dict())
                 logger.info(f"[{VERSION}] Chat exchange saved to AssessmentContext")
     except Exception as e:
         logger.warning(f"[{VERSION}] Could not save chat to context: {e}")
