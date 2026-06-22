@@ -74,35 +74,56 @@ def _sse_event(event: str, data: str = "") -> str:
     return f"event: {event}\ndata: {data}\n\n"
 
 
-def _run_with_sse_keepalive(work_fn):
+def _run_with_sse_keepalive(work_fn, on_result=None):
     """Run *work_fn()* on a thread; yield SSE frames until it finishes.
 
     work_fn must return a dict that will be JSON-serialised into the
     ``result`` event.  Any exception becomes an ``error`` event.
 
+    The worker thread receives a copy of the Flask **app context** (not the
+    request context) so that helpers such as ``url_for`` work inside it.
+    The request context (and therefore ``session``, ``request``, etc.) is
+    intentionally NOT pushed — all request-context values must be captured
+    as plain Python variables before calling this function and closed over
+    by work_fn.  This is the only safe pattern for threaded Flask workers.
+
+    on_result(dict) is an optional callback invoked on the *main* thread
+    (still inside the request context, before the SSE result frame is sent)
+    so that session writes or other request-context work can be done after
+    the background thread completes.
+
     Usage inside a Flask route::
 
         @app.route('/some/endpoint', methods=['POST'])
         def my_endpoint():
-            # capture everything needed BEFORE entering the generator
+            # Capture everything before entering the generator.
+            # Do NOT read session/request inside work_fn.
             payload = request.get_json()
+            captured_session_id = session.get('context_session_id')
 
             def work():
                 ...
                 return {"status": "success", "data": ...}
 
+            def after(result):
+                session['some_key'] = result['data']   # safe — main thread
+
             return Response(
-                stream_with_context(_run_with_sse_keepalive(work)),
+                stream_with_context(_run_with_sse_keepalive(work, on_result=after)),
                 headers=SSE_HEADERS,
             )
     """
     result_q: queue.Queue = queue.Queue()
+    # Capture the app context NOW (main thread, inside a request) so the
+    # worker can push it without needing the request context.
+    app_ctx = app.app_context()
 
     def _worker():
-        try:
-            result_q.put(("ok", work_fn()))
-        except Exception as exc:
-            result_q.put(("err", exc))
+        with app_ctx:
+            try:
+                result_q.put(("ok", work_fn()))
+            except Exception as exc:
+                result_q.put(("err", exc))
 
     t = threading.Thread(target=_worker, daemon=True)
     t.start()
@@ -116,6 +137,13 @@ def _run_with_sse_keepalive(work_fn):
             yield _sse_event("keepalive", "")
 
     if kind == "ok":
+        # Run the optional post-result hook on the main thread (request ctx
+        # is still active here because stream_with_context keeps it alive).
+        if on_result is not None:
+            try:
+                on_result(value)
+            except Exception as exc:
+                logger.warning("SSE on_result callback raised: %s", exc)
         yield _sse_event("result", json.dumps(value))
     else:
         logger.error("SSE worker raised: %s", value, exc_info=value)
@@ -605,6 +633,8 @@ def generate_stream():
     logger.info(f"[{VERSION}] [stream] Generating questionnaire for {industry}/{region} (user={user_id})")
 
     def _work():
+        # NOTE: do NOT touch session or request here — this runs on a thread
+        # without a request context.  All needed values are captured above.
         questions = ai_generator.generate_questionnaire(
             industry=industry,
             region=region,
@@ -614,22 +644,30 @@ def generate_stream():
             archetype_card=archetype_card,
         )
         filename = save_questionnaire(questions, industry, region, VERSION)
-        # Store in session (safe because the worker calls back into the
-        # same session object; Flask-session writes happen on response close).
-        session['questionnaire_filename'] = filename
-        session['generation_params'] = {
-            'industry': industry,
-            'region': region,
-            'organization_size': org_size,
-            'selected_archetype_id': archetype_card.id if archetype_card else None,
-            'generated_at': datetime.now().isoformat(),
-            'version': VERSION,
-        }
         logger.info(f"[{VERSION}] [stream] Generation complete, saved to {filename}")
-        return {'redirect': url_for('questionnaire')}
+        # Return the data the main thread needs — do NOT use url_for here
+        # (needs app context, which is available but request context is not).
+        return {
+            '_filename': filename,
+            '_generation_params': {
+                'industry': industry,
+                'region': region,
+                'organization_size': org_size,
+                'selected_archetype_id': archetype_card.id if archetype_card else None,
+                'generated_at': datetime.now().isoformat(),
+                'version': VERSION,
+            },
+        }
+
+    def _after(result):
+        # Runs on the main thread (request context still active via
+        # stream_with_context) — safe to write session here.
+        session['questionnaire_filename'] = result.pop('_filename')
+        session['generation_params'] = result.pop('_generation_params')
+        result['redirect'] = url_for('questionnaire')
 
     return Response(
-        stream_with_context(_run_with_sse_keepalive(_work)),
+        stream_with_context(_run_with_sse_keepalive(_work, on_result=_after)),
         headers=SSE_HEADERS,
     )
 
@@ -1095,15 +1133,20 @@ def chat():
         logger.info(f"[{VERSION}] Chat request from {user_id}: {user_message[:50]}...")
 
         if 'text/event-stream' in request.headers.get('Accept', ''):
+            # Capture session_id here on the main thread — the worker thread
+            # cannot read flask_session (no request context).
+            captured_session_id = session.get('context_session_id')
+
             def _work():
-                resp = generate_chat_response(user_message, context, user_id)
+                resp = generate_chat_response(user_message, context, user_id,
+                                              session_id=captured_session_id)
                 return {'status': 'success', 'response': resp, 'version': VERSION}
             return Response(
                 stream_with_context(_run_with_sse_keepalive(_work)),
                 headers=SSE_HEADERS,
             )
 
-        # Plain JSON path (legacy / non-SSE callers)
+        # Plain JSON path (legacy / non-SSE callers) — session is readable here
         response = generate_chat_response(user_message, context, user_id)
         return jsonify({'status': 'success', 'response': response, 'version': VERSION})
 
@@ -1111,8 +1154,14 @@ def chat():
         logger.error(f"[{VERSION}] Error in chat: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
-def generate_chat_response(user_message: str, context: Dict, user_id: str) -> str:
-    """Generate chat response using Claude with currated-context grounding, optionally supplemented by web search when currated-context has gaps."""
+def generate_chat_response(user_message: str, context: Dict, user_id: str,
+                           session_id: Optional[str] = None) -> str:
+    """Generate chat response using Claude with currated-context grounding, optionally supplemented by web search when currated-context has gaps.
+
+    session_id should be pre-captured from Flask's session *before* entering
+    any background thread.  When None the function falls back to reading
+    flask_session directly (which only works on the main request thread).
+    """
     import anthropic
     from corpus.retrieve import get_rag_engine as get_corpus_retriever
     
@@ -1194,11 +1243,14 @@ Be concise, practical, and supportive."""
     
     prompt_parts.append(f"User question: {user_message}")
     
-    # Try to load full AssessmentContext from SQLite storage for enhanced context
+    # Try to load full AssessmentContext from SQLite storage for enhanced context.
+    # Use the pre-captured session_id when provided (thread-safe path); fall back
+    # to reading flask_session only when called from the main request thread.
     assessment_summary = None
     try:
-        from flask import session as flask_session
-        session_id = flask_session.get('context_session_id')
+        if session_id is None:
+            from flask import session as flask_session
+            session_id = flask_session.get('context_session_id')
         if session_id:
             context_dict = context_storage.load(session_id)
             if context_dict:
@@ -1587,8 +1639,11 @@ def chat_results():
         logger.info(f"[{VERSION}] Results chat request from {user_id}: {user_message[:50]}...")
 
         if 'text/event-stream' in request.headers.get('Accept', ''):
+            captured_session_id = session.get('context_session_id')
+
             def _work():
-                resp = generate_chat_response(user_message, context, user_id)
+                resp = generate_chat_response(user_message, context, user_id,
+                                              session_id=captured_session_id)
                 return {'status': 'success', 'response': resp, 'version': VERSION}
             return Response(
                 stream_with_context(_run_with_sse_keepalive(_work)),
