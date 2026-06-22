@@ -130,6 +130,14 @@ def run_monte_carlo(
             np.add.at(annual_loss, trial_idx, severities)
     
     # Calculate statistics
+    nonzero_loss = annual_loss[annual_loss > 0]
+    prob_event = float(len(nonzero_loss)) / n_simulations  # P(at least one event in year)
+    # Conditional stats: given that a loss event occurs this year.
+    # These are the meaningful numbers when TEF < 1 (most years are $0).
+    conditional_mean   = float(np.mean(nonzero_loss))   if len(nonzero_loss) > 0 else 0.0
+    conditional_median = float(np.median(nonzero_loss)) if len(nonzero_loss) > 0 else 0.0
+    conditional_p90    = float(np.percentile(nonzero_loss, 90)) if len(nonzero_loss) > 0 else 0.0
+
     results = {
         'mean': float(np.mean(annual_loss)),
         'std': float(np.std(annual_loss)),
@@ -142,6 +150,13 @@ def run_monte_carlo(
         'p90': float(np.percentile(annual_loss, 90)),
         'p95': float(np.percentile(annual_loss, 95)),
         'p99': float(np.percentile(annual_loss, 99)),
+        # Conditional statistics (given at least one event occurs this year).
+        # When TEF < 1, unconditional p50/p90 are often $0 (no event most years);
+        # conditional stats show the severity when a loss year does occur.
+        'prob_event': prob_event,
+        'conditional_mean': conditional_mean,
+        'conditional_median': conditional_median,
+        'conditional_p90': conditional_p90,
         'distribution_info': {
             'lef': lef_distribution,
             'lm': lm_distribution,

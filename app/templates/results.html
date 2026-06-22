@@ -19,6 +19,14 @@
         }
         
         /* Results page specific chat styles */
+        /* Small annotation under a stat-box value */
+        .stat-note {
+            font-size: 0.75em;
+            color: #c05621;
+            margin-top: 2px;
+            font-style: italic;
+        }
+
         /* Prior-history entries (from questionnaire / scenario-setup screens) are
            rendered in a muted style so they're readable but clearly distinct from
            the current results-page conversation. */
@@ -443,10 +451,16 @@
         </div>
         {% endif %}
         
+        {% set low_tef = results.p50 == 0 and results.prob_event is defined and results.prob_event < 0.5 %}
         <div class="stats-banner">
             <div class="stat-box">
                 <div class="stat-label">Typical Year (Median)</div>
                 <div class="stat-value">${{ "{:,.0f}".format(results.p50) }}</div>
+                {% if low_tef %}
+                <div class="stat-note" title="TEF &lt; 1: most years have no event. Conditional median shown below.">
+                    ℹ️ {{ "{:.0f}".format(results.prob_event * 100) }}% chance of loss year
+                </div>
+                {% endif %}
             </div>
             <div class="stat-box">
                 <div class="stat-label">Expected Loss (Mean)</div>
@@ -455,12 +469,40 @@
             <div class="stat-box">
                 <div class="stat-label">Bad Year (90th %ile)</div>
                 <div class="stat-value">${{ "{:,.0f}".format(results.p90) }}</div>
+                {% if low_tef and results.p90 == 0 %}
+                <div class="stat-note">0 in 9 of 10 yrs</div>
+                {% endif %}
             </div>
             <div class="stat-box">
                 <div class="stat-label">Catastrophic (95th %ile)</div>
                 <div class="stat-value">${{ "{:,.0f}".format(results.p95) }}</div>
             </div>
         </div>
+        {% if low_tef %}
+        <div class="card" style="border-left: 4px solid #ed8936; background: #fffbf2; margin-bottom: 16px;">
+            <h3 style="color:#c05621; margin-top:0;">📊 Low-Frequency Event — Conditional Loss Context</h3>
+            <p style="margin:0 0 8px 0; font-size:0.9em; color:#744210;">
+                Loss Event Frequency is below 1 per year
+                ({{ "~1 in {:.0f}".format(1 / results.prob_event) if results.prob_event > 0 else "rare" }} years).
+                The unconditional percentiles above reflect the <em>annual</em> view — most years show $0 because no event occurs.
+                The figures below show what losses look like <strong>when a loss year does happen</strong>.
+            </p>
+            <div class="stats-banner" style="margin:0;">
+                <div class="stat-box">
+                    <div class="stat-label">If Event Occurs — Typical Loss</div>
+                    <div class="stat-value" style="color:#c05621;">${{ "{:,.0f}".format(results.conditional_median) }}</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">If Event Occurs — Mean Loss</div>
+                    <div class="stat-value" style="color:#c05621;">${{ "{:,.0f}".format(results.conditional_mean) }}</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">If Event Occurs — 90th %ile</div>
+                    <div class="stat-value" style="color:#c05621;">${{ "{:,.0f}".format(results.conditional_p90) }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
         
         <div class="card">
             <h2>🎛️ Model Control Effectiveness</h2>
@@ -729,13 +771,22 @@
             document.getElementById('newMedian').textContent = '$' + newMedian.toLocaleString('en-US', {maximumFractionDigits: 0});
             document.getElementById('newP90').textContent = '$' + newP90.toLocaleString('en-US', {maximumFractionDigits: 0});
             
-            const meanChange = ((newMean - originalStats.mean) / originalStats.mean * 100).toFixed(1);
-            const medianChange = ((newMedian - originalStats.median) / originalStats.median * 100).toFixed(1);
-            const p90Change = ((newP90 - originalStats.p90) / originalStats.p90 * 100).toFixed(1);
-            
-            document.getElementById('meanChange').textContent = meanChange + '% change';
-            document.getElementById('medianChange').textContent = medianChange + '% change';
-            document.getElementById('p90Change').textContent = p90Change + '% change';
+            // Zero-safe percent change: when baseline is $0 (common for p50/p90
+            // with TEF < 1 where most years have no event) show the absolute
+            // delta instead of dividing by zero.
+            function pctChange(newVal, oldVal) {
+                if (oldVal === 0) {
+                    if (newVal === 0) return 'no change';
+                    const sign = newVal > 0 ? '+' : '';
+                    return sign + '$' + Math.abs(newVal).toLocaleString('en-US', {maximumFractionDigits: 0}) + ' vs $0 baseline';
+                }
+                const pct = ((newVal - oldVal) / Math.abs(oldVal) * 100).toFixed(1);
+                return pct + '% change';
+            }
+
+            document.getElementById('meanChange').textContent   = pctChange(newMean,   originalStats.mean);
+            document.getElementById('medianChange').textContent = pctChange(newMedian, originalStats.median);
+            document.getElementById('p90Change').textContent    = pctChange(newP90,    originalStats.p90);
             
             document.getElementById('controlResults').style.display = 'block';
             updateCharts();
@@ -754,28 +805,49 @@
             updateCharts();
         }
         
-        // Create frequency chart
+        // Create frequency chart — adaptive binning so low-TEF inputs
+        // (e.g. 0.01 = once per 100 years) still produce a readable histogram.
         function createFrequencyChart(lef) {
-            const binSize = 0.1;
             const maxFreq = Math.max(...lef);
+            const minFreq = Math.min(...lef.filter(f => f > 0));
+
+            // Choose bin size adaptively: aim for ~10-20 bins across the range.
+            // For TEF < 0.1 the fixed 0.1 bin swallowed all values into one bar.
+            let binSize;
+            if (maxFreq <= 0.05) {
+                binSize = 0.005;          // e.g. 0.01 TEF -> bins of 0.005
+            } else if (maxFreq <= 0.2) {
+                binSize = 0.01;
+            } else if (maxFreq <= 1.0) {
+                binSize = 0.05;
+            } else if (maxFreq <= 5.0) {
+                binSize = 0.25;
+            } else {
+                binSize = Math.ceil(maxFreq / 20);
+            }
+
+            const numBins = Math.max(Math.ceil(maxFreq / binSize), 1);
             const freqBins = [];
-            
-            for (let i = 0; i <= Math.ceil(maxFreq / binSize); i++) {
+            for (let i = 0; i <= numBins; i++) {
                 freqBins.push(i * binSize);
             }
-            
+
             const freqCounts = new Array(freqBins.length - 1).fill(0);
             lef.forEach(f => {
                 const binIndex = Math.min(Math.floor(f / binSize), freqCounts.length - 1);
                 freqCounts[binIndex]++;
             });
-            
+
             const freqLabels = freqBins.slice(0, -1).map(bin => {
                 const freq = bin + binSize / 2;
-                const years = freq > 0 ? (1 / freq).toFixed(1) : '∞';
-                return `${freq.toFixed(2)} (1 in ${years} yrs)`;
+                if (freq <= 0) return '0';
+                const years = 1 / freq;
+                // Format label based on magnitude: "0.01 (1 in 100 yrs)" etc.
+                const freqStr = freq < 0.1 ? freq.toFixed(3) : freq.toFixed(2);
+                const yrsStr  = years >= 10 ? Math.round(years) + '' : years.toFixed(1);
+                return `${freqStr} (1 in ${yrsStr} yrs)`;
             });
-            
+
             return { labels: freqLabels, data: freqCounts };
         }
         
