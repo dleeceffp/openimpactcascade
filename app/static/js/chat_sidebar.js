@@ -61,6 +61,15 @@ const ChatSidebar = {
                     ChatSidebar.sendMessage();
                 }
             });
+
+            // On iPad/tablet, when the virtual keyboard opens the fixed sidebar
+            // can extend below the visible viewport.  Scroll the input into view
+            // so the user can see what they are typing.
+            chatInput.addEventListener('focus', function() {
+                setTimeout(function() {
+                    chatInput.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }, 150);
+            });
         }
 
         // Mobile chat toggle
