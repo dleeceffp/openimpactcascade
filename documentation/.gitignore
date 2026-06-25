@@ -18,3 +18,9 @@
 
 # Re-include this file itself
 !.gitignore
+
+# recommend before code pushes
+!coding_instructions/
+!coding_instructions/**
+!project/
+!project/**

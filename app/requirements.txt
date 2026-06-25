@@ -9,6 +9,12 @@ gunicorn>=21.2.0,<22.0
 anthropic>=0.39.0,<0.50
 httpx>=0.25.0,<1.0           # Required by Anthropic SDK for HTTP transport
 
+# --- OIC search module (shared grounding layer — Tavily / Brave / null) ---
+# The oic_search package itself lives in src/oic_search/ and is injected via
+# PYTHONPATH in the Dockerfile; no wheel install needed.
+# Both providers call the REST APIs directly via requests (already listed above),
+# so no extra provider SDK packages are required here.
+
 # --- GCP Auth (Cloud Run identity / Secret Manager) ---
 google-auth>=2.25.0,<3.0
 

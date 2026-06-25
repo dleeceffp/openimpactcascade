@@ -1,0 +1,30 @@
+fix(ui): reduce chat sidebar vertical footprint on iPad/tablet
+
+The chat sidebar on iPad rendered with a fixed 100vh height, so when the
+virtual keyboard opened the input area at the bottom fell below the visible
+viewport and users could not type into it.
+
+Changes:
+
+- chat_sidebar.css
+  - Use `height: 100dvh` (dynamic viewport height) so the sidebar matches the
+    actually-visible viewport on iOS/iPad when the keyboard is open, with
+    `100vh` as a fallback.
+  - Tightened default vertical spacing:
+    - header padding 20px -> 15px, title 1.2em -> 1.1em
+    - messages padding 20px -> 15px, message margin 20px -> 14px
+    - bubble padding 15px -> 12px, line-height 1.6 -> 1.5
+    - input-container padding 15px -> 12px
+    - input padding 12px -> 10px
+    - send-btn padding 12px 24px -> 10px 18px
+  - Added `@media (max-height: 700px)` to compress all those values again
+    when the keyboard is open or the device is in short landscape.
+
+- chat_sidebar.js
+  - Added a `focus` listener on `#chatInput` that calls `scrollIntoView` so
+    the input is brought into the visible area on iPad/tablet when the
+    on-screen keyboard appears.
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

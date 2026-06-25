@@ -25,9 +25,11 @@ COPY app/main.py /app/
 COPY app/config.py /app/
 COPY app/ai_question_generator.py /app/
 COPY app/simulation.py /app/
-COPY app/vertex_rag.py /app/
 COPY app/user_tracking.py /app/
 COPY app/context_storage.py /app/
+
+# Copy shared OIC modules (oic_search — pluggable search/grounding layer)
+COPY src/oic_search/ /app/lib/oic_search/
 
 # Copy corpus module
 COPY app/corpus/ /app/corpus/
@@ -36,8 +38,9 @@ COPY app/corpus/ /app/corpus/
 COPY app/cards/ /app/cards/
 
 # Copy ONLY the compressed cascade-archetype cards (not other generated artifacts).
-# The detailed source flows are intentionally left out of the image for now.
-COPY app/generated/cascade_archetypes/ /app/generated/cascade_archetypes/
+# Cards now live at the repo root generated/cascade_archetypes/ (moved from app/generated/).
+# Detailed source flows (attack_flows/, fair_reports/) are gitignored and never shipped.
+COPY generated/cascade_archetypes/ /app/generated/cascade_archetypes/
 
 # Copy static assets directory structure
 COPY app/static/ /app/static/
@@ -57,6 +60,9 @@ RUN mkdir -p /app/generated \
 ENV FLASK_APP=main.py
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
+# Make the shared oic_search package importable without a pip install.
+# /app/lib sits alongside the app code; both are on the path.
+ENV PYTHONPATH=/app/lib
 
 # Expose port
 EXPOSE 8080

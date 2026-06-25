@@ -23,22 +23,37 @@ logs/api_calls/
 # Test cache
 .pytest_cache/
 
-# Generated --
-generated/*
-!generated/.gitkeep
+# Generated output — single root generated/ for all features.
+# Runtime output (timestamped files) is gitignored.
+# Committed content: cascade archetype cards, sample attack flows.
+# Each subdir has a .gitkeep anchor so the directory tree is preserved.
+generated/**
+!generated/**/
+!generated/**/.gitkeep
+!generated/cascade_archetypes/*.md
+!generated/attack_flows/*.afb
+!generated/attack_flows/*.md
+
+# app/generated/ is no longer used — all output goes to root generated/.
+# Left here so Docker build doesn't fail if old path is still referenced.
 app/generated/*
 !app/generated/.gitkeep
-!app/generated/cascade_archetypes/
 
 # Documentation --
 documentation/historical/
-documentation/project/
-documentation/coding_instructions/
 refdocs/code_agent_instructions_arch/
 
 # Archives -- never ship archive directories
 archives/
 tools/archives/
+
+# Uncomment when merging
+tools/attack_flow_workbench/
+documentation/project/
+documentation/coding_instructions/
+_commit_msg.txt
+tests/attack_flow_workbench/
+
 
 # refdocs -- exclude source PDFs and dev instruction markdowns; keep grounding data
 refdocs/breach_pillar/source_reports_breach/
