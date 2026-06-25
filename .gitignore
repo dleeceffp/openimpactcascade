@@ -47,6 +47,12 @@ refdocs/code_agent_instructions_arch/
 archives/
 tools/archives/
 
+# Uncomment when merging
+tools/attack_flow_workbench/
+documentation/project/
+documentation/coding_instructions/
+_commit_msg.txt
+
 # refdocs -- exclude source PDFs and dev instruction markdowns; keep grounding data
 refdocs/breach_pillar/source_reports_breach/
 refdocs/finance_pillar/source_reports_finance/
