@@ -52,6 +52,8 @@ tools/attack_flow_workbench/
 documentation/project/
 documentation/coding_instructions/
 _commit_msg.txt
+tests/attack_flow_workbench/
+
 
 # refdocs -- exclude source PDFs and dev instruction markdowns; keep grounding data
 refdocs/breach_pillar/source_reports_breach/
